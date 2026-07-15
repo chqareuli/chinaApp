@@ -92,6 +92,43 @@ invariant true without exposing gramGrp/POS UI yet.
 `ReferenceMaterialController`, `AccountingController`, `NotificationsController`,
 `VocabController`, `AuditController`.
 
+## Status workflow (resolved role × transition rules)
+
+A second, shorter spec (from a third team member) described a narrower ZH-editor scope
+(`new_entry → zh_review → ka_review` only, forward-only). Product owner decision: **the
+original detailed spec below is authoritative**; the narrower version is not implemented. Revisit
+only if explicitly requested again.
+
+| From status | To status | Super Admin | Chief Editor | ZH Editor | KA Editor | Assistant Editor |
+|---|---|---|---|---|---|---|
+| new_entry | zh_review / ka_review / ready / published | Yes | Yes | Yes | No | No |
+| new_entry | zh_review / higher, *by a supervisor promoting an assistant's entry* | Yes | Yes | Yes | No | No (may remain `main_author`) |
+| zh_review | new_entry / ka_review / ready | Yes | Yes | Yes | No | No |
+| zh_review | published | Yes | Yes | No | No | No |
+| ka_review | zh_review | Yes | Yes | Yes | Yes | No |
+| ka_review | ready | Yes | Yes | Yes | Yes | No |
+| ka_review | published | Yes | Yes | No | No | No |
+| ready | zh_review / ka_review | Yes | Yes | Yes (not from published) | No | No |
+| ready | published | Yes | Yes | No | No | No |
+| published | any lower status | Yes | Yes | No | No | No |
+| any | archived / problem flag | Yes | Yes | No | No | No |
+
+Summary: ZH Editor may move an entry freely among `new_entry`/`zh_review`/`ka_review`/`ready` in
+either direction, but never publishes and never moves a published entry backward. KA Editor may
+only move `ka_review ↔ zh_review` and `ka_review → ready`. Only Chief Editor/Super Admin publish,
+un-publish, or archive. Assistant Editor never changes status directly.
+
+### Status colors (reference for the future Angular UI — no backend impact)
+
+| Status | Label (ka) | Color |
+|---|---|---|
+| new_entry | ახალი სტატია | gray |
+| zh_review | ჩინური შემოწმება | red |
+| ka_review | ქართული შემოწმება | blue |
+| ready | მზადაა | green |
+| published | გამოქვეყნებული | black |
+| archived | არქივი | *(not specified yet)* |
+
 ## Phased roadmap
 
 - **M1 (done)** — solution scaffold, EF Core+Npgsql wiring, empty `ChiniseDbContext`,
