@@ -5,6 +5,7 @@ public site are built separately and are not part of this repo.
 
 Full architecture rationale and phased roadmap: see
 `docs/backend-plan.md` (mirrors the plan agreed with the product owner).
+Current milestone / what's next: see `docs/PROGRESS.md`.
 
 ## Solution layout
 
