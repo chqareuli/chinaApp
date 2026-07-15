@@ -30,6 +30,16 @@ business logic directly.
    cd src/Chiniseapp.Api
    dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=ChinesDbGeo;Username=postgres;Password=..."
    ```
+   Also set JWT signing config and the bootstrap super_admin credentials (never committed):
+   ```
+   dotnet user-secrets set "Jwt:Issuer" "chiniseapp-api"
+   dotnet user-secrets set "Jwt:Audience" "chiniseapp-clients"
+   dotnet user-secrets set "Jwt:SigningKey" "$(openssl rand -base64 48)"   # >= 256 bits
+   dotnet user-secrets set "Jwt:AccessTokenMinutes" "30"
+   dotnet user-secrets set "Jwt:RefreshTokenDays" "14"
+   dotnet user-secrets set "Seed:SuperAdminEmail" "admin@chinese.ge"
+   dotnet user-secrets set "Seed:SuperAdminPassword" "<pick one>"
+   ```
 3. `dotnet build` from the repo root.
 4. Apply migrations (first run, and after pulling new ones):
    ```
@@ -39,7 +49,11 @@ business logic directly.
      --startup-project src/Chiniseapp.Api/Chiniseapp.Api.csproj
    ```
 5. `dotnet run --project src/Chiniseapp.Api` → Swagger at `/swagger`,
-   `GET /health/db` proves the Api → Infrastructure → Postgres wiring is live.
+   `GET /health/db` proves the Api → Infrastructure → Postgres wiring is live. On first run this
+   also bootstraps the `super_admin` account from the `Seed:*` secrets above.
+6. `POST /auth/login` with `{"email": "...", "password": "..."}` returns an access token
+   (use as `Authorization: Bearer <token>`) and sets an httpOnly refresh-token cookie — requires
+   HTTPS locally (`dotnet dev-certs https --trust` once), since the cookie is `Secure`.
 
 To add a new migration after changing entities/configurations:
 ```
@@ -57,7 +71,8 @@ genuine structured data (not raw text) so it's a real subset of Stage 2, not a r
 - **M1 (done)** — solution scaffold, EF Core+Npgsql wiring, empty `ChiniseDbContext`, `/health/db`.
 - **M2 (done)** — Postgres enums, `ControlledVocabulary`, `Editor`, `Entry`, `Segment` and the
   rest of the Stage-1 entity set + configurations/indexes; first migration applied.
-- **M3** — Auth (Identity + JWT), role claim, seed one `super_admin`.
+- **M3 (done)** — JWT auth (login/refresh/logout), role claims, live deactivation check,
+  bootstrap `super_admin` seeding, basic editor management endpoints.
 - **M4** — Entry CRUD + reduced-shape segment save (Entry → Homonym → Sense →
   Definition/Example/ZhSegment/KaSegment, implicit hidden GramGrp), editor-list + search
   endpoints, optimistic concurrency.

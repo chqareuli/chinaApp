@@ -74,10 +74,12 @@ invariant true without exposing gramGrp/POS UI yet.
 
 ## Cross-cutting decisions
 
-- **Auth**: JWT bearer via ASP.NET Core Identity (`Editor : IdentityUser<int>`), short-lived
-  access token + refresh token in an httpOnly cookie. Role kept as a typed enum column (drives
-  the status-transition table directly in C#) but also emitted as a claim for
-  `[Authorize(Roles=)]`.
+- **Auth** (implemented M3): hand-rolled JWT bearer auth around the plain `Editor` entity —
+  `PasswordHasher<Editor>` used standalone for hashing (no `UserManager`/`IdentityDbContext`),
+  short-lived access token + stateless longer-lived refresh token in an httpOnly/Secure cookie.
+  Role kept as a typed enum column (drives the status-transition table directly in C#) and
+  emitted as a claim for `[Authorize(Roles=)]`. `IsActive` is re-checked against the DB on every
+  request (not just at token issuance), so deactivation takes effect immediately.
 - **Audit logging**: a generic `SaveChangesInterceptor` (catches all tracked changes) plus
   explicit semantic calls from services for meaningful events (StatusChanged, RoleChanged).
 - **Side effects** (scoring/notifications/audit on status change): plain **service-layer
@@ -139,7 +141,20 @@ un-publish, or archive. Assistant Editor never changes status directly.
   (`InitialCoreSchema`) applied to local Postgres. `Editor` is a plain entity, not
   `IdentityUser<int>` — Domain stays dependency-free; ASP.NET Identity/JWT plumbing is real M3
   work, not just a type it inherits from.
-- **M3** — Auth (Identity + JWT), role claim, seed one `super_admin`.
+- **M3 (done)** — Hand-rolled JWT auth around the plain `Editor` entity: `PasswordHasherService`
+  wraps ASP.NET Core Identity's `PasswordHasher<Editor>` standalone (PBKDF2, no
+  `UserManager`/`IdentityDbContext` — Editor stays a lean custom entity, not `IdentityUser<int>`,
+  per the M2 refinement); `JwtTokenService` issues short-lived access tokens (role/email/name
+  claims) and longer-lived stateless refresh tokens (identity claim only, re-validated against
+  the DB on every refresh so a role change or deactivation always takes effect); refresh token
+  travels as an httpOnly/Secure cookie scoped to `/auth`, access token as a bearer header.
+  `AddJwtAuthentication`'s `OnTokenValidated` hook re-checks `Editor.IsActive` on every request —
+  verified end-to-end that deactivating an editor immediately 401s their still-unexpired access
+  token, not just at natural expiry. `DbSeeder` idempotently bootstraps one `super_admin` from
+  `Seed:SuperAdminEmail`/`Seed:SuperAdminPassword` (user-secrets) on startup — no password hash
+  ever committed to source. `AuthController` (login/refresh/logout) and `EditorsController`
+  (me/list/get/create/deactivate/reactivate/reset-password) added; role-gated endpoints verified
+  against a live SuperAdmin + ZhEditor pair.
 - **M4** — Entry CRUD + reduced-shape segment save (implicit Homonym/GramGrp), editor-list +
   search endpoints, optimistic concurrency.
 - **M5** — Status workflow (`StatusTransitionRules`), MainAuthor lock logic, audit entries.

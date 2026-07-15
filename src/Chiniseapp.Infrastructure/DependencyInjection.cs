@@ -1,4 +1,6 @@
+using Chiniseapp.Application.Auth;
 using Chiniseapp.Domain.Enums;
+using Chiniseapp.Infrastructure.Auth;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -38,6 +40,10 @@ public static class DependencyInjection
         services.AddSingleton(dataSource);
         services.AddDbContext<ChiniseDbContext>(options =>
             options.UseNpgsql(dataSource).UseSnakeCaseNamingConvention());
+
+        services.AddScoped<IPasswordHasherService, PasswordHasherService>();
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IAuthService, AuthService>();
 
         return services;
     }
