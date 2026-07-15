@@ -31,8 +31,23 @@ business logic directly.
    dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=ChinesDbGeo;Username=postgres;Password=..."
    ```
 3. `dotnet build` from the repo root.
-4. `dotnet run --project src/Chiniseapp.Api` → Swagger at `/swagger`,
+4. Apply migrations (first run, and after pulling new ones):
+   ```
+   dotnet tool install --global dotnet-ef   # once
+   dotnet ef database update \
+     --project src/Chiniseapp.Infrastructure/Chiniseapp.Infrastructure.csproj \
+     --startup-project src/Chiniseapp.Api/Chiniseapp.Api.csproj
+   ```
+5. `dotnet run --project src/Chiniseapp.Api` → Swagger at `/swagger`,
    `GET /health/db` proves the Api → Infrastructure → Postgres wiring is live.
+
+To add a new migration after changing entities/configurations:
+```
+dotnet ef migrations add <Name> \
+  --project src/Chiniseapp.Infrastructure/Chiniseapp.Infrastructure.csproj \
+  --startup-project src/Chiniseapp.Api/Chiniseapp.Api.csproj \
+  --output-dir Persistence/Migrations
+```
 
 ## Roadmap
 
@@ -40,8 +55,8 @@ business logic directly.
 genuine structured data (not raw text) so it's a real subset of Stage 2, not a rewrite target.
 
 - **M1 (done)** — solution scaffold, EF Core+Npgsql wiring, empty `ChiniseDbContext`, `/health/db`.
-- **M2** — Postgres enums, `ControlledVocabulary`, `Editor`/Identity, `Entry`, `Segment` +
-  configurations/indexes; first migration.
+- **M2 (done)** — Postgres enums, `ControlledVocabulary`, `Editor`, `Entry`, `Segment` and the
+  rest of the Stage-1 entity set + configurations/indexes; first migration applied.
 - **M3** — Auth (Identity + JWT), role claim, seed one `super_admin`.
 - **M4** — Entry CRUD + reduced-shape segment save (Entry → Homonym → Sense →
   Definition/Example/ZhSegment/KaSegment, implicit hidden GramGrp), editor-list + search

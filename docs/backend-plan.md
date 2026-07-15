@@ -96,8 +96,12 @@ invariant true without exposing gramGrp/POS UI yet.
 
 - **M1 (done)** — solution scaffold, EF Core+Npgsql wiring, empty `ChiniseDbContext`,
   `/health/db` connectivity smoke check.
-- **M2** — Postgres enums, `ControlledVocabulary`, `Editor`/Identity, `Entry`, `Segment` +
-  configurations/indexes; first migration.
+- **M2 (done)** — Postgres enums, `ControlledVocabulary`, `Editor`, `Entry`, `Segment` and the
+  remaining Stage-1 entities (`Comment`, `ReferenceMaterial`, `ScoreEntry`, `Notification`,
+  `DirectMessage`, `AuditLogEntry`, `MediaAsset`) + configurations/indexes; first migration
+  (`InitialCoreSchema`) applied to local Postgres. `Editor` is a plain entity, not
+  `IdentityUser<int>` — Domain stays dependency-free; ASP.NET Identity/JWT plumbing is real M3
+  work, not just a type it inherits from.
 - **M3** — Auth (Identity + JWT), role claim, seed one `super_admin`.
 - **M4** — Entry CRUD + reduced-shape segment save (implicit Homonym/GramGrp), editor-list +
   search endpoints, optimistic concurrency.
