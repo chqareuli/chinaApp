@@ -1,6 +1,8 @@
 using Chiniseapp.Application.Auth;
+using Chiniseapp.Application.Entries;
 using Chiniseapp.Domain.Enums;
 using Chiniseapp.Infrastructure.Auth;
+using Chiniseapp.Infrastructure.Entries;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -44,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasherService, PasswordHasherService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IEntryService, EntryService>();
 
         return services;
     }

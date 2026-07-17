@@ -74,9 +74,10 @@ genuine structured data (not raw text) so it's a real subset of Stage 2, not a r
   rest of the Stage-1 entity set + configurations/indexes; first migration applied.
 - **M3 (done)** — JWT auth (login/refresh/logout), role claims, live deactivation check,
   bootstrap `super_admin` seeding, basic editor management endpoints.
-- **M4** — Entry CRUD + reduced-shape segment save (Entry → Homonym → Sense →
-  Definition/Example/ZhSegment/KaSegment, implicit hidden GramGrp), editor-list + search
-  endpoints, optimistic concurrency.
+- **M4 (done)** — Entry CRUD (`POST /entries`, `PUT /entries/{id}/content`, `GET /entries/{id}`,
+  `GET /entries`, `GET /entries/search`) against the reduced Stage-1 segment shape, full-replace
+  content save, optimistic concurrency (`rowVersion` / `xmin`), editor-list and search-dropdown
+  sort algorithms.
 - **M5** — Status workflow (`StatusTransitionRules`), MainAuthor lock logic, audit entries.
 - **M6** — Scoring + accounting endpoints.
 - **M7** — Notifications + direct messaging.

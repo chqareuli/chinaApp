@@ -155,8 +155,25 @@ un-publish, or archive. Assistant Editor never changes status directly.
   ever committed to source. `AuthController` (login/refresh/logout) and `EditorsController`
   (me/list/get/create/deactivate/reactivate/reset-password) added; role-gated endpoints verified
   against a live SuperAdmin + ZhEditor pair.
-- **M4** — Entry CRUD + reduced-shape segment save (implicit Homonym/GramGrp), editor-list +
-  search endpoints, optimistic concurrency.
+- **M4 (done)** — Entry CRUD against the reduced Stage-1 shape (`Entry → Homonym → Sense →
+  Definition/Example/ZhSegment/KaSegment`, one implicit hidden `GramGrp` per homonym, `Sense`
+  auto-numbered). `POST /entries` (headword-only minimum per spec §9), `PUT /entries/{id}/content`
+  (**full-replace** save — deletes and re-creates all segments inside one explicit DB transaction
+  so a concurrency conflict can't leave the old tree deleted without the new one committing;
+  partial/diff-based save that preserves segment ids across saves is deferred to Stage 2, once
+  Comments/XR actually need to target a specific segment), `GET /entries/{id}` (tree
+  reconstruction from the flat `segments` table), `GET /entries` (5.1 main-list: `status_priority`
+  asc + `updated_at_utc` desc, `new_entry` excluded — hits the M2 partial index directly),
+  `GET /entries/search?q=` (5.2 dropdown: starts-with on `search_normalized_title` via
+  `text_pattern_ops`, `title_length asc → status_priority asc → last_modified desc`, includes
+  `new_entry`). Optimistic concurrency via the `xmin` shadow property, exposed to clients as
+  `rowVersion`; a stale save returns 409. `POST`/`PUT` role-gated to
+  SuperAdmin/ChiefEditor/ZhEditor/AssistantEditor (= "Edit new_entry content" in the 11.1
+  permissions matrix — exact since every Stage-1 entry is perpetually `new_entry` until M5 adds
+  status transitions). New pure `Domain/Rules`: `EntryStatusPriority` (status → sort priority)
+  and `TitleNormalizer` (folds Chinese "，" to "," per 5.3), both unit-tested without a
+  `DbContext`. Verified live end-to-end, including the 409-on-stale-save and
+  KaEditor-cannot-create-entries cases.
 - **M5** — Status workflow (`StatusTransitionRules`), MainAuthor lock logic, audit entries.
 - **M6** — Scoring + accounting endpoints.
 - **M7** — Notifications + direct messaging.

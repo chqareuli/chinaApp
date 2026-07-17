@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Chiniseapp.Application.Auth;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
@@ -28,7 +27,7 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
     [HttpGet("me")]
     public async Task<ActionResult<EditorListItem>> Me(CancellationToken ct)
     {
-        var editor = await db.Editors.FindAsync([CurrentEditorId()], ct);
+        var editor = await db.Editors.FindAsync([User.GetEditorId()], ct);
         if (editor is null)
         {
             return NotFound();
@@ -128,9 +127,6 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
         await db.SaveChangesAsync(ct);
         return NoContent();
     }
-
-    private int CurrentEditorId() =>
-        int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     private static EditorListItem ToListItem(Editor e) =>
         new(e.Id, e.Email, e.DisplayName, e.Role.ToString(), e.IsActive, e.CreatedAtUtc);
