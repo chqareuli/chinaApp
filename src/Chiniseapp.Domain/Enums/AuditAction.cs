@@ -14,5 +14,6 @@ public enum AuditAction
     Deactivated,
     Archived,
     RepairModeToggled,
+    CommentAdded,
     Other,
 }

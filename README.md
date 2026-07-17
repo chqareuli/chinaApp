@@ -87,9 +87,12 @@ genuine structured data (not raw text) so it's a real subset of Stage 2, not a r
 - **M7 (done)** — Notifications on every entry change (`GET/POST /notifications`), fanned out to
   everyone who ever worked on the entry except the actor (no self-notifications), derived from
   the audit log; plain direct messaging (`GET/POST /messages`).
-- **M8** — Comments + Reference Material endpoints + legacy-import console tool (parses
-  `&Author&` / `#...#` comment markers and `**`/`***`/`****`/`*****` reference-material
-  segments from the old database).
+- **M8a (done)** — Comment CRUD (`GET/POST /entries/{id}/comments`, `PUT /comments/{id}`,
+  `POST /comments/{id}/archive`) and Reference Material get/save
+  (`GET/PUT /entries/{id}/reference-material`), both internal-only.
+- **M8b (not started)** — legacy-import console tool (parses `&Author&`/`#...#` comment
+  markers and `**`/`***`/`****`/`*****` reference-material segments from the old database) —
+  deferred until real legacy data/access is available.
 
 **Stage 2** (named only, detailed later) — full IE/XR/STYLE/DOMAIN authoring, gramGrp/POS UI,
 TEI-XML export/import, media library, segment reorder, refined permission edge cases, fuzzy

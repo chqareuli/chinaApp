@@ -228,9 +228,24 @@ un-publish, or archive. Assistant Editor never changes status directly.
   avoid confirming another editor's data exists). Verified live: the actor never notifies
   themselves, past contributors do get notified, cross-user mark-read is rejected, and messaging
   round-trips correctly for both parties.
-- **M8** — Comments + Reference Material endpoints + legacy-import console tool (parses
-  `&Author&`/`#...#` comments and `**`/`***`/`****`/`*****` reference-material segments from
-  the old database).
+- **M8a (done)** — `Comment` CRUD (`CommentsController`): list/add per entry, edit/archive
+  gated to the comment's own author or a Chief Editor/Super Admin override. Adding a comment
+  awards Additional score and notifies past contributors exactly like a content edit (10.1:
+  "commenting on another author's entry" is explicitly equivalent to editing it) — reuses
+  `IScoringService.AwardForContentEditAsync`/`INotificationService.NotifyEntryChangedAsync`
+  unchanged. Logs a new `AuditAction.CommentAdded` (required a migration to add the Postgres
+  enum label). `ReferenceMaterial` get/save (`ReferenceMaterialController`, 1:1 with Entry,
+  G1–G5 fields) — manually-authored rows leave `OriginalRawReferenceMaterial` empty; that field
+  is populated only by the legacy-import tool (M8b). Both resources stay internal-only, never
+  reachable from any public/entry-content response. Verified live: notification/scoring
+  fan-out from a comment, non-owner non-privileged edit/archive rejected (403), privileged
+  override works, reference material round-trips multi-script text (EN/ZH/RU) correctly.
+- **M8b (not started)** — Legacy-import console tool: parses the old database's raw comment
+  blobs (`&Author&` shift markers, `#...#` → Georgian editor notes) and reference-material
+  blobs (`**`/`***`/`****`/`*****` delimiters, `//`/`///` → bullet markers), preserving the
+  original raw text alongside the best-effort parsed structure. Deliberately deferred: needs
+  real legacy data or DB access to build against meaningfully — product owner confirmed
+  "CRUD first, import later."
 - **Stage 2 (named only, detailed later)** — full IE/XR/STYLE/DOMAIN authoring, gramGrp/POS UI,
   TEI-XML export/import, media library, segment reorder, refined permission edge cases, fuzzy
   search.

@@ -5,12 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Chiniseapp.Api.Controllers;
 
-/// <summary>Editors allowed to create/edit new_entry content, per the 11.1 permissions matrix.</summary>
-file static class EntryEditorRoles
-{
-    public const string Names = $"{nameof(EditorRole.SuperAdmin)},{nameof(EditorRole.ChiefEditor)},{nameof(EditorRole.ZhEditor)},{nameof(EditorRole.AssistantEditor)}";
-}
-
 [ApiController]
 [Route("entries")]
 [Authorize]
@@ -46,7 +40,7 @@ public class EntriesController(IEntryService entryService) : ControllerBase
 
     /// <summary>Minimum viable create: headword only (spec 9 — title is the only required field).</summary>
     [HttpPost]
-    [Authorize(Roles = EntryEditorRoles.Names)]
+    [Authorize(Roles = AuthorizationPolicies.ContentEditorRoles)]
     public async Task<ActionResult<EntryDetail>> Create(CreateEntryRequest request, CancellationToken ct)
     {
         try
@@ -68,7 +62,7 @@ public class EntriesController(IEntryService entryService) : ControllerBase
     /// isn't built yet and is a known gap, not an oversight.
     /// </summary>
     [HttpPut("{id:int}/content")]
-    [Authorize(Roles = EntryEditorRoles.Names)]
+    [Authorize(Roles = AuthorizationPolicies.ContentEditorRoles)]
     public async Task<ActionResult<EntryDetail>> SaveContent(int id, SaveEntryContentRequest request, CancellationToken ct)
     {
         try

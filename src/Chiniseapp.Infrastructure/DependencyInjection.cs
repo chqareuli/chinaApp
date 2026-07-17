@@ -1,14 +1,18 @@
 using Chiniseapp.Application.Accounting;
 using Chiniseapp.Application.Auth;
+using Chiniseapp.Application.Comments;
 using Chiniseapp.Application.Entries;
 using Chiniseapp.Application.Notifications;
+using Chiniseapp.Application.ReferenceMaterials;
 using Chiniseapp.Application.Scoring;
 using Chiniseapp.Domain.Enums;
 using Chiniseapp.Infrastructure.Accounting;
 using Chiniseapp.Infrastructure.Auth;
+using Chiniseapp.Infrastructure.Comments;
 using Chiniseapp.Infrastructure.Entries;
 using Chiniseapp.Infrastructure.Notifications;
 using Chiniseapp.Infrastructure.Persistence;
+using Chiniseapp.Infrastructure.ReferenceMaterials;
 using Chiniseapp.Infrastructure.Scoring;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -56,6 +60,8 @@ public static class DependencyInjection
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IEntryService, EntryService>();
         services.AddScoped<IAccountingService, AccountingService>();
+        services.AddScoped<ICommentService, CommentService>();
+        services.AddScoped<IReferenceMaterialService, ReferenceMaterialService>();
 
         return services;
     }
