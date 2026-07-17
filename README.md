@@ -84,7 +84,9 @@ genuine structured data (not raw text) so it's a real subset of Stage 2, not a r
   content saves and status changes) and accounting endpoints (`GET /accounting/editors`,
   `/accounting/entries-status-totals`, `/accounting/editors/{id}`), with the resolved Q5
   privacy rule (KA/Assistant Editor see only their own personal page).
-- **M7** — Notifications + direct messaging.
+- **M7 (done)** — Notifications on every entry change (`GET/POST /notifications`), fanned out to
+  everyone who ever worked on the entry except the actor (no self-notifications), derived from
+  the audit log; plain direct messaging (`GET/POST /messages`).
 - **M8** — Comments + Reference Material endpoints + legacy-import console tool (parses
   `&Author&` / `#...#` comment markers and `**`/`***`/`****`/`*****` reference-material
   segments from the old database).

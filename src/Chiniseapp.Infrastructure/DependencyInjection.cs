@@ -1,11 +1,13 @@
 using Chiniseapp.Application.Accounting;
 using Chiniseapp.Application.Auth;
 using Chiniseapp.Application.Entries;
+using Chiniseapp.Application.Notifications;
 using Chiniseapp.Application.Scoring;
 using Chiniseapp.Domain.Enums;
 using Chiniseapp.Infrastructure.Accounting;
 using Chiniseapp.Infrastructure.Auth;
 using Chiniseapp.Infrastructure.Entries;
+using Chiniseapp.Infrastructure.Notifications;
 using Chiniseapp.Infrastructure.Persistence;
 using Chiniseapp.Infrastructure.Scoring;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IScoringService, ScoringService>();
+        services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IEntryService, EntryService>();
         services.AddScoped<IAccountingService, AccountingService>();
 

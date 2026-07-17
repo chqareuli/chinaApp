@@ -90,9 +90,10 @@ invariant true without exposing gramGrp/POS UI yet.
 ## Stage 1 API surface (built across M3–M8)
 
 `AuthController`, `EditorsController`, `EntriesController` (list/search/get/create/save,
-`POST /entries/{id}/status` gated by the role×status transition table), `CommentsController`,
-`ReferenceMaterialController`, `AccountingController`, `NotificationsController`,
-`VocabController`, `AuditController`.
+`POST /entries/{id}/status` gated by the role×status transition table), `AccountingController`,
+`NotificationsController`, `MessagesController` (built as two controllers instead of one,
+for cleaner routing), `CommentsController`, `ReferenceMaterialController`, `VocabController`,
+`AuditController`.
 
 ## Status workflow (resolved role × transition rules)
 
@@ -210,7 +211,23 @@ un-publish, or archive. Assistant Editor never changes status directly.
   including that the promoter (not the author) doesn't get Main score, that repeated
   edits/transitions by the same non-author editor only award Additional once, and both halves
   of the Q5 restriction (403 on someone else's page, 200 on your own).
-- **M7** — Notifications + direct messaging.
+- **M7 (done)** — `INotificationService.NotifyEntryChangedAsync`: on every content save or status
+  change, notifies the entry's creator, its `MainAuthorEditorId` (once locked), and everyone
+  with a prior `AuditLogEntry` against that entry — i.e. "everyone who ever worked on it," per
+  spec §7 — excluding whoever just made the change (resolved Q4: no self-notifications). Reused
+  the M2 `AuditLogEntry` table as the "who has touched this entry" ledger rather than adding a
+  new contributor-tracking concept; `SaveContentAsync` now also logs `AuditAction.ContentEdited`
+  (it previously only logged nothing — `ChangeStatusAsync` was the only audited path), which
+  both completes the audit trail and is exactly what notification fan-out needs. Notifications
+  link back to the entry (`entryId`/`entryLemma` in the response). Hooked into the same call
+  sites as M6's scoring, staged on the shared `DbContext` so they commit atomically with the
+  triggering change. Plain `DirectMessage` CRUD (`MessagesController`, separate from
+  `NotificationsController` for cleaner routing — a small deviation from the originally sketched
+  single-controller API surface): send, inbox (messages where you're sender or recipient), mark
+  read. Ownership checked on mark-read for both notifications and messages (404, not 403, to
+  avoid confirming another editor's data exists). Verified live: the actor never notifies
+  themselves, past contributors do get notified, cross-user mark-read is rejected, and messaging
+  round-trips correctly for both parties.
 - **M8** — Comments + Reference Material endpoints + legacy-import console tool (parses
   `&Author&`/`#...#` comments and `**`/`***`/`****`/`*****` reference-material segments from
   the old database).

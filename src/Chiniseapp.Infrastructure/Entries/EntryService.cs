@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Chiniseapp.Application.Entries;
+using Chiniseapp.Application.Notifications;
 using Chiniseapp.Application.Scoring;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
@@ -9,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Chiniseapp.Infrastructure.Entries;
 
-public class EntryService(ChiniseDbContext db, IScoringService scoringService) : IEntryService
+public class EntryService(ChiniseDbContext db, IScoringService scoringService, INotificationService notificationService) : IEntryService
 {
     public async Task<EntryDetail> CreateAsync(CreateEntryRequest request, int currentEditorId, CancellationToken ct = default)
     {
@@ -86,7 +87,17 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService) :
             BuildSegments(newSegments, id, request.Homonyms, entry.UpdatedAtUtc);
             db.Segments.AddRange(newSegments);
 
+            db.AuditLogEntries.Add(new AuditLogEntry
+            {
+                EntityType = nameof(Entry),
+                EntityId = entry.Id,
+                Action = AuditAction.ContentEdited,
+                PerformedByEditorId = currentEditorId,
+                PerformedAtUtc = entry.UpdatedAtUtc,
+            });
+
             await scoringService.AwardForContentEditAsync(entry, currentEditorId, ct);
+            await notificationService.NotifyEntryChangedAsync(entry, currentEditorId, nameof(AuditAction.ContentEdited), ct);
 
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
@@ -145,8 +156,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService) :
             NewValue = JsonSerializer.Serialize(new { status = targetStatus.ToString() }),
         });
 
-        // Notifications (M7) hook into this same event once built.
         await scoringService.AwardForStatusChangeAsync(entry, previousStatus, actor.Role, currentEditorId, ct);
+        await notificationService.NotifyEntryChangedAsync(entry, currentEditorId, nameof(AuditAction.StatusChanged), ct);
 
         await db.SaveChangesAsync(ct);
 
