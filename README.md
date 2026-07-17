@@ -78,7 +78,8 @@ genuine structured data (not raw text) so it's a real subset of Stage 2, not a r
   `GET /entries`, `GET /entries/search`) against the reduced Stage-1 segment shape, full-replace
   content save, optimistic concurrency (`rowVersion` / `xmin`), editor-list and search-dropdown
   sort algorithms.
-- **M5** — Status workflow (`StatusTransitionRules`), MainAuthor lock logic, audit entries.
+- **M5 (done)** — Status workflow (`POST /entries/{id}/status`), `StatusTransitionRules`
+  (exhaustively unit-tested), `MainAuthor` lock, `AuditLogEntry` on every transition.
 - **M6** — Scoring + accounting endpoints.
 - **M7** — Notifications + direct messaging.
 - **M8** — Comments + Reference Material endpoints + legacy-import console tool (parses

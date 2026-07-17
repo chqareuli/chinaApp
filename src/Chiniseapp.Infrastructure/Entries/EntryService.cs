@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Chiniseapp.Application.Entries;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
@@ -94,6 +95,59 @@ public class EntryService(ChiniseDbContext db) : IEntryService
         }
 
         return await BuildDetailAsync(entry, request.Homonyms, ct);
+    }
+
+    public async Task<EntryDetail> ChangeStatusAsync(int id, EntryStatus targetStatus, int currentEditorId, CancellationToken ct = default)
+    {
+        var entry = await db.Entries.FindAsync([id], ct)
+            ?? throw new EntryValidationException($"Entry {id} does not exist.");
+
+        var actor = await db.Editors.FindAsync([currentEditorId], ct)
+            ?? throw new EntryValidationException("Current editor not found.");
+
+        var previousStatus = entry.Status;
+        if (previousStatus == targetStatus)
+        {
+            throw new EntryValidationException("Entry is already in that status.");
+        }
+
+        if (!StatusTransitionRules.CanTransition(actor.Role, previousStatus, targetStatus))
+        {
+            throw new EntryStatusTransitionForbiddenException(previousStatus.ToString(), targetStatus.ToString());
+        }
+
+        // main_author locks the first time an entry leaves new_entry, to the
+        // entry's original creator — this already covers the assistant_editor
+        // case (an assistant-authored entry promoted by a supervisor keeps
+        // the assistant as main_author, per the resolved Q8 decision) without
+        // needing special-case logic, since CreatedByEditorId never changes.
+        if (previousStatus == EntryStatus.NewEntry && entry.MainAuthorEditorId is null)
+        {
+            entry.MainAuthorEditorId = entry.CreatedByEditorId;
+        }
+
+        entry.Status = targetStatus;
+        entry.StatusPriority = EntryStatusPriority.For(targetStatus);
+        entry.LastEditorEditorId = currentEditorId;
+        entry.UpdatedAtUtc = DateTime.UtcNow;
+
+        // Scoring (M6) and notifications (M7) hook into this same event once
+        // built; for now this only records the transition for the audit trail.
+        db.AuditLogEntries.Add(new AuditLogEntry
+        {
+            EntityType = nameof(Entry),
+            EntityId = entry.Id,
+            Action = AuditAction.StatusChanged,
+            PerformedByEditorId = currentEditorId,
+            PerformedAtUtc = entry.UpdatedAtUtc,
+            OldValue = JsonSerializer.Serialize(new { status = previousStatus.ToString() }),
+            NewValue = JsonSerializer.Serialize(new { status = targetStatus.ToString() }),
+        });
+
+        await db.SaveChangesAsync(ct);
+
+        var homonyms = await LoadHomonymsAsync(id, ct);
+        return await BuildDetailAsync(entry, homonyms, ct);
     }
 
     public async Task<PagedResult<EntrySummary>> GetMainListAsync(int page, int pageSize, CancellationToken ct = default)

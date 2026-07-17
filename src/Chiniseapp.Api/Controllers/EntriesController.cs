@@ -61,9 +61,11 @@ public class EntriesController(IEntryService entryService) : ControllerBase
     }
 
     /// <summary>
-    /// Full-replace structured content save. All Stage-1 entries are new_entry
-    /// (M5 adds the status-gated variants of this rule), so this is exactly
-    /// "Edit new_entry content" from the 11.1 permissions matrix.
+    /// Full-replace structured content save, gated to "Edit new_entry content" from the 11.1
+    /// permissions matrix. Note: this is still a fixed role list, not status-aware — an entry
+    /// that's moved past new_entry (via M5's status endpoint below) should really narrow who can
+    /// edit it further (e.g. ka_editor should gain ka_review-only edit rights); that refinement
+    /// isn't built yet and is a known gap, not an oversight.
     /// </summary>
     [HttpPut("{id:int}/content")]
     [Authorize(Roles = EntryEditorRoles.Names)]
@@ -77,6 +79,36 @@ public class EntriesController(IEntryService entryService) : ControllerBase
         catch (EntryConcurrencyException)
         {
             return Conflict(new { message = "This entry was modified by someone else since you loaded it. Reload and try again." });
+        }
+        catch (EntryValidationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    public record ChangeStatusRequest(string TargetStatus);
+
+    /// <summary>
+    /// Status transition, gated by the resolved role x status table
+    /// (Domain.Rules.StatusTransitionRules) rather than a static role list —
+    /// permission genuinely depends on the entry's current status.
+    /// </summary>
+    [HttpPost("{id:int}/status")]
+    public async Task<ActionResult<EntryDetail>> ChangeStatus(int id, ChangeStatusRequest request, CancellationToken ct)
+    {
+        if (!Enum.TryParse<EntryStatus>(request.TargetStatus, out var targetStatus))
+        {
+            return BadRequest(new { message = $"Unknown status '{request.TargetStatus}'." });
+        }
+
+        try
+        {
+            var entry = await entryService.ChangeStatusAsync(id, targetStatus, User.GetEditorId(), ct);
+            return Ok(entry);
+        }
+        catch (EntryStatusTransitionForbiddenException ex)
+        {
+            return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden);
         }
         catch (EntryValidationException ex)
         {

@@ -174,7 +174,22 @@ un-publish, or archive. Assistant Editor never changes status directly.
   and `TitleNormalizer` (folds Chinese "，" to "," per 5.3), both unit-tested without a
   `DbContext`. Verified live end-to-end, including the 409-on-stale-save and
   KaEditor-cannot-create-entries cases.
-- **M5** — Status workflow (`StatusTransitionRules`), MainAuthor lock logic, audit entries.
+- **M5 (done)** — `Domain/Rules/StatusTransitionRules.CanTransition(role, from, to)`, pure and
+  exhaustively unit-tested (every role×status×status combination checked against an
+  independently-written expected set — not just mirroring the implementation) against the
+  resolved table above. `POST /entries/{id}/status` gated by it (no static role list — the
+  actual check is inherently status-dependent). `MainAuthor` locks to `CreatedByEditorId` the
+  first time an entry leaves `new_entry` — this alone already covers the "assistant-authored
+  entry promoted by a supervisor keeps the assistant as main_author" case from Q8, with no
+  special-casing needed, since the creator never changes. Every transition writes an
+  `AuditLogEntry` (`AuditAction.StatusChanged`, old/new status as jsonb). Verified live
+  end-to-end through the entire lifecycle of one entry: `new_entry → zh_review` (super_admin) →
+  `ka_review` (zh_editor) → `ready` (ka_editor) → blocked publish attempt by zh_editor (403) →
+  `published` (super_admin) → blocked backward move by zh_editor (403); plus same-status and
+  unknown-status rejected with 400, and the entry correctly appearing in the main list only
+  once it left `new_entry`. Known gap (not built): content-edit permissions
+  (`PUT .../content`) are still a fixed role list, not status-aware (e.g. ka_editor should gain
+  ka_review-scoped edit rights) — noted in the controller, deferred.
 - **M6** — Scoring + accounting endpoints.
 - **M7** — Notifications + direct messaging.
 - **M8** — Comments + Reference Material endpoints + legacy-import console tool (parses
