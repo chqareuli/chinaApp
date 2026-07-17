@@ -80,7 +80,10 @@ genuine structured data (not raw text) so it's a real subset of Stage 2, not a r
   sort algorithms.
 - **M5 (done)** — Status workflow (`POST /entries/{id}/status`), `StatusTransitionRules`
   (exhaustively unit-tested), `MainAuthor` lock, `AuditLogEntry` on every transition.
-- **M6** — Scoring + accounting endpoints.
+- **M6 (done)** — Scoring (`Main`/`Additional`/`KaEditor`, awarded once per entry, hooked into
+  content saves and status changes) and accounting endpoints (`GET /accounting/editors`,
+  `/accounting/entries-status-totals`, `/accounting/editors/{id}`), with the resolved Q5
+  privacy rule (KA/Assistant Editor see only their own personal page).
 - **M7** — Notifications + direct messaging.
 - **M8** — Comments + Reference Material endpoints + legacy-import console tool (parses
   `&Author&` / `#...#` comment markers and `**`/`***`/`****`/`*****` reference-material

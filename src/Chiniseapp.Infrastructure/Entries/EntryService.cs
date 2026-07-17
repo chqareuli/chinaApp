@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Chiniseapp.Application.Entries;
+using Chiniseapp.Application.Scoring;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
 using Chiniseapp.Domain.Rules;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Chiniseapp.Infrastructure.Entries;
 
-public class EntryService(ChiniseDbContext db) : IEntryService
+public class EntryService(ChiniseDbContext db, IScoringService scoringService) : IEntryService
 {
     public async Task<EntryDetail> CreateAsync(CreateEntryRequest request, int currentEditorId, CancellationToken ct = default)
     {
@@ -85,6 +86,8 @@ public class EntryService(ChiniseDbContext db) : IEntryService
             BuildSegments(newSegments, id, request.Homonyms, entry.UpdatedAtUtc);
             db.Segments.AddRange(newSegments);
 
+            await scoringService.AwardForContentEditAsync(entry, currentEditorId, ct);
+
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
         }
@@ -131,8 +134,6 @@ public class EntryService(ChiniseDbContext db) : IEntryService
         entry.LastEditorEditorId = currentEditorId;
         entry.UpdatedAtUtc = DateTime.UtcNow;
 
-        // Scoring (M6) and notifications (M7) hook into this same event once
-        // built; for now this only records the transition for the audit trail.
         db.AuditLogEntries.Add(new AuditLogEntry
         {
             EntityType = nameof(Entry),
@@ -143,6 +144,9 @@ public class EntryService(ChiniseDbContext db) : IEntryService
             OldValue = JsonSerializer.Serialize(new { status = previousStatus.ToString() }),
             NewValue = JsonSerializer.Serialize(new { status = targetStatus.ToString() }),
         });
+
+        // Notifications (M7) hook into this same event once built.
+        await scoringService.AwardForStatusChangeAsync(entry, previousStatus, actor.Role, currentEditorId, ct);
 
         await db.SaveChangesAsync(ct);
 

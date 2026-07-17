@@ -190,7 +190,26 @@ un-publish, or archive. Assistant Editor never changes status directly.
   once it left `new_entry`. Known gap (not built): content-edit permissions
   (`PUT .../content`) are still a fixed role list, not status-aware (e.g. ka_editor should gain
   ka_review-scoped edit rights) — noted in the controller, deferred.
-- **M6** — Scoring + accounting endpoints.
+- **M6 (done)** — `IScoringService`/`ScoringService`: Main score to `MainAuthorEditorId`, once,
+  the first time an entry leaves `new_entry`; Additional score to any other editor who edits
+  content or changes status on an entry they don't author, once per entry (the `ScoreEntry`
+  unique index from M2 is the real dedup guarantee, an in-request `AnyAsync` check is just the
+  fast path); a dedicated KaEditor score — instead of Additional — when a ka_editor completes
+  ka_review work (`ka_review → zh_review` or `ka_review → ready`). Hooked into
+  `EntryService.SaveContentAsync` and `ChangeStatusAsync` so awards commit in the same
+  transaction as the change that earned them. **Note**: the source spec explicitly flags the
+  ka_editor score's "final score type" as unresolved ("საბოლოო ქულის ტიპი
+  დასაზუსტებელია") — this implementation keeps it as the separate `KaEditor` bucket already
+  baked into the M2 schema; tell the assistant if you'd rather fold it into Additional.
+  `IAccountingService`/`AccountingService`: global per-editor score totals
+  (`GET /accounting/editors`), entry counts by status (`GET /accounting/entries-status-totals`),
+  and a personal accounting page with main/additional/ka-editor counts grouped by the *entry's
+  current* status (`GET /accounting/editors/{id}`). Resolved Q5 privacy rule enforced in
+  `AccountingController`: KA Editor and Assistant Editor may only view their own personal page
+  and cannot see the global list; everyone else can see everyone's. Verified live end-to-end,
+  including that the promoter (not the author) doesn't get Main score, that repeated
+  edits/transitions by the same non-author editor only award Additional once, and both halves
+  of the Q5 restriction (403 on someone else's page, 200 on your own).
 - **M7** — Notifications + direct messaging.
 - **M8** — Comments + Reference Material endpoints + legacy-import console tool (parses
   `&Author&`/`#...#` comments and `**`/`***`/`****`/`*****` reference-material segments from
