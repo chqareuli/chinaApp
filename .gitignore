@@ -7,6 +7,7 @@ x64/
 x86/
 [Ll]og/
 [Ll]ogs/
+*.log
 
 # Visual Studio
 .vs/

@@ -16,40 +16,343 @@
     </header>
 
     <div class="meta-grid">
-      <article><span>მთავარი ავტორი</span><strong>{{ item.mainAuthorDisplayName || 'ჯერ არ არის დაფიქსირებული' }}</strong></article>
-      <article><span>ბოლო რედაქტორი</span><strong>{{ item.lastEditorDisplayName }}</strong></article>
-      <article><span>ბოლო ცვლილება</span><strong>{{ item.updatedAtUtc | date:'dd MMM yyyy, HH:mm':'+0400' }}</strong></article>
+      <article>
+        <span>მთავარი ავტორი</span
+        ><strong>{{ item.mainAuthorDisplayName || 'ჯერ არ არის დაფიქსირებული' }}</strong>
+      </article>
+      <article>
+        <span>ბოლო რედაქტორი</span><strong>{{ item.lastEditorDisplayName }}</strong>
+      </article>
+      <article>
+        <span>ბოლო ცვლილება</span
+        ><strong>{{ item.updatedAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</strong>
+      </article>
     </div>
 
-    <div class="editor-note">
-      <strong>Structured Editor — შემდეგი ინკრემენტი</strong>
-      <p>ამ ეტაპზე გვერდი რეალურ სტრუქტურულ მონაცემებს უსაფრთხოდ აჩვენებს. სრული რედაქტირება, კომენტარები და სტატუსის მოქმედებები შემდეგ UI ეტაპში დაემატება.</p>
-    </div>
+    <section class="workflow-card">
+      <div>
+        <p class="page-kicker">Workflow</p>
+        <h2>შემდეგი მოქმედება</h2>
+      </div>
+      <div class="status-actions">
+        @for (status of allowedTransitions(); track status) {
+          <button
+            class="btn btn-secondary"
+            type="button"
+            (click)="changeStatus(status)"
+            [disabled]="!!changingStatus()"
+          >
+            {{ changingStatus() === status ? 'იცვლება…' : statusLabel(status) }}
+          </button>
+        } @empty {
+          <span class="muted">თქვენი როლისთვის ამ ეტაპზე სტატუსის მოქმედება არ არის.</span>
+        }
+      </div>
+      @if (statusError()) {
+        <div class="error-banner workflow-error">{{ statusError() }}</div>
+      }
+    </section>
 
-    <section class="content-card">
-      <div class="content-head"><h2>სტატიის შინაარსი</h2><span>{{ item.homonyms.length }} ჰომონიმი</span></div>
-      @if (item.homonyms.length === 0) {
-        <div class="empty-state"><strong>სტატიის შინაარსი ჯერ ცარიელია</strong><span>შემდეგ ეტაპზე აქ გაიხსნება სტრუქტურული რედაქტორი.</span></div>
-      } @else {
-        <div class="homonyms">
-          @for (homonym of item.homonyms; track $index; let homonymIndex = $index) {
-            <article class="homonym">
-              <h3>Homonym {{ homonymIndex + 1 }}</h3>
-              @for (sense of homonym.senses; track $index) {
-                <div class="sense">
-                  <span class="sense-number">{{ sense.number }}</span>
-                  <div>
-                    <p class="definition">{{ sense.definition || 'განმარტება ცარიელია' }}</p>
-                    @for (example of sense.examples; track $index) {
-                      <div class="example"><p lang="zh">{{ example.zh }}</p><p>{{ example.ka }}</p></div>
-                    }
-                  </div>
+    <nav class="entry-tabs" aria-label="სტატიის სექციები">
+      <button type="button" [class.active]="activeTab() === 'content'" (click)="setTab('content')">
+        შინაარსი
+      </button>
+      <button
+        type="button"
+        [class.active]="activeTab() === 'comments'"
+        (click)="setTab('comments')"
+      >
+        კომენტარები <span>{{ comments().length }}</span>
+      </button>
+      <button
+        type="button"
+        [class.active]="activeTab() === 'reference'"
+        (click)="setTab('reference')"
+      >
+        საცნობარო მასალა
+      </button>
+    </nav>
+
+    @if (activeTab() === 'content') {
+      <form class="editor-card" [formGroup]="entryForm" (ngSubmit)="saveContent()">
+        <div class="section-head">
+          <div>
+            <p class="page-kicker">Structured editor</p>
+            <h2>სტატიის შინაარსი</h2>
+          </div>
+          <span class="permission" [class.readonly]="!canEdit()">{{
+            canEdit() ? 'რედაქტირების რეჟიმი' : 'მხოლოდ ნახვა'
+          }}</span>
+        </div>
+
+        <div class="title-grid">
+          <div class="field">
+            <label for="entry-lemma">სათაური / ჩინური სიტყვა</label>
+            <input id="entry-lemma" formControlName="lemma" lang="zh" [readOnly]="!canEdit()" />
+          </div>
+          <div class="field">
+            <label for="entry-pinyin">Pinyin</label>
+            <input id="entry-pinyin" formControlName="pinyin" [readOnly]="!canEdit()" />
+          </div>
+        </div>
+
+        <div formArrayName="homonyms" class="homonym-list">
+          @for (homonym of homonyms.controls; track $index; let h = $index) {
+            <article class="homonym-editor" [formGroupName]="h">
+              <header>
+                <div>
+                  <span class="index-chip">{{ h + 1 }}</span>
+                  <h3>ჰომონიმი</h3>
                 </div>
+                @if (canEdit()) {
+                  <button class="text-button danger" type="button" (click)="removeHomonym(h)">
+                    წაშლა
+                  </button>
+                }
+              </header>
+
+              <div formArrayName="senses" class="sense-list">
+                @for (sense of sensesAt(h).controls; track $index; let s = $index) {
+                  <section class="sense-editor" [formGroupName]="s">
+                    <div class="sense-head">
+                      <strong>მნიშვნელობა {{ s + 1 }}</strong>
+                      @if (canEdit()) {
+                        <button
+                          class="text-button danger"
+                          type="button"
+                          (click)="removeSense(h, s)"
+                        >
+                          მნიშვნელობის წაშლა
+                        </button>
+                      }
+                    </div>
+                    <input formControlName="number" type="hidden" />
+                    <div class="field">
+                      <label [for]="'definition-' + h + '-' + s">ქართული განმარტება</label>
+                      <textarea
+                        [id]="'definition-' + h + '-' + s"
+                        formControlName="definition"
+                        rows="3"
+                        [readOnly]="!canEdit()"
+                      ></textarea>
+                    </div>
+
+                    <div formArrayName="examples" class="example-list">
+                      @for (example of examplesAt(h, s).controls; track $index; let e = $index) {
+                        <div class="example-editor" [formGroupName]="e">
+                          <span class="example-number">{{ e + 1 }}</span>
+                          <div class="field">
+                            <label [for]="'zh-example-' + h + '-' + s + '-' + e"
+                              >ჩინური მაგალითი</label
+                            ><textarea
+                              [id]="'zh-example-' + h + '-' + s + '-' + e"
+                              formControlName="zh"
+                              rows="2"
+                              lang="zh"
+                              [readOnly]="!canEdit()"
+                            ></textarea>
+                          </div>
+                          <div class="field">
+                            <label [for]="'ka-example-' + h + '-' + s + '-' + e"
+                              >ქართული თარგმანი</label
+                            ><textarea
+                              [id]="'ka-example-' + h + '-' + s + '-' + e"
+                              formControlName="ka"
+                              rows="2"
+                              [readOnly]="!canEdit()"
+                            ></textarea>
+                          </div>
+                          @if (canEdit()) {
+                            <button
+                              class="icon-button danger"
+                              type="button"
+                              (click)="removeExample(h, s, e)"
+                              aria-label="მაგალითის წაშლა"
+                            >
+                              ×
+                            </button>
+                          }
+                        </div>
+                      }
+                    </div>
+                    @if (canEdit()) {
+                      <button class="add-row" type="button" (click)="addExample(h, s)">
+                        ＋ მაგალითის დამატება
+                      </button>
+                    }
+                  </section>
+                }
+              </div>
+              @if (canEdit()) {
+                <button class="add-row" type="button" (click)="addSense(h)">
+                  ＋ მნიშვნელობის დამატება
+                </button>
               }
             </article>
           }
         </div>
-      }
-    </section>
+
+        @if (canEdit()) {
+          <button class="add-homonym" type="button" (click)="addHomonym()">
+            ＋ ახალი ჰომონიმი
+          </button>
+          <footer class="save-bar">
+            <div>
+              @if (saveError()) {
+                <span class="save-message error">{{ saveError() }}</span>
+              } @else if (saveSuccess()) {
+                <span class="save-message success">ცვლილებები შენახულია.</span>
+              } @else if (entryForm.dirty) {
+                <span class="muted">შეუნახავი ცვლილებები გაქვთ</span>
+              }
+            </div>
+            <button
+              class="btn btn-primary"
+              type="submit"
+              [disabled]="saving() || entryForm.pristine"
+            >
+              {{ saving() ? 'ინახება…' : 'ცვლილებების შენახვა' }}
+            </button>
+          </footer>
+        }
+        @if (concurrencyConflict()) {
+          <div class="conflict-card">
+            <strong>კონფლიქტი დაფიქსირდა</strong>
+            <p>სხვა რედაქტორმა სტატია თქვენ შემდეგ შეცვალა.</p>
+            <button class="btn btn-secondary" type="button" (click)="reloadAfterConflict()">
+              უახლესი ვერსიის ჩატვირთვა
+            </button>
+          </div>
+        }
+      </form>
+    }
+
+    @if (activeTab() === 'comments') {
+      <section class="panel-card comments-panel">
+        <div class="section-head">
+          <div>
+            <p class="page-kicker">Editorial notes</p>
+            <h2>კომენტარები</h2>
+          </div>
+        </div>
+        <div class="comment-compose">
+          <textarea
+            rows="3"
+            placeholder="დაწერეთ კომენტარი…"
+            [value]="commentText()"
+            (input)="updateCommentText($event)"
+          ></textarea>
+          <button
+            class="btn btn-primary"
+            type="button"
+            (click)="addComment()"
+            [disabled]="!commentText().trim() || commentSaving()"
+          >
+            {{ commentSaving() ? 'იგზავნება…' : 'კომენტარის დამატება' }}
+          </button>
+        </div>
+        @if (commentError()) {
+          <div class="error-banner">{{ commentError() }}</div>
+        }
+        @if (commentsLoading()) {
+          <div class="empty-state">კომენტარები იტვირთება…</div>
+        } @else {
+          <div class="comment-list">
+            @for (comment of comments(); track comment.id) {
+              <article class="comment-card">
+                <header>
+                  <div class="comment-avatar">{{ comment.authorDisplayName.charAt(0) }}</div>
+                  <div>
+                    <strong>{{ comment.authorDisplayName }}</strong
+                    ><span>{{ comment.createdAtUtc | date: 'dd MMM, HH:mm' : '+0400' }}</span>
+                  </div>
+                </header>
+                @if (editingCommentId() === comment.id) {
+                  <textarea
+                    rows="3"
+                    [value]="editingCommentText()"
+                    (input)="updateEditingCommentText($event)"
+                  ></textarea>
+                  <div class="inline-actions">
+                    <button class="btn btn-primary" type="button" (click)="saveCommentEdit()">
+                      შენახვა</button
+                    ><button
+                      class="btn btn-secondary"
+                      type="button"
+                      (click)="editingCommentId.set(null)"
+                    >
+                      გაუქმება
+                    </button>
+                  </div>
+                } @else {
+                  <p>{{ comment.commentText }}</p>
+                  @if (canEditComment(comment)) {
+                    <div class="inline-actions">
+                      <button class="text-button" type="button" (click)="startCommentEdit(comment)">
+                        შეცვლა</button
+                      ><button
+                        class="text-button danger"
+                        type="button"
+                        (click)="archiveComment(comment.id)"
+                      >
+                        არქივი
+                      </button>
+                    </div>
+                  }
+                }
+              </article>
+            } @empty {
+              <div class="empty-state">
+                <strong>კომენტარები ჯერ არ არის</strong
+                ><span>დატოვეთ პირველი სარედაქციო შენიშვნა.</span>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    @if (activeTab() === 'reference') {
+      <section class="panel-card reference-panel">
+        <div class="section-head">
+          <div>
+            <p class="page-kicker">G1–G5</p>
+            <h2>საცნობარო მასალა</h2>
+          </div>
+          <span class="permission" [class.readonly]="!canEdit()">{{
+            canEdit() ? 'რედაქტირებადი' : 'მხოლოდ ნახვა'
+          }}</span>
+        </div>
+        @if (referenceLoading()) {
+          <div class="empty-state">მასალა იტვირთება…</div>
+        } @else {
+          <form
+            [formGroup]="referenceForm"
+            (ngSubmit)="saveReferenceMaterial()"
+            class="reference-form"
+          >
+            @for (key of ['g1', 'g2', 'g3', 'g4', 'g5']; track key; let i = $index) {
+              <div class="field">
+                <label [for]="key">G{{ i + 1 }}</label
+                ><textarea
+                  [id]="key"
+                  [formControlName]="key"
+                  rows="5"
+                  [readOnly]="!canEdit()"
+                ></textarea>
+              </div>
+            }
+            @if (referenceError()) {
+              <div class="error-banner">{{ referenceError() }}</div>
+            }
+            @if (canEdit()) {
+              <button class="btn btn-primary" type="submit" [disabled]="referenceSaving()">
+                {{ referenceSaving() ? 'ინახება…' : 'საცნობარო მასალის შენახვა' }}
+              </button>
+            }
+          </form>
+        }
+      </section>
+    }
   }
 </section>

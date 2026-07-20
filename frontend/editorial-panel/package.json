@@ -4,6 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:qa": "ng serve --host 127.0.0.1 --port 4300 --proxy-config proxy.qa.conf.json",
+    "mock-api": "node tools/mock-api.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"

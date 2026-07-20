@@ -1,0 +1,104 @@
+<section class="users-page">
+  <header class="page-head">
+    <div>
+      <p class="page-kicker">Super admin</p>
+      <h1 class="page-title">მომხმარებლები</h1>
+      <p>როლები, წვდომა და ანგარიშების უსაფრთხო მართვა.</p>
+    </div>
+    <button class="btn btn-primary" type="button" (click)="createOpen.update((v) => !v)">
+      ＋ მომხმარებლის დამატება
+    </button>
+  </header>
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+  @if (createOpen()) {
+    <form class="create-card" [formGroup]="createForm" (ngSubmit)="create()">
+      <div class="section-head">
+        <h2>ახალი მომხმარებელი</h2>
+        <button type="button" (click)="createOpen.set(false)">×</button>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>სახელი</label><input formControlName="displayName" /></div>
+        <div class="field">
+          <label>ელფოსტა</label><input type="email" formControlName="email" />
+        </div>
+        <div class="field">
+          <label>როლი</label
+          ><select formControlName="role">
+            @for (role of roles; track role) {
+              <option [value]="role">{{ roleLabels[role] }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label>საწყისი პაროლი</label><input type="password" formControlName="initialPassword" />
+        </div>
+      </div>
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'ინახება…' : 'შექმნა' }}
+      </button>
+    </form>
+  }
+  @if (loading()) {
+    <div class="empty-state">მომხმარებლები იტვირთება…</div>
+  } @else {
+    <div class="users-table">
+      <div class="table-head">
+        <span>მომხმარებელი</span><span>როლი</span><span>სტატუსი</span><span>შექმნა</span
+        ><span>მოქმედება</span>
+      </div>
+      @for (editor of editors(); track editor.id) {
+        <article>
+          <div class="identity">
+            <span class="avatar">{{ editor.displayName.charAt(0) }}</span>
+            <div>
+              <strong>{{ editor.displayName }}</strong
+              ><small>{{ editor.email }}</small>
+            </div>
+          </div>
+          <select
+            [value]="editor.role"
+            (change)="changeRole(editor, $event)"
+            [disabled]="actionId() === editor.id"
+          >
+            @for (role of roles; track role) {
+              <option [value]="role">{{ roleLabels[role] }}</option>
+            }</select
+          ><span class="state" [class.blocked]="!editor.isActive">{{
+            editor.isActive ? 'აქტიური' : 'დაბლოკილი'
+          }}</span
+          ><time>{{ editor.createdAtUtc | date: 'dd MMM yyyy' : '+0400' }}</time>
+          <div class="actions">
+            <button
+              type="button"
+              (click)="toggleActive(editor)"
+              [disabled]="actionId() === editor.id"
+            >
+              {{ editor.isActive ? 'დაბლოკვა' : 'აღდგენა' }}</button
+            ><button type="button" (click)="beginReset(editor.id)">პაროლი</button>
+          </div>
+          @if (resetEditorId() === editor.id) {
+            <div class="password-reset">
+              <input
+                type="password"
+                placeholder="ახალი პაროლი (მინ. 8)"
+                [value]="resetPassword()"
+                (input)="updateResetPassword($event)"
+              /><button
+                class="btn btn-primary"
+                type="button"
+                (click)="submitReset()"
+                [disabled]="resetPassword().length < 8"
+              >
+                შეცვლა</button
+              ><button class="btn btn-secondary" type="button" (click)="resetEditorId.set(null)">
+                გაუქმება
+              </button>
+            </div>
+          }
+        </article>
+      }
+    </div>
+  }
+</section>

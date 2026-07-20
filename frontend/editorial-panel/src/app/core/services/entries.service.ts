@@ -8,6 +8,7 @@ import {
   EntryStatusTotals,
   EntrySummary,
   PagedResult,
+  SaveEntryContentRequest,
 } from '../models/entry.models';
 
 @Injectable({ providedIn: 'root' })
@@ -31,6 +32,14 @@ export class EntriesService {
 
   create(request: CreateEntryRequest): Observable<EntryDetail> {
     return this.http.post<EntryDetail>(`${this.apiBaseUrl}/entries`, request);
+  }
+
+  saveContent(id: number, request: SaveEntryContentRequest): Observable<EntryDetail> {
+    return this.http.put<EntryDetail>(`${this.apiBaseUrl}/entries/${id}/content`, request);
+  }
+
+  changeStatus(id: number, targetStatus: string): Observable<EntryDetail> {
+    return this.http.post<EntryDetail>(`${this.apiBaseUrl}/entries/${id}/status`, { targetStatus });
   }
 
   getStatusTotals(): Observable<EntryStatusTotals> {

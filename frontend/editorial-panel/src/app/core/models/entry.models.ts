@@ -34,6 +34,19 @@ export interface EntryDetail extends EntrySummary {
   createdAtUtc: string;
   rowVersion: number;
   homonyms: Homonym[];
+  capabilities?: EntryCapabilities;
+}
+
+export interface EntryCapabilities {
+  canEditContent: boolean;
+  allowedStatusTransitions: string[];
+}
+
+export interface SaveEntryContentRequest {
+  lemma: string;
+  pinyin: string | null;
+  homonyms: Homonym[];
+  rowVersion: number;
 }
 
 export interface CreateEntryRequest {
@@ -44,4 +57,11 @@ export interface CreateEntryRequest {
 export interface EntryStatusTotals {
   countsByStatus: Record<string, number>;
   total: number;
+}
+
+export interface ApiProblem {
+  code?: string;
+  detail?: string;
+  message?: string;
+  title?: string;
 }

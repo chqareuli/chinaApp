@@ -10,7 +10,16 @@ import {
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { catchError, debounceTime, distinctUntilChanged, finalize, of, Subject, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  finalize,
+  of,
+  Subject,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EntryStatusTotals, EntrySummary } from '../../../core/models/entry.models';
 import { AuthService } from '../../../core/services/auth.service';
@@ -31,7 +40,10 @@ export class DashboardPage implements OnInit {
   private readonly searchChanges = new Subject<string>();
 
   readonly editor = this.auth.editor;
-  readonly canCreateEntry = computed(() => this.editor()?.role !== 'KaEditor');
+  readonly canCreateEntry = computed(() => {
+    const role = this.editor()?.role;
+    return role === 'SuperAdmin' || role === 'ChiefEditor' || role === 'AssistantEditor';
+  });
   readonly entries = signal<EntrySummary[]>([]);
   readonly stats = signal<EntryStatusTotals | null>(null);
   readonly loading = signal(true);

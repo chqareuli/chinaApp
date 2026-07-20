@@ -1,0 +1,153 @@
+.accounting-page {
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  padding: 42px 28px 70px;
+}
+.accounting-page > header {
+  margin-bottom: 24px;
+}
+.accounting-page > header p:last-child {
+  margin: 8px 0 0;
+}
+.personal-card {
+  display: grid;
+  grid-template-columns: 1.6fr repeat(3, 0.5fr);
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  color: #fff;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(130deg, #173f35, #285c4d);
+  box-shadow: var(--shadow-md);
+}
+.personal-card > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.personal-card h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.personal-card small {
+  opacity: 0.72;
+  font-size: 0.68rem;
+}
+.personal-card .page-kicker {
+  color: #edc58e;
+}
+.avatar {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  color: var(--forest);
+  border-radius: 50%;
+  background: #fff;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.score {
+  display: grid;
+  justify-items: center;
+  padding: 8px;
+  border-left: 1px solid rgb(255 255 255 / 15%);
+}
+.score strong {
+  font-family: Georgia, serif;
+  font-size: 1.7rem;
+}
+.score span {
+  opacity: 0.7;
+  font-size: 0.63rem;
+}
+.status-section,
+.editor-scores {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.section-title h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-top: 18px;
+}
+.status-grid article {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 14px 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.status-grid article > strong {
+  font:
+    700 1.5rem Georgia,
+    serif;
+}
+.score-table {
+  margin-top: 16px;
+}
+.table-head,
+.score-table article {
+  display: grid;
+  grid-template-columns: 1.5fr repeat(4, 0.6fr);
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.72rem;
+}
+.table-head {
+  color: var(--ink-soft);
+  background: #f3f5f2;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.score-table article div {
+  display: grid;
+  gap: 3px;
+}
+.score-table article small {
+  color: var(--ink-soft);
+  font-size: 0.62rem;
+}
+@media (max-width: 760px) {
+  .accounting-page {
+    padding: 28px 14px;
+  }
+  .personal-card {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .personal-card > div:first-child {
+    grid-column: 1/-1;
+  }
+  .score {
+    border-top: 1px solid rgb(255 255 255 / 15%);
+    border-left: 0;
+  }
+  .status-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .table-head {
+    display: none;
+  }
+  .score-table article {
+    grid-template-columns: 1fr repeat(4, 0.4fr);
+    padding: 12px 2px;
+    font-size: 0.66rem;
+  }
+}

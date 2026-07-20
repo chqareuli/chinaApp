@@ -1,0 +1,87 @@
+<section class="accounting-page">
+  <header>
+    <p class="page-kicker">სტატისტიკა</p>
+    <h1 class="page-title">აღრიცხვა</h1>
+    <p class="muted">სტატიების მდგომარეობა და რედაქტორების შესრულებული სამუშაო.</p>
+  </header>
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+  @if (loading()) {
+    <div class="empty-state">მონაცემები იტვირთება…</div>
+  } @else {
+    @if (personal(); as me) {
+      <section class="personal-card">
+        <div>
+          <span class="avatar">{{ me.displayName.charAt(0) }}</span>
+          <div>
+            <p class="page-kicker">ჩემი ანგარიში</p>
+            <h2>{{ me.displayName }}</h2>
+            <small
+              >{{ roleLabels[me.role] }} ·
+              {{ me.createdAtUtc | date: 'dd MMM yyyy' : '+0400' }}</small
+            >
+          </div>
+        </div>
+        <div class="score">
+          <strong>{{ personalTotals().main }}</strong
+          ><span>მთავარი</span>
+        </div>
+        <div class="score">
+          <strong>{{ personalTotals().additional }}</strong
+          ><span>დამატებითი</span>
+        </div>
+        <div class="score">
+          <strong>{{ personalTotals().ka }}</strong
+          ><span>ქართული</span>
+        </div>
+      </section>
+    }
+    <section class="status-section">
+      <div class="section-title">
+        <div>
+          <p class="page-kicker">ბაზის მდგომარეობა</p>
+          <h2>სტატიები სტატუსების მიხედვით</h2>
+        </div>
+        <strong>{{ totals()?.total ?? 0 }} სულ</strong>
+      </div>
+      <div class="status-grid">
+        @for (status of statuses; track status) {
+          <article>
+            <app-status-badge [status]="status" /><strong>{{ statusCount(status) }}</strong>
+          </article>
+        }
+      </div>
+    </section>
+    @if (canViewGlobal()) {
+      <section class="editor-scores">
+        <div class="section-title">
+          <div>
+            <p class="page-kicker">გუნდი</p>
+            <h2>რედაქტორების ქულები</h2>
+          </div>
+        </div>
+        <div class="score-table">
+          <div class="table-head">
+            <span>რედაქტორი</span><span>მთავარი</span><span>დამატებითი</span><span>ქართული</span
+            ><span>ჯამი</span>
+          </div>
+          @for (editor of editors(); track editor.editorId) {
+            <article>
+              <div>
+                <strong>{{ editor.displayName }}</strong
+                ><small>{{ roleLabels[editor.role] }}</small>
+              </div>
+              <span>{{ editor.mainScoreTotal }}</span
+              ><span>{{ editor.additionalScoreTotal }}</span
+              ><span>{{ editor.kaEditorScoreTotal }}</span
+              ><b>{{
+                editor.mainScoreTotal + editor.additionalScoreTotal + editor.kaEditorScoreTotal
+              }}</b>
+            </article>
+          }
+        </div>
+      </section>
+    }
+  }
+</section>

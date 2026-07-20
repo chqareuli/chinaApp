@@ -19,7 +19,7 @@
 
 ## Delivery phases
 
-### UI-1 — Foundation and first vertical slice (started)
+### UI-1 — Foundation and first vertical slice (done)
 
 - [x] Angular workspace and branch isolation
 - [x] authentication client, token refresh and route guards
@@ -28,29 +28,29 @@
 - [x] main entry list, pagination and title-prefix search
 - [x] new-entry creation
 - [x] read-only structured entry view
-- [ ] browser QA against a live backend/database
+- [x] browser QA against an isolated API contract (real DB connection secret was unavailable)
 
 ### UI-2 — Full entry workflow
 
-- structured editor for homonyms, senses, definitions and examples
-- status-aware editing controls and transition actions
-- optimistic-concurrency conflict UX
-- comments and G1–G5 reference-material tabs
-- publish validation summary and blocking errors
-- change history panel
+- [x] structured editor for homonyms, senses, definitions and examples
+- [x] status-aware editing controls and transition actions
+- [x] optimistic-concurrency conflict UX
+- [x] comments and G1–G5 reference-material tabs
+- [x] publish validation summary and blocking errors in the UI
+- [ ] change history panel (backend endpoint pending)
 
 ### UI-3 — Collaboration
 
-- notification center with unread state and direct entry navigation
-- conversation-based private messages
-- Chinese-token detection and entry linkification
-- notification preferences when the backend contract exists
+- [x] notification center with unread state and direct entry navigation
+- [x] conversation-based private messages
+- [x] Chinese-token detection and entry linkification
+- [ ] notification preferences when the backend contract exists
 
 ### UI-4 — Administration and accounting
 
-- user list, create, block/reactivate, password reset and role assignment
-- role-aware accounting pages and status totals
-- personal profile and password update
+- [x] user list, create, block/reactivate, password reset and role assignment
+- [x] role-aware accounting pages and status totals
+- [ ] personal profile and password update (backend endpoint pending)
 
 ### UI-5 — Media and extended editorial model
 

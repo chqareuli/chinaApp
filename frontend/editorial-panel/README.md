@@ -30,7 +30,14 @@ npm run build
 npm test -- --watch=false
 ```
 
-## Implemented in the first UI increment
+For UI-only development and browser QA without changing the real database, run these in two terminals:
+
+```powershell
+npm run mock-api
+npm run start:qa
+```
+
+## Implemented
 
 - standalone, strict Angular application with lazy routes;
 - real login/refresh/logout API integration;
@@ -39,6 +46,13 @@ npm test -- --watch=false
 - status labels and the gray/red/blue/green/black color system;
 - dashboard statistics, paged entry list, search dropdown, loading/error states;
 - new-entry creation against the API;
-- read-only structured entry detail view.
+- structured homonym/sense/example editor with optimistic-concurrency UX;
+- backend-driven content permissions and status-transition actions;
+- comments and G1-G5 reference-material editing;
+- notification center and conversation-style private messages;
+- automatic Chinese-token links to matching entries;
+- SuperAdmin user/role/block/password-reset management;
+- personal/global accounting and status totals;
+- isolated mock API for safe browser QA.
 
 See `../../docs/frontend-plan.md` for the delivery phases and backend prerequisites.

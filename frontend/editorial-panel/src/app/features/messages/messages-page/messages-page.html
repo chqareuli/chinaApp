@@ -1,0 +1,79 @@
+<section class="messages-page">
+  <header>
+    <p class="page-kicker">პირადი მიმოწერა</p>
+    <h1 class="page-title">წერილები</h1>
+    <p class="muted">
+      ესაუბრეთ რედაქტორებს და ჩინური სიტყვიდან პირდაპირ გადადით შესაბამის სტატიაზე.
+    </p>
+  </header>
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+  @if (loading()) {
+    <div class="empty-state">წერილები იტვირთება…</div>
+  } @else {
+    <div class="messenger">
+      <aside>
+        <div class="people-title">რედაქტორები</div>
+        @for (editor of availableEditors(); track editor.id) {
+          <button
+            type="button"
+            [class.active]="selectedEditorId() === editor.id"
+            (click)="selectEditor(editor.id)"
+          >
+            <span class="avatar">{{ editor.displayName.charAt(0) }}</span
+            ><span class="person-copy"
+              ><strong>{{ editor.displayName }}</strong
+              ><small>{{ lastMessage(editor.id)?.body || editor.email }}</small></span
+            >
+            @if (unreadCount(editor.id)) {
+              <span class="unread">{{ unreadCount(editor.id) }}</span>
+            }
+          </button>
+        }
+      </aside>
+      <main>
+        @if (selectedEditor(); as editor) {
+          <header class="thread-head">
+            <span class="avatar">{{ editor.displayName.charAt(0) }}</span>
+            <div>
+              <strong>{{ editor.displayName }}</strong
+              ><small>{{ editor.email }}</small>
+            </div>
+          </header>
+          <div class="thread">
+            @for (message of thread(); track message.id) {
+              <article [class.mine]="message.senderEditorId === currentEditorId()">
+                <app-linked-message-body [body]="message.body" /><time>{{
+                  message.sentAtUtc | date: 'HH:mm, dd MMM' : '+0400'
+                }}</time>
+              </article>
+            } @empty {
+              <div class="empty-state">
+                <strong>დაიწყეთ საუბარი</strong><span>პირველი წერილი ქვემოთ დაწერეთ.</span>
+              </div>
+            }
+          </div>
+          <div class="composer">
+            <textarea
+              rows="3"
+              placeholder="დაწერეთ წერილი…"
+              [value]="body()"
+              (input)="updateBody($event)"
+            ></textarea
+            ><button
+              class="btn btn-primary"
+              type="button"
+              (click)="send()"
+              [disabled]="!body().trim() || sending()"
+            >
+              {{ sending() ? 'იგზავნება…' : 'გაგზავნა' }}
+            </button>
+          </div>
+        } @else {
+          <div class="empty-state">აირჩიეთ რედაქტორი</div>
+        }
+      </main>
+    </div>
+  }
+</section>

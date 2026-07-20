@@ -1,0 +1,49 @@
+<section class="notifications-page">
+  <header class="page-head">
+    <div>
+      <p class="page-kicker">ცვლილებების ცენტრი</p>
+      <h1 class="page-title">ნოტიფიკაციები</h1>
+      <p>სტატიებზე მომხდარი ყველა მნიშვნელოვანი მოქმედება ერთ სივრცეში.</p>
+    </div>
+    <button class="btn btn-secondary" type="button" (click)="toggleUnread()">
+      {{ unreadOnly() ? 'ყველას ჩვენება' : 'მხოლოდ წაუკითხავი' }}
+    </button>
+  </header>
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+  @if (loading()) {
+    <div class="empty-state">ნოტიფიკაციები იტვირთება…</div>
+  } @else {
+    <div class="notification-list">
+      @for (notification of notifications(); track notification.id) {
+        <article [class.unread]="!notification.isRead">
+          <span class="event-dot" aria-hidden="true"></span>
+          <div class="event-copy">
+            <strong>{{ typeLabel(notification.type) }}</strong>
+            <p>
+              <b>{{ notification.triggeredByDisplayName }}</b> —
+              <span lang="zh">{{ notification.entryLemma }}</span>
+            </p>
+            <time>{{ notification.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
+          </div>
+          <div class="event-actions">
+            <a
+              class="btn btn-secondary"
+              [routerLink]="['/entries', notification.entryId]"
+              (click)="markRead(notification)"
+              >სტატიის გახსნა</a
+            >
+            @if (!notification.isRead) {
+              <button type="button" (click)="markRead(notification)">წაკითხულად მონიშვნა</button>
+            }
+          </div>
+        </article>
+      } @empty {
+        <div class="empty-state">
+          <strong>ნოტიფიკაციები არ არის</strong><span>ახალი ცვლილებები აქ გამოჩნდება.</span>
+        </div>
+      }
+    </div>
+  }
+</section>

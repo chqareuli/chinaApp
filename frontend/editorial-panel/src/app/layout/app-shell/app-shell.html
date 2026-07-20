@@ -1,53 +1,75 @@
 <div class="app-frame">
   <header class="mobile-header">
-    <button class="menu-button" type="button" (click)="menuOpen.set(true)" aria-label="მენიუს გახსნა">☰</button>
+    <button
+      class="menu-button"
+      type="button"
+      (click)="menuOpen.set(true)"
+      aria-label="მენიუს გახსნა"
+    >
+      ☰
+    </button>
     <a class="mobile-logo" routerLink="/dashboard"><span>中</span> Chinese.ge</a>
     <span class="mobile-avatar">{{ initials() }}</span>
   </header>
 
   @if (menuOpen()) {
-    <button class="menu-backdrop" type="button" (click)="closeMenu()" aria-label="მენიუს დახურვა"></button>
+    <button
+      class="menu-backdrop"
+      type="button"
+      (click)="closeMenu()"
+      aria-label="მენიუს დახურვა"
+    ></button>
   }
 
   <aside class="sidebar" [class.sidebar-open]="menuOpen()">
     <div class="sidebar-head">
-      <a class="logo" routerLink="/dashboard" (click)="closeMenu()">
-        <span class="logo-mark" aria-hidden="true">中</span>
-        <span><strong>Chinese.ge</strong><small>Editorial panel</small></span>
-      </a>
-      <button class="close-button" type="button" (click)="closeMenu()" aria-label="მენიუს დახურვა">×</button>
+      <a class="logo" routerLink="/dashboard" (click)="closeMenu()"
+        ><span class="logo-mark" aria-hidden="true">中</span
+        ><span><strong>Chinese.ge</strong><small>Editorial panel</small></span></a
+      >
+      <button class="close-button" type="button" (click)="closeMenu()" aria-label="მენიუს დახურვა">
+        ×
+      </button>
     </div>
 
     <nav class="main-nav" aria-label="მთავარი ნავიგაცია">
       <p class="nav-label">სამუშაო სივრცე</p>
-      <a routerLink="/dashboard" routerLinkActive="active" (click)="closeMenu()">
-        <span class="nav-icon">მ</span><span>მთავარი</span>
-      </a>
+      <a routerLink="/dashboard" routerLinkActive="active" (click)="closeMenu()"
+        ><span class="nav-icon">მ</span><span>მთავარი</span></a
+      >
       @if (canCreateEntry()) {
-        <a routerLink="/entries/new" routerLinkActive="active" (click)="closeMenu()">
-          <span class="nav-icon">＋</span><span>ახალი სტატია</span>
-        </a>
+        <a routerLink="/entries/new" routerLinkActive="active" (click)="closeMenu()"
+          ><span class="nav-icon">＋</span><span>ახალი სტატია</span></a
+        >
       }
-      <a routerLink="/notifications" routerLinkActive="active" (click)="closeMenu()">
-        <span class="nav-icon">ნ</span><span>ნოთიფიკაციები</span><span class="nav-pill">0</span>
+      <a routerLink="/notifications" routerLinkActive="active" (click)="closeMenu()"
+        ><span class="nav-icon">ნ</span><span>ნოტიფიკაციები</span>
+        @if (unreadNotifications()) {
+          <span class="nav-pill">{{ unreadNotifications() }}</span>
+        }
       </a>
-      <a routerLink="/messages" routerLinkActive="active" (click)="closeMenu()">
-        <span class="nav-icon">წ</span><span>წერილები</span>
-      </a>
+      <a routerLink="/messages" routerLinkActive="active" (click)="closeMenu()"
+        ><span class="nav-icon">წ</span><span>წერილები</span></a
+      >
 
       <p class="nav-label nav-label-spaced">მონაცემები</p>
-      <a routerLink="/accounting" routerLinkActive="active" (click)="closeMenu()">
-        <span class="nav-icon">ა</span><span>აღრიცხვა</span>
-      </a>
+      <a routerLink="/accounting" routerLinkActive="active" (click)="closeMenu()"
+        ><span class="nav-icon">ა</span><span>აღრიცხვა</span></a
+      >
+      @if (isSuperAdmin()) {
+        <a routerLink="/users" routerLinkActive="active" (click)="closeMenu()"
+          ><span class="nav-icon">მ</span><span>მომხმარებლები</span></a
+        >
+      }
     </nav>
 
     <div class="sidebar-foot">
       <div class="profile">
-        <span class="avatar">{{ initials() }}</span>
-        <span class="profile-copy">
-          <strong>{{ editor()?.displayName }}</strong>
-          <small>{{ roleLabel() }}</small>
-        </span>
+        <span class="avatar">{{ initials() }}</span
+        ><span class="profile-copy"
+          ><strong>{{ editor()?.displayName }}</strong
+          ><small>{{ roleLabel() }}</small></span
+        >
       </div>
       <button class="logout-button" type="button" (click)="logout()" [disabled]="loggingOut()">
         {{ loggingOut() ? 'გამოსვლა…' : 'გასვლა' }}
@@ -55,7 +77,5 @@
     </div>
   </aside>
 
-  <main class="content">
-    <router-outlet />
-  </main>
+  <main class="content"><router-outlet /></main>
 </div>

@@ -5,5 +5,8 @@ import { AuthService } from '../services/auth.service';
 export const entryCreatorGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  return auth.editor()?.role === 'KaEditor' ? router.createUrlTree(['/dashboard']) : true;
+  const role = auth.editor()?.role;
+  return role === 'SuperAdmin' || role === 'ChiefEditor' || role === 'AssistantEditor'
+    ? true
+    : router.createUrlTree(['/dashboard']);
 };
