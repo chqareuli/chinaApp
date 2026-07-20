@@ -1,0 +1,30 @@
+.status-badge {
+  --status-color: #737b76;
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  color: var(--status-color);
+  border: 1px solid color-mix(in srgb, var(--status-color) 24%, white);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--status-color) 8%, white);
+  font-size: 0.73rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-color);
+}
+
+.status-new { --status-color: #727975; }
+.status-zh { --status-color: #bc3d43; }
+.status-ka { --status-color: #3370c9; }
+.status-ready { --status-color: #2e8357; }
+.status-published { --status-color: #161c19; }
+.status-archived { --status-color: #7b648d; }
+.status-unknown { --status-color: #8a704e; }

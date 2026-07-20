@@ -1,0 +1,151 @@
+<section class="dashboard-page">
+  <header class="page-head">
+    <div>
+      <p class="page-kicker">სამუშაო დაფა</p>
+      <h1 class="page-title">გამარჯობა, {{ editor()?.displayName?.split(' ')?.[0] || 'რედაქტორო' }}</h1>
+      <p class="page-subtitle">აქ ჩანს ყველა განახლებული სტატია, გარდა ახალი სტატიის სტატუსისა.</p>
+    </div>
+    @if (canCreateEntry()) {
+      <a class="btn btn-primary new-entry-button" routerLink="/entries/new">
+        <span aria-hidden="true">＋</span> ახალი სტატია
+      </a>
+    }
+  </header>
+
+  <div class="stats-grid" aria-label="სტატიების სტატისტიკა">
+    <article class="stat-card stat-total">
+      <span class="stat-label">სულ ბაზაში</span>
+      <strong>{{ stats()?.total ?? '—' }}</strong>
+      <span class="stat-note">ყველა სტატუსი</span>
+    </article>
+    <article class="stat-card stat-zh">
+      <span class="stat-label">ჩინური შემოწმება</span>
+      <strong>{{ statusCount('zh_review') }}</strong>
+      <span class="stat-note"><i></i> სამუშაო პროცესში</span>
+    </article>
+    <article class="stat-card stat-ka">
+      <span class="stat-label">ქართული შემოწმება</span>
+      <strong>{{ statusCount('ka_review') }}</strong>
+      <span class="stat-note"><i></i> ელოდება რედაქტორს</span>
+    </article>
+    <article class="stat-card stat-ready">
+      <span class="stat-label">მზადაა</span>
+      <strong>{{ statusCount('ready') }}</strong>
+      <span class="stat-note"><i></i> გამოსაქვეყნებელი</span>
+    </article>
+  </div>
+
+  <div class="search-wrap">
+    <label class="search-box">
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <span class="visually-hidden">სტატიის ძიება</span>
+      <input
+        #searchInput
+        class="search-input"
+        type="search"
+        autocomplete="off"
+        placeholder="მოძებნეთ ჩინური სიტყვა…"
+        (input)="onSearchInput($event)"
+      />
+      <span class="search-hint">სათაურით ძიება</span>
+      @if (searchQuery()) {
+        <button type="button" class="clear-search" (click)="clearSearch(searchInput)" aria-label="ძიების გასუფთავება">×</button>
+      }
+    </label>
+
+    @if (searchOpen()) {
+      <div class="search-popover">
+        <div class="search-popover-head">
+          <span>ძიების შედეგები</span>
+          <small>ახალი სტატიებიც შედის</small>
+        </div>
+        @if (searchLoading()) {
+          <div class="search-state">იძებნება…</div>
+        } @else if (searchResults().length === 0) {
+          <div class="search-state">„{{ searchQuery() }}“ ვერ მოიძებნა</div>
+        } @else {
+          <div class="search-results">
+            @for (entry of searchResults(); track entry.id) {
+              <a [routerLink]="['/entries', entry.id]">
+                <span class="result-word"><strong>{{ entry.lemma }}</strong><small>{{ entry.pinyin || '—' }}</small></span>
+                <app-status-badge [status]="entry.status" />
+              </a>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <section class="entries-card">
+    <div class="card-head">
+      <div>
+        <h2>ბოლო ცვლილებები</h2>
+        <p>{{ totalCount() }} სტატია</p>
+      </div>
+      <span class="refresh-note">ავტომატურად დალაგებულია სტატუსითა და თარიღით</span>
+    </div>
+
+    @if (error()) {
+      <div class="load-error">
+        <div class="error-banner">{{ error() }}</div>
+        <button class="btn btn-secondary" type="button" (click)="retry()">ხელახლა ცდა</button>
+      </div>
+    } @else if (loading()) {
+      <div class="skeleton-list" aria-label="სტატიები იტვირთება">
+        @for (_ of [1, 2, 3, 4, 5]; track $index) {
+          <div class="skeleton-row"><i></i><i></i><i></i><i></i></div>
+        }
+      </div>
+    } @else if (entries().length === 0) {
+      <div class="empty-state">
+        <strong>ცვლილებული სტატიები ჯერ არ არის</strong>
+        <span>ახალი სტატიის სტატუსის შეცვლის შემდეგ ის აქ გამოჩნდება.</span>
+      </div>
+    } @else {
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ავტორი / ბოლო რედაქტორი</th>
+              <th>სიტყვა</th>
+              <th>მდგომარეობა</th>
+              <th>ცვლილების თარიღი</th>
+              <th><span class="visually-hidden">გახსნა</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of entries(); track entry.id) {
+              <tr>
+                <td data-label="ავტორი">
+                  <span class="author-line">
+                    <span class="author-avatar">{{ (entry.mainAuthorDisplayName || entry.lastEditorDisplayName).charAt(0) }}</span>
+                    <span><strong>{{ entry.mainAuthorDisplayName || 'ავტორი არ არის დაფიქსირებული' }}</strong><small>{{ entry.lastEditorDisplayName }}</small></span>
+                  </span>
+                </td>
+                <td data-label="სიტყვა">
+                  <a class="word-link" [routerLink]="['/entries', entry.id]">
+                    <strong>{{ entry.lemma }}</strong><small>{{ entry.pinyin || '—' }}</small>
+                  </a>
+                </td>
+                <td data-label="მდგომარეობა"><app-status-badge [status]="entry.status" /></td>
+                <td data-label="თარიღი">
+                  <time [attr.datetime]="entry.updatedAtUtc">{{ entry.updatedAtUtc | date: 'dd MMM yyyy, HH:mm':'+0400' }}</time>
+                </td>
+                <td class="row-action"><a [routerLink]="['/entries', entry.id]" aria-label="სტატიის გახსნა">→</a></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pagination">
+        <span>გვერდი {{ page() }} / {{ pageCount() }}</span>
+        <div>
+          <button type="button" (click)="previousPage()" [disabled]="page() === 1">←</button>
+          <button type="button" (click)="nextPage()" [disabled]="page() === pageCount()">→</button>
+        </div>
+      </footer>
+    }
+  </section>
+</section>

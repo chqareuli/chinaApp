@@ -1,0 +1,55 @@
+<section class="entry-page">
+  <a class="back-link" routerLink="/dashboard">← მთავარ გვერდზე</a>
+
+  @if (loading()) {
+    <div class="loading-card">სტატია იტვირთება…</div>
+  } @else if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  } @else if (entry(); as item) {
+    <header class="entry-head">
+      <div class="word-block">
+        <p class="page-kicker">სტატია #{{ item.id }}</p>
+        <h1 lang="zh">{{ item.lemma }}</h1>
+        <p>{{ item.pinyin || 'Pinyin მითითებული არ არის' }}</p>
+      </div>
+      <app-status-badge [status]="item.status" />
+    </header>
+
+    <div class="meta-grid">
+      <article><span>მთავარი ავტორი</span><strong>{{ item.mainAuthorDisplayName || 'ჯერ არ არის დაფიქსირებული' }}</strong></article>
+      <article><span>ბოლო რედაქტორი</span><strong>{{ item.lastEditorDisplayName }}</strong></article>
+      <article><span>ბოლო ცვლილება</span><strong>{{ item.updatedAtUtc | date:'dd MMM yyyy, HH:mm':'+0400' }}</strong></article>
+    </div>
+
+    <div class="editor-note">
+      <strong>Structured Editor — შემდეგი ინკრემენტი</strong>
+      <p>ამ ეტაპზე გვერდი რეალურ სტრუქტურულ მონაცემებს უსაფრთხოდ აჩვენებს. სრული რედაქტირება, კომენტარები და სტატუსის მოქმედებები შემდეგ UI ეტაპში დაემატება.</p>
+    </div>
+
+    <section class="content-card">
+      <div class="content-head"><h2>სტატიის შინაარსი</h2><span>{{ item.homonyms.length }} ჰომონიმი</span></div>
+      @if (item.homonyms.length === 0) {
+        <div class="empty-state"><strong>სტატიის შინაარსი ჯერ ცარიელია</strong><span>შემდეგ ეტაპზე აქ გაიხსნება სტრუქტურული რედაქტორი.</span></div>
+      } @else {
+        <div class="homonyms">
+          @for (homonym of item.homonyms; track $index; let homonymIndex = $index) {
+            <article class="homonym">
+              <h3>Homonym {{ homonymIndex + 1 }}</h3>
+              @for (sense of homonym.senses; track $index) {
+                <div class="sense">
+                  <span class="sense-number">{{ sense.number }}</span>
+                  <div>
+                    <p class="definition">{{ sense.definition || 'განმარტება ცარიელია' }}</p>
+                    @for (example of sense.examples; track $index) {
+                      <div class="example"><p lang="zh">{{ example.zh }}</p><p>{{ example.ka }}</p></div>
+                    }
+                  </div>
+                </div>
+              }
+            </article>
+          }
+        </div>
+      }
+    </section>
+  }
+</section>

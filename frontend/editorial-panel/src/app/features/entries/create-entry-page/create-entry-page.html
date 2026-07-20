@@ -1,0 +1,39 @@
+<section class="entry-form-page">
+  <a class="back-link" routerLink="/dashboard">← მთავარ გვერდზე</a>
+  <header>
+    <p class="page-kicker">ახალი ჩანაწერი</p>
+    <h1 class="page-title">ახალი სტატიის შექმნა</h1>
+    <p>საწყის ეტაპზე აუცილებელია მხოლოდ ჩინური სიტყვა. სტატია შეიქმნება ნაცრისფერი სტატუსით.</p>
+  </header>
+
+  <form class="entry-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    @if (error()) { <div class="error-banner" role="alert">{{ error() }}</div> }
+
+    <div class="field">
+      <label for="lemma">სიტყვა <span>*</span></label>
+      <input id="lemma" formControlName="lemma" autocomplete="off" placeholder="მაგ. 为" lang="zh" />
+      <small>ჩინური სათაური ან სიტყვათშეთანხმება</small>
+      @if (form.controls.lemma.touched && form.controls.lemma.invalid) {
+        <span class="field-error">სიტყვის მითითება აუცილებელია.</span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="pinyin">Pinyin</label>
+      <input id="pinyin" formControlName="pinyin" autocomplete="off" placeholder="მაგ. wèi" />
+      <small>არასავალდებულო ველი — შესაძლებელია მოგვიანებით დამატება</small>
+    </div>
+
+    <div class="status-preview">
+      <span class="gray-dot"></span>
+      <span><strong>ახალი სტატია</strong><small>ჯერ არ გამოჩნდება მთავარ სიაში</small></span>
+    </div>
+
+    <footer>
+      <a class="btn btn-secondary" routerLink="/dashboard">გაუქმება</a>
+      <button class="btn btn-primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'იქმნება…' : 'შექმნა და გაგრძელება' }}
+      </button>
+    </footer>
+  </form>
+</section>

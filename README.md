@@ -1,11 +1,13 @@
-# Chinese–Georgian Dictionary — Backend
+# Chinese–Georgian Dictionary Platform
 
-Backend for the rebuild of the chinese.ge editorial platform. The Angular admin panel and
-public site are built separately and are not part of this repo.
+ASP.NET Core backend for the chinese.ge editorial platform. The Angular admin panel is developed
+as an independent project under `frontend/editorial-panel` on the dedicated `codex/angular-ui`
+branch. The public dictionary site remains a separate future surface.
 
 Full architecture rationale and phased roadmap: see
 `docs/backend-plan.md` (mirrors the plan agreed with the product owner).
 Current milestone / what's next: see `docs/PROGRESS.md`.
+Angular delivery plan: see `docs/frontend-plan.md`.
 
 ## Solution layout
 

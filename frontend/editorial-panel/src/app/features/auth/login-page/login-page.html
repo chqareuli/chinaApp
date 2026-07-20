@@ -1,0 +1,89 @@
+<main class="login-page">
+  <section class="login-story" aria-label="პლატფორმის აღწერა">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">中</span>
+      <span>Chinese.ge</span>
+    </div>
+
+    <div class="story-content">
+      <p class="story-kicker">სარედაქციო სამუშაო სივრცე</p>
+      <h1>სტატია, თარგმანი და რედაქტირება — ერთ მკაფიო პროცესში.</h1>
+      <p>
+        მართეთ ჩინურ–ქართული ლექსიკონის სტატიები, შემოწმების ეტაპები და გუნდური კომუნიკაცია
+        უსაფრთხო შიდა სივრციდან.
+      </p>
+    </div>
+
+    <div class="workflow" aria-label="სტატიის სამუშაო ეტაპები">
+      <span class="step step-new">ახალი</span>
+      <span class="connector">→</span>
+      <span class="step step-zh">ჩინური</span>
+      <span class="connector">→</span>
+      <span class="step step-ka">ქართული</span>
+      <span class="connector">→</span>
+      <span class="step step-ready">მზადაა</span>
+    </div>
+  </section>
+
+  <section class="login-panel">
+    <div class="login-card">
+      <div class="mobile-brand">
+        <span class="brand-mark" aria-hidden="true">中</span>
+        <span>Chinese.ge</span>
+      </div>
+      <p class="page-kicker">ავტორიზაცია</p>
+      <h2>კეთილი იყოს თქვენი დაბრუნება</h2>
+      <p class="intro">შედით რედაქტორის ანგარიშით სამუშაოს გასაგრძელებლად.</p>
+
+      @if (error()) {
+        <div class="error-banner" role="alert">{{ error() }}</div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label for="email">ელფოსტა</label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            autocomplete="username"
+            placeholder="editor@chinese.ge"
+          />
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <span class="field-error">მიუთითეთ სწორი ელფოსტა.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label for="password">პაროლი</label>
+          <div class="password-field">
+            <input
+              id="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              autocomplete="current-password"
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              (click)="showPassword.set(!showPassword())"
+              [attr.aria-label]="showPassword() ? 'პაროლის დამალვა' : 'პაროლის ჩვენება'"
+            >
+              {{ showPassword() ? 'დამალვა' : 'ჩვენება' }}
+            </button>
+          </div>
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <span class="field-error">პაროლი აუცილებელია.</span>
+          }
+        </div>
+
+        <button class="btn btn-primary submit-button" type="submit" [disabled]="loading()">
+          {{ loading() ? 'მოწმდება…' : 'სისტემაში შესვლა' }}
+        </button>
+      </form>
+
+      <p class="support-note">წვდომის პრობლემის შემთხვევაში დაუკავშირდით სუპერ ადმინს.</p>
+    </div>
+  </section>
+</main>
