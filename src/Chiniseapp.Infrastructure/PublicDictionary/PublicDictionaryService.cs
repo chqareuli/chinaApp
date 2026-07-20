@@ -1,0 +1,177 @@
+using Chiniseapp.Application.Entries;
+using Chiniseapp.Application.PublicDictionary;
+using Chiniseapp.Domain.Entities;
+using Chiniseapp.Domain.Enums;
+using Chiniseapp.Domain.Rules;
+using Chiniseapp.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace Chiniseapp.Infrastructure.PublicDictionary;
+
+public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionaryService
+{
+    public async Task<IReadOnlyList<PublicDictionarySearchItem>> SearchAsync(
+        string query,
+        PublicSearchMode mode,
+        int limit,
+        CancellationToken ct = default)
+    {
+        var term = query.Trim();
+        if (term.Length == 0)
+        {
+            return [];
+        }
+
+        limit = Math.Clamp(limit, 1, 50);
+        var entries = db.Entries
+            .AsNoTracking()
+            .Where(entry => entry.Status == EntryStatus.Published);
+
+        List<Entry> matches;
+        if (mode == PublicSearchMode.Word)
+        {
+            var normalized = TitleNormalizer.Normalize(term);
+            var pinyinPattern = EscapeLikePattern(term) + "%";
+            matches = await entries
+                .Where(entry =>
+                    EF.Functions.Like(entry.SearchNormalizedTitle, normalized + "%") ||
+                    (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pinyinPattern, "\\")))
+                .OrderBy(entry => entry.Lemma.Length)
+                .ThenBy(entry => entry.Lemma)
+                .Take(limit)
+                .ToListAsync(ct);
+        }
+        else
+        {
+            var pattern = "%" + EscapeLikePattern(term) + "%";
+            matches = await entries
+                .Where(entry =>
+                    EF.Functions.ILike(entry.Lemma, pattern, "\\") ||
+                    (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pattern, "\\")) ||
+                    db.Segments.Any(segment =>
+                        segment.EntryId == entry.Id &&
+                        segment.Value != null &&
+                        EF.Functions.ILike(segment.Value, pattern, "\\")))
+                .OrderByDescending(entry => entry.UpdatedAtUtc)
+                .Take(limit)
+                .ToListAsync(ct);
+        }
+
+        if (matches.Count == 0)
+        {
+            return [];
+        }
+
+        var snippets = mode == PublicSearchMode.Text
+            ? await LoadSnippetsAsync(matches.Select(entry => entry.Id).ToList(), term, ct)
+            : new Dictionary<int, string>();
+
+        return matches.Select(entry => new PublicDictionarySearchItem(
+                entry.Id,
+                entry.Lemma,
+                entry.Pinyin,
+                snippets.GetValueOrDefault(entry.Id, string.Empty)))
+            .ToList();
+    }
+
+    public async Task<PublicDictionaryEntry?> GetEntryAsync(int id, CancellationToken ct = default)
+    {
+        var entry = await db.Entries
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == id && item.Status == EntryStatus.Published, ct);
+        if (entry is null)
+        {
+            return null;
+        }
+
+        return new PublicDictionaryEntry(
+            entry.Id,
+            entry.Lemma,
+            entry.Pinyin,
+            entry.UpdatedAtUtc,
+            await LoadHomonymsAsync(entry.Id, ct));
+    }
+
+    public async Task<PublicDictionaryStats> GetStatsAsync(CancellationToken ct = default) =>
+        new(await db.Entries.CountAsync(entry => entry.Status == EntryStatus.Published, ct));
+
+    private async Task<Dictionary<int, string>> LoadSnippetsAsync(
+        List<int> entryIds,
+        string term,
+        CancellationToken ct)
+    {
+        var values = await db.Segments
+            .AsNoTracking()
+            .Where(segment => entryIds.Contains(segment.EntryId) && segment.Value != null)
+            .Select(segment => new { segment.EntryId, segment.Value })
+            .ToListAsync(ct);
+
+        return values
+            .Where(item => item.Value!.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(item => item.EntryId)
+            .ToDictionary(group => group.Key, group => BuildSnippet(group.First().Value!, term));
+    }
+
+    private async Task<List<HomonymDto>> LoadHomonymsAsync(int entryId, CancellationToken ct)
+    {
+        var segments = await db.Segments
+            .AsNoTracking()
+            .Where(segment => segment.EntryId == entryId)
+            .OrderBy(segment => segment.OrderIndex)
+            .ToListAsync(ct);
+
+        var byParent = segments
+            .Where(segment => segment.ParentSegmentId.HasValue)
+            .GroupBy(segment => segment.ParentSegmentId!.Value)
+            .ToDictionary(group => group.Key, group => group.OrderBy(segment => segment.OrderIndex).ToList());
+
+        IEnumerable<Segment> ChildrenOf(int? parentId) => parentId is null
+            ? segments.Where(segment => segment.ParentSegmentId is null)
+            : byParent.TryGetValue(parentId.Value, out var children) ? children : [];
+
+        List<Segment> Children(int? parentId, SegmentType type) =>
+            ChildrenOf(parentId).Where(segment => segment.SegmentType == type).ToList();
+
+        var homonyms = new List<HomonymDto>();
+        foreach (var homonym in Children(null, SegmentType.Homonym))
+        {
+            var gramGrp = Children(homonym.Id, SegmentType.GramGrp).FirstOrDefault();
+            var senses = new List<SenseDto>();
+            if (gramGrp is not null)
+            {
+                foreach (var sense in Children(gramGrp.Id, SegmentType.Sense))
+                {
+                    var definition = Children(sense.Id, SegmentType.Definition).FirstOrDefault();
+                    var examples = Children(sense.Id, SegmentType.Example)
+                        .Select(example => new ExampleDto(
+                            Children(example.Id, SegmentType.ZhSegment).FirstOrDefault()?.Value ?? string.Empty,
+                            Children(example.Id, SegmentType.KaSegment).FirstOrDefault()?.Value ?? string.Empty))
+                        .ToList();
+                    senses.Add(new SenseDto(sense.Number ?? senses.Count + 1, definition?.Value ?? string.Empty, examples));
+                }
+            }
+
+            homonyms.Add(new HomonymDto(senses));
+        }
+
+        return homonyms;
+    }
+
+    private static string BuildSnippet(string value, string term)
+    {
+        const int maxLength = 180;
+        if (value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        var index = value.IndexOf(term, StringComparison.OrdinalIgnoreCase);
+        var start = Math.Max(0, index - 65);
+        start = Math.Min(start, value.Length - maxLength);
+        var snippet = value.Substring(start, maxLength).Trim();
+        return $"{(start > 0 ? "…" : string.Empty)}{snippet}{(start + maxLength < value.Length ? "…" : string.Empty)}";
+    }
+
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+}
