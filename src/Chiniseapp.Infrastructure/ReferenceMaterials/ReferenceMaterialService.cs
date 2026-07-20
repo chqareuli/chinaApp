@@ -1,5 +1,7 @@
 using Chiniseapp.Application.ReferenceMaterials;
 using Chiniseapp.Domain.Rules;
+using Chiniseapp.Domain.Entities;
+using Chiniseapp.Domain.Enums;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,6 +53,18 @@ public class ReferenceMaterialService(ChiniseDbContext db) : IReferenceMaterialS
         material.G4 = request.G4 ?? string.Empty;
         material.G5 = request.G5 ?? string.Empty;
         material.UpdatedAtUtc = now;
+
+        entry.LastEditorEditorId = currentEditorId;
+        entry.UpdatedAtUtc = now;
+        db.AuditLogEntries.Add(new AuditLogEntry
+        {
+            EntityType = nameof(Entry),
+            EntityId = entry.Id,
+            Action = AuditAction.ContentEdited,
+            PerformedByEditorId = currentEditorId,
+            PerformedAtUtc = now,
+            Notes = "Reference material updated.",
+        });
 
         await db.SaveChangesAsync(ct);
         return ToDetail(material);

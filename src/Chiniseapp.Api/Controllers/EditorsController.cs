@@ -17,6 +17,10 @@ public record ResetPasswordRequest(string NewPassword);
 
 public record ChangeEditorRoleRequest(string Role);
 
+public record UpdateOwnProfileRequest(string DisplayName);
+
+public record ChangeOwnPasswordRequest(string CurrentPassword, string NewPassword);
+
 /// <summary>
 /// Bootstrap-level editor management. Only what M3 (auth) needs to be usable —
 /// full profile self-edit, richer filtering, etc. can grow later without
@@ -37,6 +41,59 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
         }
 
         return Ok(ToListItem(editor));
+    }
+
+    [HttpPut("me")]
+    public async Task<ActionResult<EditorListItem>> UpdateMe(UpdateOwnProfileRequest request, CancellationToken ct)
+    {
+        var displayName = request.DisplayName?.Trim();
+        if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 160)
+        {
+            return BadRequest(new { message = "Display name is required and must be 160 characters or fewer." });
+        }
+
+        var editor = await db.Editors.FindAsync([User.GetEditorId()], ct);
+        if (editor is null)
+        {
+            return NotFound();
+        }
+
+        editor.DisplayName = displayName;
+        await db.SaveChangesAsync(ct);
+        return Ok(ToListItem(editor));
+    }
+
+    [HttpPost("me/password")]
+    public async Task<IActionResult> ChangeOwnPassword(ChangeOwnPasswordRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+        {
+            return BadRequest(new { message = "The new password must be at least 8 characters long." });
+        }
+
+        var editor = await db.Editors.FindAsync([User.GetEditorId()], ct);
+        if (editor is null)
+        {
+            return NotFound();
+        }
+
+        if (!passwordHasher.VerifyPassword(editor, editor.PasswordHash, request.CurrentPassword))
+        {
+            return BadRequest(new { message = "The current password is incorrect." });
+        }
+
+        editor.PasswordHash = passwordHasher.HashPassword(editor, request.NewPassword);
+        db.AuditLogEntries.Add(new AuditLogEntry
+        {
+            EntityType = nameof(Editor),
+            EntityId = editor.Id,
+            Action = AuditAction.Other,
+            PerformedByEditorId = editor.Id,
+            PerformedAtUtc = DateTime.UtcNow,
+            Notes = "Password changed by editor.",
+        });
+        await db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     [HttpGet]

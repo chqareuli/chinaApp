@@ -3,9 +3,10 @@
 Quick-glance resume pointer. Full architecture, domain model, and roadmap live in
 `docs/backend-plan.md` — this file just tracks "what's done, what's next."
 
-## Current stage: workflow hardening done → full Angular editor integration next
+## Current stage: core backend workflow complete → Angular integration in progress
 
-Latest work: M8a — Comments + Reference Material CRUD. See `git log --oneline` for the hash.
+Latest backend work: publication validation, audit-history API, entry activity tracking for
+comments/reference material, and self-service profile/password endpoints.
 
 ### Done
 - **M1** — solution scaffold, EF Core + Npgsql wiring, `/health/db` connectivity check.
@@ -31,6 +32,9 @@ Latest work: M8a — Comments + Reference Material CRUD. See `git log --oneline`
 - **Workflow hardening** — strict ZH/KA status hand-off matrix; status-aware content and
   reference-material editing; per-entry UI capabilities; stable entry error codes; SuperAdmin-only
   user creation/blocking/role assignment with role-change audit and last-SuperAdmin protection.
+- **Workflow completion** — publish-readiness validation with structured errors; entry history
+  endpoint backed by the audit log; comment/reference changes reflected in main-page activity;
+  self-service display-name/password changes; 245/245 automated tests passing.
 
 ### Resolved product decisions (see `docs/backend-plan.md` for full detail)
 - ZH-editor status-transition scope: strict `new_entry → zh_review → ka_review`, implemented and
@@ -55,10 +59,12 @@ Latest work: M8a — Comments + Reference Material CRUD. See `git log --oneline`
 - **M8a**: `Comment.TargetSegmentId` stays null always (entry-level only) — segment-level
   comments are a Stage 2 concept once the full Editorial Panel segment tree exists.
 
-### Next up: full Angular structured editor integration
+### Next up: finish Angular profile/history integration
 The Angular UI consumes the backend-provided `capabilities` object rather than duplicating role
-rules. The next slice adds full content editing, status actions, comments, reference material,
-and concurrency-conflict handling. Legacy import remains deliberately deferred.
+rules. Structured content editing, status actions, comments, reference material, messaging,
+notifications, users, accounting, and concurrency handling are implemented on the separate
+Angular branch. The remaining core UI slice is profile/password management plus the entry-history
+view. Legacy import remains deliberately deferred.
 
 ### Deferred: M8b — Legacy-import console tool (blocked on data)
 **Needs from the product owner before this can start meaningfully**: either a sample export

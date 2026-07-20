@@ -41,3 +41,13 @@ public record EntrySummary(
     DateTime UpdatedAtUtc);
 
 public record PagedResult<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);
+
+public record EntryHistoryItem(
+    int Id,
+    string Action,
+    int PerformedByEditorId,
+    string PerformedByDisplayName,
+    DateTime PerformedAtUtc,
+    string? OldValue,
+    string? NewValue,
+    string? Notes);

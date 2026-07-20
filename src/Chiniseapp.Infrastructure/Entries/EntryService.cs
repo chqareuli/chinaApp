@@ -143,6 +143,11 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             throw new EntryStatusTransitionForbiddenException(previousStatus.ToString(), targetStatus.ToString());
         }
 
+        if (targetStatus == EntryStatus.Published)
+        {
+            await EnsureReadyForPublicationAsync(entry, ct);
+        }
+
         // main_author locks the first time an entry leaves new_entry, to the
         // entry's original creator — this already covers the assistant_editor
         // case (an assistant-authored entry promoted by a supervisor keeps
@@ -220,6 +225,34 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 
         var names = await LoadDisplayNamesAsync(matches, ct);
         return matches.Select(e => ToSummary(e, names)).ToList();
+    }
+
+    public async Task<IReadOnlyList<EntryHistoryItem>> GetHistoryAsync(int id, CancellationToken ct = default)
+    {
+        var history = await db.AuditLogEntries
+            .Where(item => item.EntityType == nameof(Entry) && item.EntityId == id)
+            .OrderByDescending(item => item.PerformedAtUtc)
+            .ToListAsync(ct);
+
+        if (history.Count == 0)
+        {
+            return [];
+        }
+
+        var editorIds = history.Select(item => item.PerformedByEditorId).Distinct().ToList();
+        var names = await db.Editors
+            .Where(editor => editorIds.Contains(editor.Id))
+            .ToDictionaryAsync(editor => editor.Id, editor => editor.DisplayName, ct);
+
+        return history.Select(item => new EntryHistoryItem(
+            item.Id,
+            item.Action.ToString(),
+            item.PerformedByEditorId,
+            names.GetValueOrDefault(item.PerformedByEditorId, string.Empty),
+            item.PerformedAtUtc,
+            item.OldValue,
+            item.NewValue,
+            item.Notes)).ToList();
     }
 
     private static string NormalizeLemma(string? lemma)
@@ -386,6 +419,31 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         return new EntryCapabilities(
             EntryContentRules.CanEdit(role, currentStatus),
             allowedTransitions);
+    }
+
+    private async Task EnsureReadyForPublicationAsync(Entry entry, CancellationToken ct)
+    {
+        var segments = await db.Segments
+            .Where(segment => segment.EntryId == entry.Id &&
+                (segment.SegmentType == SegmentType.Homonym ||
+                 segment.SegmentType == SegmentType.Sense ||
+                 segment.SegmentType == SegmentType.Definition))
+            .Select(segment => new { segment.SegmentType, segment.Value })
+            .ToListAsync(ct);
+
+        var errors = EntryPublicationRules.Validate(
+            entry.Lemma,
+            segments.Count(segment => segment.SegmentType == SegmentType.Homonym),
+            segments.Count(segment => segment.SegmentType == SegmentType.Sense),
+            segments
+                .Where(segment => segment.SegmentType == SegmentType.Definition)
+                .Select(segment => segment.Value)
+                .ToList());
+
+        if (errors.Count > 0)
+        {
+            throw new EntryPublicationValidationException(errors);
+        }
     }
 
     private async Task<Editor> GetCurrentEditorAsync(int currentEditorId, CancellationToken ct) =>

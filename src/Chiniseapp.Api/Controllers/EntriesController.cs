@@ -38,6 +38,18 @@ public class EntriesController(IEntryService entryService) : ControllerBase
         return entry is null ? NotFound() : Ok(entry);
     }
 
+    [HttpGet("{id:int}/history")]
+    public async Task<ActionResult<IReadOnlyList<EntryHistoryItem>>> History(int id, CancellationToken ct)
+    {
+        var entry = await entryService.GetAsync(id, User.GetEditorId(), ct);
+        if (entry is null)
+        {
+            return EntryProblem(StatusCodes.Status404NotFound, "entry_not_found", $"Entry {id} does not exist.");
+        }
+
+        return Ok(await entryService.GetHistoryAsync(id, ct));
+    }
+
     /// <summary>Minimum viable create: headword only (spec 9 — title is the only required field).</summary>
     [HttpPost]
     [Authorize(Roles = AuthorizationPolicies.EntryCreatorRoles)]
@@ -118,6 +130,12 @@ public class EntriesController(IEntryService entryService) : ControllerBase
         catch (EntryStatusTransitionForbiddenException ex)
         {
             return EntryProblem(StatusCodes.Status403Forbidden, "entry_status_transition_forbidden", ex.Message);
+        }
+        catch (EntryPublicationValidationException ex)
+        {
+            var result = EntryProblem(StatusCodes.Status400BadRequest, "entry_publication_invalid", ex.Message);
+            ((ProblemDetails)result.Value!).Extensions["errors"] = ex.Errors;
+            return result;
         }
         catch (EntryNotFoundException ex)
         {

@@ -12,6 +12,12 @@ public class EntryNotFoundException(int entryId) : Exception($"Entry {entryId} d
 /// <summary>Thrown when the actor cannot create or edit entry content in the current workflow state.</summary>
 public class EntryContentForbiddenException(string message) : Exception(message);
 
+public class EntryPublicationValidationException(IReadOnlyList<string> errors)
+    : Exception("The entry is not ready for publication.")
+{
+    public IReadOnlyList<string> Errors { get; } = errors;
+}
+
 /// <summary>Thrown when the actor's role isn't allowed to move an entry from its current status to the requested one.</summary>
 public class EntryStatusTransitionForbiddenException(string fromStatus, string toStatus)
     : Exception($"Not allowed to move this entry from '{fromStatus}' to '{toStatus}'.");

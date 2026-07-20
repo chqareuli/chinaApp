@@ -237,6 +237,11 @@ Editor, Chief Editor, and Super Admin.
   reachable from any public/entry-content response. Verified live: notification/scoring
   fan-out from a comment, non-owner non-privileged edit/archive rejected (403), privileged
   override works, reference material round-trips multi-script text (EN/ZH/RU) correctly.
+- **Workflow completion (done)** — publishing now performs domain validation and returns
+  structured `entry_publication_invalid` errors; `GET /entries/{id}/history` exposes the
+  entry audit timeline; comment and reference-material changes update the entry's last-editor
+  activity fields; and editors can update their own display name and password without gaining
+  any user-administration privileges. These contracts are covered by the full 245-test suite.
 - **M8b (not started)** — Legacy-import console tool: parses the old database's raw comment
   blobs (`&Author&` shift markers, `#...#` → Georgian editor notes) and reference-material
   blobs (`**`/`***`/`****`/`*****` delimiters, `//`/`///` → bullet markers), preserving the

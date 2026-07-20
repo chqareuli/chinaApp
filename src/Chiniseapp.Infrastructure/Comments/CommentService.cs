@@ -51,6 +51,9 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
         };
         db.Comments.Add(comment);
 
+        entry.LastEditorEditorId = authorEditorId;
+        entry.UpdatedAtUtc = now;
+
         db.AuditLogEntries.Add(new AuditLogEntry
         {
             EntityType = nameof(Entry),
@@ -89,7 +92,9 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
         }
 
         comment.CommentText = text;
-        comment.UpdatedAtUtc = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        comment.UpdatedAtUtc = now;
+        await TouchEntryAsync(comment.EntryId, requestingEditorId, now, ct);
         await db.SaveChangesAsync(ct);
 
         var authorName = await db.Editors.Where(e => e.Id == comment.AuthorEditorId).Select(e => e.DisplayName).FirstOrDefaultAsync(ct) ?? string.Empty;
@@ -107,7 +112,9 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
         EnsureCanModify(comment, requestingEditorId, requestingRole);
 
         comment.Status = CommentStatus.Archived;
-        comment.UpdatedAtUtc = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        comment.UpdatedAtUtc = now;
+        await TouchEntryAsync(comment.EntryId, requestingEditorId, now, ct);
         await db.SaveChangesAsync(ct);
         return true;
     }
@@ -120,6 +127,18 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
         {
             throw new CommentAccessDeniedException();
         }
+    }
+
+    private async Task TouchEntryAsync(int entryId, int editorId, DateTime now, CancellationToken ct)
+    {
+        var entry = await db.Entries.FindAsync([entryId], ct);
+        if (entry is null)
+        {
+            return;
+        }
+
+        entry.LastEditorEditorId = editorId;
+        entry.UpdatedAtUtc = now;
     }
 
     private static CommentSummary ToSummary(Comment c, Dictionary<int, string> names) => new(
