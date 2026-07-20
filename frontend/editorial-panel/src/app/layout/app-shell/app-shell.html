@@ -9,7 +9,27 @@
       ☰
     </button>
     <a class="mobile-logo" routerLink="/dashboard"><span>中</span> Chinese.ge</a>
-    <span class="mobile-avatar">{{ initials() }}</span>
+    <div class="mobile-actions">
+      <a class="header-action" routerLink="/notifications" aria-label="ნოტიფიკაციები">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+        </svg>
+        @if (unreadNotifications()) {
+          <span class="header-badge">{{
+            unreadNotifications() > 99 ? '99+' : unreadNotifications()
+          }}</span>
+        }
+      </a>
+      <a class="header-action" routerLink="/messages" aria-label="წერილები">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+        </svg>
+        @if (unreadMessages()) {
+          <span class="header-badge">{{ unreadMessages() > 99 ? '99+' : unreadMessages() }}</span>
+        }
+      </a>
+      <a class="mobile-avatar" routerLink="/profile" aria-label="პროფილი">{{ initials() }}</a>
+    </div>
   </header>
 
   @if (menuOpen()) {
@@ -43,14 +63,25 @@
         >
       }
       <a routerLink="/notifications" routerLinkActive="active" (click)="closeMenu()"
-        ><span class="nav-icon">ნ</span><span>ნოტიფიკაციები</span>
+        ><span class="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+          </svg> </span
+        ><span>ნოტიფიკაციები</span>
         @if (unreadNotifications()) {
           <span class="nav-pill">{{ unreadNotifications() }}</span>
         }
       </a>
       <a routerLink="/messages" routerLinkActive="active" (click)="closeMenu()"
-        ><span class="nav-icon">წ</span><span>წერილები</span></a
-      >
+        ><span class="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+          </svg> </span
+        ><span>წერილები</span>
+        @if (unreadMessages()) {
+          <span class="nav-pill">{{ unreadMessages() }}</span>
+        }
+      </a>
 
       <p class="nav-label nav-label-spaced">მონაცემები</p>
       <a routerLink="/accounting" routerLinkActive="active" (click)="closeMenu()"
@@ -77,5 +108,40 @@
     </div>
   </aside>
 
-  <main class="content"><router-outlet /></main>
+  <div class="workspace">
+    <header class="desktop-toolbar">
+      <div class="toolbar-copy">
+        <strong>სარედაქციო სივრცე</strong>
+        <span>სტატიები, გუნდი და მიმოწერა</span>
+      </div>
+      <nav class="toolbar-actions" aria-label="სწრაფი შეტყობინებები">
+        <a class="header-action" routerLink="/notifications" aria-label="ნოტიფიკაციები">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+          </svg>
+          @if (unreadNotifications()) {
+            <span class="header-badge">{{
+              unreadNotifications() > 99 ? '99+' : unreadNotifications()
+            }}</span>
+          }
+        </a>
+        <a class="header-action" routerLink="/messages" aria-label="წერილები">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+          </svg>
+          @if (unreadMessages()) {
+            <span class="header-badge">{{ unreadMessages() > 99 ? '99+' : unreadMessages() }}</span>
+          }
+        </a>
+        <a class="toolbar-profile" routerLink="/profile">
+          <span class="toolbar-avatar">{{ initials() }}</span>
+          <span
+            ><strong>{{ editor()?.displayName }}</strong
+            ><small>{{ roleLabel() }}</small></span
+          >
+        </a>
+      </nav>
+    </header>
+    <main class="content"><router-outlet /></main>
+  </div>
 </div>

@@ -46,3 +46,8 @@ export interface DirectMessageSummary {
   sentAtUtc: string;
   readAtUtc: string | null;
 }
+
+export interface UnreadActivitySummary {
+  notifications: number;
+  messages: number;
+}

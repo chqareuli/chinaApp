@@ -9,6 +9,70 @@
 .messages-page > header p:last-child {
   margin: 8px 0 0;
 }
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.page-head .btn {
+  flex: 0 0 auto;
+}
+.new-message-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(240px, 1fr) auto;
+  align-items: end;
+  gap: 14px 18px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid #cbded6;
+  border-radius: var(--radius-md);
+  background: var(--forest-light);
+}
+.new-message-panel > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.new-message-panel > div:first-child div {
+  display: grid;
+  gap: 3px;
+}
+.new-message-panel strong {
+  font-size: 0.82rem;
+}
+.new-message-panel small {
+  color: var(--ink-soft);
+  font-size: 0.67rem;
+}
+.compose-icon {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #fff;
+  border-radius: 11px;
+  background: var(--forest);
+}
+.new-message-panel label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.new-message-panel select {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: #fff;
+}
+.new-message-actions {
+  display: flex;
+  gap: 8px;
+}
 .messenger {
   display: grid;
   grid-template-columns: 290px 1fr;
@@ -145,6 +209,20 @@ aside button.active {
   .messenger {
     grid-template-columns: 86px 1fr;
     min-height: 620px;
+  }
+  .page-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .page-head .btn {
+    align-self: flex-start;
+  }
+  .new-message-panel {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .new-message-actions {
+    flex-wrap: wrap;
   }
   .people-title,
   .person-copy {

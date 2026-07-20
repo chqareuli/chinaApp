@@ -1,11 +1,51 @@
 <section class="messages-page">
-  <header>
-    <p class="page-kicker">პირადი მიმოწერა</p>
-    <h1 class="page-title">წერილები</h1>
-    <p class="muted">
-      ესაუბრეთ რედაქტორებს და ჩინური სიტყვიდან პირდაპირ გადადით შესაბამის სტატიაზე.
-    </p>
+  <header class="page-head">
+    <div>
+      <p class="page-kicker">პირადი მიმოწერა</p>
+      <h1 class="page-title">წერილები</h1>
+      <p class="muted">
+        ესაუბრეთ რედაქტორებს და ჩინური სიტყვიდან პირდაპირ გადადით შესაბამის სტატიაზე.
+      </p>
+    </div>
+    <button class="btn btn-primary" type="button" (click)="openNewMessage()">
+      <span aria-hidden="true">✎</span> ახალი წერილი
+    </button>
   </header>
+  @if (newMessageOpen()) {
+    <section class="new-message-panel" aria-label="ახალი წერილის მიმღები">
+      <div>
+        <span class="compose-icon" aria-hidden="true">✉</span>
+        <div>
+          <strong>ვის სწერთ?</strong>
+          <small>აირჩიეთ აქტიური თანამშრომელი და დაიწყეთ საუბარი.</small>
+        </div>
+      </div>
+      <label for="new-message-recipient">მიმღები</label>
+      <select
+        id="new-message-recipient"
+        [value]="newRecipientId() ?? ''"
+        (change)="updateNewRecipient($event)"
+      >
+        <option value="">აირჩიეთ თანამშრომელი</option>
+        @for (editor of availableEditors(); track editor.id) {
+          <option [value]="editor.id">{{ editor.displayName }} — {{ roleLabel(editor) }}</option>
+        }
+      </select>
+      <div class="new-message-actions">
+        <button
+          class="btn btn-primary"
+          type="button"
+          (click)="startNewMessage()"
+          [disabled]="!newRecipientId()"
+        >
+          საუბრის დაწყება
+        </button>
+        <button class="btn btn-secondary" type="button" (click)="newMessageOpen.set(false)">
+          გაუქმება
+        </button>
+      </div>
+    </section>
+  }
   @if (error()) {
     <div class="error-banner">{{ error() }}</div>
   }
@@ -14,7 +54,7 @@
   } @else {
     <div class="messenger">
       <aside>
-        <div class="people-title">რედაქტორები</div>
+        <div class="people-title">თანამშრომლები და საუბრები</div>
         @for (editor of availableEditors(); track editor.id) {
           <button
             type="button"
@@ -24,7 +64,7 @@
             <span class="avatar">{{ editor.displayName.charAt(0) }}</span
             ><span class="person-copy"
               ><strong>{{ editor.displayName }}</strong
-              ><small>{{ lastMessage(editor.id)?.body || editor.email }}</small></span
+              ><small>{{ lastMessage(editor.id)?.body || roleLabel(editor) }}</small></span
             >
             @if (unreadCount(editor.id)) {
               <span class="unread">{{ unreadCount(editor.id) }}</span>

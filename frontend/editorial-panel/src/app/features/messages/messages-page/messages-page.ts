@@ -9,10 +9,12 @@ import {
 } from '@angular/core';
 import { finalize, forkJoin } from 'rxjs';
 import { EditorListItem } from '../../../core/models/admin.models';
+import { editorRoleLabels } from '../../../core/models/auth.models';
 import { DirectMessageSummary } from '../../../core/models/collaboration.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { CollaborationService } from '../../../core/services/collaboration.service';
 import { EditorsService } from '../../../core/services/editors.service';
+import { UnreadActivityService } from '../../../core/services/unread-activity.service';
 import { LinkedMessageBody } from '../../../shared/linked-message-body/linked-message-body';
 
 @Component({
@@ -26,10 +28,13 @@ export class MessagesPage implements OnInit {
   private readonly collaboration = inject(CollaborationService);
   private readonly editorsService = inject(EditorsService);
   private readonly auth = inject(AuthService);
+  private readonly unreadActivity = inject(UnreadActivityService);
   readonly editors = signal<EditorListItem[]>([]);
   readonly messages = signal<DirectMessageSummary[]>([]);
   readonly selectedEditorId = signal<number | null>(null);
   readonly body = signal('');
+  readonly newMessageOpen = signal(false);
+  readonly newRecipientId = signal<number | null>(null);
   readonly loading = signal(true);
   readonly sending = signal(false);
   readonly error = signal<string | null>(null);
@@ -70,6 +75,23 @@ export class MessagesPage implements OnInit {
   selectEditor(id: number): void {
     this.selectedEditorId.set(id);
     this.markThreadRead(id);
+  }
+  openNewMessage(): void {
+    this.newRecipientId.set(null);
+    this.newMessageOpen.set(true);
+  }
+  updateNewRecipient(event: Event): void {
+    const value = Number((event.target as HTMLSelectElement).value);
+    this.newRecipientId.set(value || null);
+  }
+  startNewMessage(): void {
+    const recipientId = this.newRecipientId();
+    if (!recipientId) return;
+    this.selectEditor(recipientId);
+    this.newMessageOpen.set(false);
+  }
+  roleLabel(editor: EditorListItem): string {
+    return editorRoleLabels[editor.role];
   }
   updateBody(event: Event): void {
     this.body.set((event.target as HTMLTextAreaElement).value);
@@ -122,16 +144,15 @@ export class MessagesPage implements OnInit {
           !m.readAtUtc,
       )
       .forEach((m) =>
-        this.collaboration
-          .markMessageRead(m.id)
-          .subscribe({
-            next: () =>
-              this.messages.update((items) =>
-                items.map((item) =>
-                  item.id === m.id ? { ...item, readAtUtc: new Date().toISOString() } : item,
-                ),
-              ),
-          }),
+        this.collaboration.markMessageRead(m.id).subscribe({
+          next: () =>
+            this.messages.update((items) => {
+              this.unreadActivity.messageRead();
+              return items.map((item) =>
+                item.id === m.id ? { ...item, readAtUtc: new Date().toISOString() } : item,
+              );
+            }),
+        }),
       );
   }
 }

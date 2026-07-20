@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { NotificationSummary } from '../../../core/models/collaboration.models';
 import { CollaborationService } from '../../../core/services/collaboration.service';
+import { UnreadActivityService } from '../../../core/services/unread-activity.service';
 
 @Component({
   selector: 'app-notifications-page',
@@ -15,6 +16,7 @@ import { CollaborationService } from '../../../core/services/collaboration.servi
 })
 export class NotificationsPage implements OnInit {
   private readonly collaboration = inject(CollaborationService);
+  private readonly unreadActivity = inject(UnreadActivityService);
   readonly notifications = signal<NotificationSummary[]>([]);
   readonly loading = signal(true);
   readonly unreadOnly = signal(false);
@@ -32,10 +34,14 @@ export class NotificationsPage implements OnInit {
   markRead(notification: NotificationSummary): void {
     if (notification.isRead) return;
     this.collaboration.markNotificationRead(notification.id).subscribe({
-      next: () =>
+      next: () => {
         this.notifications.update((items) =>
-          items.map((item) => (item.id === notification.id ? { ...item, isRead: true } : item)),
-        ),
+          this.unreadOnly()
+            ? items.filter((item) => item.id !== notification.id)
+            : items.map((item) => (item.id === notification.id ? { ...item, isRead: true } : item)),
+        );
+        this.unreadActivity.notificationRead();
+      },
     });
   }
 

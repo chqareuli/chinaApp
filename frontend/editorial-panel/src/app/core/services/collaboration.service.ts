@@ -8,6 +8,7 @@ import {
   NotificationSummary,
   ReferenceMaterialDetail,
   SaveReferenceMaterialRequest,
+  UnreadActivitySummary,
 } from '../models/collaboration.models';
 
 @Injectable({ providedIn: 'root' })
@@ -71,5 +72,9 @@ export class CollaborationService {
 
   markMessageRead(id: number): Observable<void> {
     return this.http.post<void>(`${this.apiBaseUrl}/messages/${id}/read`, {});
+  }
+
+  getUnreadActivity(): Observable<UnreadActivitySummary> {
+    return this.http.get<UnreadActivitySummary>(`${this.apiBaseUrl}/activity/unread-counts`);
   }
 }
