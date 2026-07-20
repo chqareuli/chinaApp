@@ -14,6 +14,17 @@ export class EditorsService {
     return this.http.get<EditorListItem[]>(`${this.apiBaseUrl}/editors`);
   }
 
+  updateMe(displayName: string): Observable<EditorListItem> {
+    return this.http.put<EditorListItem>(`${this.apiBaseUrl}/editors/me`, { displayName });
+  }
+
+  changeOwnPassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${this.apiBaseUrl}/editors/me/password`, {
+      currentPassword,
+      newPassword,
+    });
+  }
+
   create(request: CreateEditorRequest): Observable<EditorListItem> {
     return this.http.post<EditorListItem>(`${this.apiBaseUrl}/editors`, request);
   }

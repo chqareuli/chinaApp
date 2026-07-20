@@ -348,6 +348,65 @@
 .reference-form .btn {
   justify-self: end;
 }
+.history-list {
+  display: grid;
+  gap: 0;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.history-list li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 20px;
+}
+.history-list li:not(:last-child)::before {
+  position: absolute;
+  top: 16px;
+  bottom: 0;
+  left: 6px;
+  width: 2px;
+  background: var(--line);
+  content: '';
+}
+.history-marker {
+  position: relative;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  border: 3px solid #cbe0d2;
+  border-radius: 50%;
+  background: var(--forest);
+}
+.history-list article {
+  min-width: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.history-list header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+.history-list time,
+.history-list p,
+.history-detail {
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+}
+.history-list p {
+  margin: 5px 0;
+}
+.history-detail {
+  display: inline-block;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: var(--forest-light);
+}
 .loading-card {
   padding: 48px;
   color: var(--ink-soft);
@@ -390,5 +449,10 @@
   .conflict-card {
     align-items: stretch;
     flex-direction: column;
+  }
+  .history-list header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 }

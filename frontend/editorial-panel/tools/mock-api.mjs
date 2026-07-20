@@ -56,6 +56,48 @@ let reference = {
   originalRawReferenceMaterial: '',
   updatedAtUtc: '2026-07-20T05:30:00Z',
 };
+let history = [
+  {
+    id: 4,
+    action: 'CommentAdded',
+    performedByEditorId: 2,
+    performedByDisplayName: 'ანა დამხმარე',
+    performedAtUtc: '2026-07-20T05:00:00Z',
+    oldValue: null,
+    newValue: null,
+    notes: null,
+  },
+  {
+    id: 3,
+    action: 'StatusChanged',
+    performedByEditorId: 1,
+    performedByDisplayName: 'ნინო რედაქტორი',
+    performedAtUtc: '2026-07-19T12:00:00Z',
+    oldValue: JSON.stringify({ status: 'NewEntry' }),
+    newValue: JSON.stringify({ status: 'ZhReview' }),
+    notes: null,
+  },
+  {
+    id: 2,
+    action: 'ContentEdited',
+    performedByEditorId: 2,
+    performedByDisplayName: 'ანა დამხმარე',
+    performedAtUtc: '2026-07-18T09:00:00Z',
+    oldValue: null,
+    newValue: null,
+    notes: null,
+  },
+  {
+    id: 1,
+    action: 'Created',
+    performedByEditorId: 2,
+    performedByDisplayName: 'ანა დამხმარე',
+    performedAtUtc: '2026-07-18T08:00:00Z',
+    oldValue: null,
+    newValue: null,
+    notes: null,
+  },
+];
 let notifications = [
   {
     id: 1,
@@ -148,6 +190,8 @@ createServer(async (request, response) => {
     return json(response, 201, entry);
   }
   if (path === '/entries/17' && request.method === 'GET') return json(response, 200, entry);
+  if (path === '/entries/17/history' && request.method === 'GET')
+    return json(response, 200, history);
   if (path === '/entries/17/content' && request.method === 'PUT') {
     const body = await readBody(request);
     entry = {
@@ -156,10 +200,24 @@ createServer(async (request, response) => {
       rowVersion: entry.rowVersion + 1,
       updatedAtUtc: new Date().toISOString(),
     };
+    history = [
+      {
+        id: Date.now(),
+        action: 'ContentEdited',
+        performedByEditorId: 1,
+        performedByDisplayName: editor.displayName,
+        performedAtUtc: new Date().toISOString(),
+        oldValue: null,
+        newValue: null,
+        notes: null,
+      },
+      ...history,
+    ];
     return json(response, 200, entry);
   }
   if (path === '/entries/17/status' && request.method === 'POST') {
     const body = await readBody(request);
+    const previousStatus = entry.status;
     entry = {
       ...entry,
       status: body.targetStatus,
@@ -176,6 +234,19 @@ createServer(async (request, response) => {
         ].filter((status) => status !== body.targetStatus),
       },
     };
+    history = [
+      {
+        id: Date.now(),
+        action: 'StatusChanged',
+        performedByEditorId: 1,
+        performedByDisplayName: editor.displayName,
+        performedAtUtc: new Date().toISOString(),
+        oldValue: JSON.stringify({ status: previousStatus }),
+        newValue: JSON.stringify({ status: body.targetStatus }),
+        notes: null,
+      },
+      ...history,
+    ];
     return json(response, 200, entry);
   }
   if (path === '/entries/17/comments' && request.method === 'GET')
@@ -193,6 +264,19 @@ createServer(async (request, response) => {
       updatedAtUtc: new Date().toISOString(),
     };
     comments = [item, ...comments];
+    history = [
+      {
+        id: Date.now(),
+        action: 'CommentAdded',
+        performedByEditorId: 1,
+        performedByDisplayName: editor.displayName,
+        performedAtUtc: new Date().toISOString(),
+        oldValue: null,
+        newValue: null,
+        notes: null,
+      },
+      ...history,
+    ];
     return json(response, 200, item);
   }
   if (/^\/comments\/\d+$/.test(path) && request.method === 'PUT') {
@@ -222,6 +306,19 @@ createServer(async (request, response) => {
       ...(await readBody(request)),
       updatedAtUtc: new Date().toISOString(),
     };
+    history = [
+      {
+        id: Date.now(),
+        action: 'ContentEdited',
+        performedByEditorId: 1,
+        performedByDisplayName: editor.displayName,
+        performedAtUtc: new Date().toISOString(),
+        oldValue: null,
+        newValue: null,
+        notes: 'Reference material updated.',
+      },
+      ...history,
+    ];
     return json(response, 200, reference);
   }
   if (path === '/notifications' && request.method === 'GET')
@@ -257,6 +354,17 @@ createServer(async (request, response) => {
     return json(response, 200, item);
   }
   if (/^\/messages\/\d+\/read$/.test(path)) return json(response, 204);
+  if (path === '/editors/me' && request.method === 'PUT') {
+    const body = await readBody(request);
+    editor.displayName = body.displayName;
+    return json(response, 200, editor);
+  }
+  if (path === '/editors/me/password' && request.method === 'POST') {
+    const body = await readBody(request);
+    if (body.currentPassword !== 'qa-password')
+      return json(response, 400, { message: 'მიმდინარე პაროლი არასწორია.' });
+    return json(response, 204);
+  }
   if (path === '/editors' && request.method === 'GET') return json(response, 200, editors);
   if (path === '/editors' && request.method === 'POST') {
     const body = await readBody(request);

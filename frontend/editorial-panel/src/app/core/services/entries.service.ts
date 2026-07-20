@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../config/api.config';
 import {
   CreateEntryRequest,
   EntryDetail,
+  EntryHistoryItem,
   EntryStatusTotals,
   EntrySummary,
   PagedResult,
@@ -28,6 +29,10 @@ export class EntriesService {
 
   getById(id: number): Observable<EntryDetail> {
     return this.http.get<EntryDetail>(`${this.apiBaseUrl}/entries/${id}`);
+  }
+
+  getHistory(id: number): Observable<EntryHistoryItem[]> {
+    return this.http.get<EntryHistoryItem[]>(`${this.apiBaseUrl}/entries/${id}/history`);
   }
 
   create(request: CreateEntryRequest): Observable<EntryDetail> {

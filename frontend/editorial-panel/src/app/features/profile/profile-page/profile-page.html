@@ -1,0 +1,95 @@
+<section class="profile-page">
+  <header>
+    <p class="page-kicker">ჩემი ანგარიში</p>
+    <h1 class="page-title">პროფილი და უსაფრთხოება</h1>
+    <p class="muted">განაახლეთ ეკრანზე გამოსაჩენი სახელი ან შეცვალეთ პაროლი.</p>
+  </header>
+
+  @if (editor(); as current) {
+    <section class="identity-card">
+      <span class="identity-avatar">{{ current.displayName.charAt(0) }}</span>
+      <div>
+        <strong>{{ current.displayName }}</strong>
+        <span>{{ current.email }}</span>
+        <small>{{ roleLabels[current.role] }}</small>
+      </div>
+    </section>
+
+    <div class="settings-grid">
+      <form class="settings-card" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+        <div>
+          <p class="page-kicker">პირადი ინფორმაცია</p>
+          <h2>პროფილის მონაცემები</h2>
+        </div>
+        <div class="field">
+          <label for="profile-display-name">სახელი და გვარი</label>
+          <input id="profile-display-name" formControlName="displayName" autocomplete="name" />
+          @if (
+            profileForm.controls.displayName.touched && profileForm.controls.displayName.invalid
+          ) {
+            <span class="field-error">შეიყვანეთ სახელი (მაქს. 160 სიმბოლო).</span>
+          }
+        </div>
+        <div class="field">
+          <label for="profile-email">ელფოსტა</label>
+          <input id="profile-email" [value]="current.email" readonly />
+        </div>
+        @if (profileError()) {
+          <div class="error-banner">{{ profileError() }}</div>
+        } @else if (profileMessage()) {
+          <div class="success-banner">{{ profileMessage() }}</div>
+        }
+        <button
+          class="btn btn-primary"
+          type="submit"
+          [disabled]="profileSaving() || profileForm.pristine"
+        >
+          {{ profileSaving() ? 'ინახება…' : 'პროფილის შენახვა' }}
+        </button>
+      </form>
+
+      <form class="settings-card" [formGroup]="passwordForm" (ngSubmit)="changePassword()">
+        <div>
+          <p class="page-kicker">უსაფრთხოება</p>
+          <h2>პაროლის შეცვლა</h2>
+        </div>
+        <div class="field">
+          <label for="current-password">მიმდინარე პაროლი</label>
+          <input
+            id="current-password"
+            type="password"
+            formControlName="currentPassword"
+            autocomplete="current-password"
+          />
+        </div>
+        <div class="field">
+          <label for="new-password">ახალი პაროლი</label>
+          <input
+            id="new-password"
+            type="password"
+            formControlName="newPassword"
+            autocomplete="new-password"
+          />
+          <span class="field-hint">მინიმუმ 8 სიმბოლო.</span>
+        </div>
+        <div class="field">
+          <label for="confirm-password">გაიმეორეთ ახალი პაროლი</label>
+          <input
+            id="confirm-password"
+            type="password"
+            formControlName="confirmPassword"
+            autocomplete="new-password"
+          />
+        </div>
+        @if (passwordError()) {
+          <div class="error-banner">{{ passwordError() }}</div>
+        } @else if (passwordMessage()) {
+          <div class="success-banner">{{ passwordMessage() }}</div>
+        }
+        <button class="btn btn-primary" type="submit" [disabled]="passwordSaving()">
+          {{ passwordSaving() ? 'იცვლება…' : 'პაროლის შეცვლა' }}
+        </button>
+      </form>
+    </div>
+  }
+</section>

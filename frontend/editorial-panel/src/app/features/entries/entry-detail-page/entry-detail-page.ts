@@ -15,6 +15,7 @@ import { CommentSummary, ReferenceMaterialDetail } from '../../../core/models/co
 import {
   ApiProblem,
   EntryDetail,
+  EntryHistoryItem,
   Homonym,
   SaveEntryContentRequest,
 } from '../../../core/models/entry.models';
@@ -23,7 +24,7 @@ import { CollaborationService } from '../../../core/services/collaboration.servi
 import { EntriesService } from '../../../core/services/entries.service';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 
-type EntryTab = 'content' | 'comments' | 'reference';
+type EntryTab = 'content' | 'comments' | 'reference' | 'history';
 
 @Component({
   selector: 'app-entry-detail-page',
@@ -62,6 +63,10 @@ export class EntryDetailPage implements OnInit {
   readonly referenceLoading = signal(false);
   readonly referenceSaving = signal(false);
   readonly referenceError = signal<string | null>(null);
+
+  readonly history = signal<EntryHistoryItem[]>([]);
+  readonly historyLoading = signal(false);
+  readonly historyError = signal<string | null>(null);
 
   readonly entryForm = this.fb.group({
     lemma: ['', [Validators.required, Validators.maxLength(255)]],
@@ -109,6 +114,7 @@ export class EntryDetailPage implements OnInit {
     this.loadEntry();
     this.loadComments();
     this.loadReferenceMaterial();
+    this.loadHistory();
   }
 
   setTab(tab: EntryTab): void {
@@ -179,6 +185,7 @@ export class EntryDetailPage implements OnInit {
           this.entry.set(updated);
           this.entryForm.markAsPristine();
           this.saveSuccess.set(true);
+          this.loadHistory();
         },
         error: (error: HttpErrorResponse) => {
           if (error.status === 409) {
@@ -212,7 +219,10 @@ export class EntryDetailPage implements OnInit {
       .changeStatus(item.id, targetStatus)
       .pipe(finalize(() => this.changingStatus.set(null)))
       .subscribe({
-        next: (updated) => this.entry.set(updated),
+        next: (updated) => {
+          this.entry.set(updated);
+          this.loadHistory();
+        },
         error: (error: HttpErrorResponse) =>
           this.statusError.set(this.problemMessage(error, 'სტატუსის შეცვლა ვერ მოხერხდა.')),
       });
@@ -235,6 +245,7 @@ export class EntryDetailPage implements OnInit {
         next: (comment) => {
           this.comments.update((comments) => [comment, ...comments]);
           this.commentText.set('');
+          this.loadHistory();
         },
         error: (error: HttpErrorResponse) =>
           this.commentError.set(this.problemMessage(error, 'კომენტარის დამატება ვერ მოხერხდა.')),
@@ -297,6 +308,7 @@ export class EntryDetailPage implements OnInit {
         next: (detail) => {
           this.populateReference(detail);
           this.referenceForm.markAsPristine();
+          this.loadHistory();
         },
         error: (error: HttpErrorResponse) =>
           this.referenceError.set(
@@ -317,6 +329,28 @@ export class EntryDetailPage implements OnInit {
         Archived: 'არქივი',
       }[key] ?? status
     );
+  }
+
+  historyActionLabel(action: string): string {
+    return (
+      {
+        Created: 'სტატია შეიქმნა',
+        StatusChanged: 'სტატუსი შეიცვალა',
+        ContentEdited: 'შინაარსი განახლდა',
+        CommentAdded: 'კომენტარი დაემატა',
+        Archived: 'დაარქივდა',
+        Other: 'სხვა ცვლილება',
+      }[action] ?? action
+    );
+  }
+
+  historyDetail(item: EntryHistoryItem): string | null {
+    if (item.action === 'StatusChanged') {
+      const before = this.statusFromAuditValue(item.oldValue);
+      const after = this.statusFromAuditValue(item.newValue);
+      if (before && after) return `${this.statusLabel(before)} → ${this.statusLabel(after)}`;
+    }
+    return item.notes;
   }
 
   private loadEntry(): void {
@@ -365,6 +399,18 @@ export class EntryDetailPage implements OnInit {
       });
   }
 
+  private loadHistory(): void {
+    this.historyLoading.set(true);
+    this.historyError.set(null);
+    this.entriesService
+      .getHistory(this.entryId)
+      .pipe(finalize(() => this.historyLoading.set(false)))
+      .subscribe({
+        next: (items) => this.history.set(items),
+        error: () => this.historyError.set('ცვლილებების ისტორიის ჩატვირთვა ვერ მოხერხდა.'),
+      });
+  }
+
   private populateEntryForm(entry: EntryDetail): void {
     this.entryForm.controls.lemma.setValue(entry.lemma);
     this.entryForm.controls.pinyin.setValue(entry.pinyin ?? '');
@@ -381,6 +427,16 @@ export class EntryDetailPage implements OnInit {
       g4: detail.g4,
       g5: detail.g5,
     });
+  }
+
+  private statusFromAuditValue(value: string | null): string | null {
+    if (!value) return null;
+    try {
+      const parsed = JSON.parse(value) as { status?: string };
+      return parsed.status ?? null;
+    } catch {
+      return null;
+    }
   }
 
   private createHomonym(homonym?: Homonym): FormGroup {

@@ -42,6 +42,17 @@ export interface EntryCapabilities {
   allowedStatusTransitions: string[];
 }
 
+export interface EntryHistoryItem {
+  id: number;
+  action: string;
+  performedByEditorId: number;
+  performedByDisplayName: string;
+  performedAtUtc: string;
+  oldValue: string | null;
+  newValue: string | null;
+  notes: string | null;
+}
+
 export interface SaveEntryContentRequest {
   lemma: string;
   pinyin: string | null;

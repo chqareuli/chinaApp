@@ -64,13 +64,13 @@
     </nav>
 
     <div class="sidebar-foot">
-      <div class="profile">
+      <a class="profile" routerLink="/profile" (click)="closeMenu()">
         <span class="avatar">{{ initials() }}</span
         ><span class="profile-copy"
           ><strong>{{ editor()?.displayName }}</strong
           ><small>{{ roleLabel() }}</small></span
         >
-      </div>
+      </a>
       <button class="logout-button" type="button" (click)="logout()" [disabled]="loggingOut()">
         {{ loggingOut() ? 'გამოსვლა…' : 'გასვლა' }}
       </button>

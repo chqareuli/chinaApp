@@ -37,7 +37,7 @@
 - [x] optimistic-concurrency conflict UX
 - [x] comments and G1–G5 reference-material tabs
 - [x] publish validation summary and blocking errors in the UI
-- [ ] change history panel (backend endpoint pending)
+- [x] change history panel backed by the entry audit timeline
 
 ### UI-3 — Collaboration
 
@@ -50,7 +50,7 @@
 
 - [x] user list, create, block/reactivate, password reset and role assignment
 - [x] role-aware accounting pages and status totals
-- [ ] personal profile and password update (backend endpoint pending)
+- [x] personal profile and password update
 
 ### UI-5 — Media and extended editorial model
 

@@ -49,10 +49,12 @@ npm run start:qa
 - structured homonym/sense/example editor with optimistic-concurrency UX;
 - backend-driven content permissions and status-transition actions;
 - comments and G1-G5 reference-material editing;
+- entry audit-history timeline;
 - notification center and conversation-style private messages;
 - automatic Chinese-token links to matching entries;
 - SuperAdmin user/role/block/password-reset management;
 - personal/global accounting and status totals;
+- self-service display-name and password management;
 - isolated mock API for safe browser QA.
 
 See `../../docs/frontend-plan.md` for the delivery phases and backend prerequisites.

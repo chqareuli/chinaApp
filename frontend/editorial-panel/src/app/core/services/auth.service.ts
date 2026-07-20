@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { finalize, map, Observable, shareReplay, tap } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
-import { AuthResponse, AuthSession } from '../models/auth.models';
+import { AuthResponse, AuthSession, EditorSummary } from '../models/auth.models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -57,6 +57,12 @@ export class AuthService {
   clearSession(): void {
     this.sessionState.set(null);
     localStorage.removeItem(this.storageKey);
+  }
+
+  updateEditor(editor: EditorSummary): void {
+    const session = this.sessionState();
+    if (!session) return;
+    this.storeSession({ ...session, editor });
   }
 
   private storeSession(session: AuthSession): void {

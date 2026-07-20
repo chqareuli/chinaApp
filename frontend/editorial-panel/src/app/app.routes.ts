@@ -63,6 +63,12 @@ export const routes: Routes = [
         title: 'აღრიცხვა — სარედაქციო პანელი',
       },
       {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/profile/profile-page/profile-page').then((m) => m.ProfilePage),
+        title: 'ჩემი პროფილი — სარედაქციო პანელი',
+      },
+      {
         path: 'users',
         canActivate: [superAdminGuard],
         loadComponent: () =>

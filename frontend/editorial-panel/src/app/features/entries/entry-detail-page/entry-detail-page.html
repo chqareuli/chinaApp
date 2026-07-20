@@ -71,6 +71,9 @@
       >
         საცნობარო მასალა
       </button>
+      <button type="button" [class.active]="activeTab() === 'history'" (click)="setTab('history')">
+        ისტორია <span>{{ history().length }}</span>
+      </button>
     </nav>
 
     @if (activeTab() === 'content') {
@@ -351,6 +354,43 @@
               </button>
             }
           </form>
+        }
+      </section>
+    }
+
+    @if (activeTab() === 'history') {
+      <section class="panel-card history-panel">
+        <div class="section-head">
+          <div>
+            <p class="page-kicker">Audit trail</p>
+            <h2>ცვლილებების ისტორია</h2>
+          </div>
+        </div>
+        @if (historyError()) {
+          <div class="error-banner">{{ historyError() }}</div>
+        }
+        @if (historyLoading()) {
+          <div class="empty-state">ისტორია იტვირთება…</div>
+        } @else {
+          <ol class="history-list">
+            @for (item of history(); track item.id) {
+              <li>
+                <span class="history-marker" aria-hidden="true"></span>
+                <article>
+                  <header>
+                    <strong>{{ historyActionLabel(item.action) }}</strong>
+                    <time>{{ item.performedAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
+                  </header>
+                  <p>{{ item.performedByDisplayName }}</p>
+                  @if (historyDetail(item); as detail) {
+                    <span class="history-detail">{{ detail }}</span>
+                  }
+                </article>
+              </li>
+            } @empty {
+              <li class="empty-state">ცვლილებების ისტორია ჯერ არ არის.</li>
+            }
+          </ol>
         }
       </section>
     }
