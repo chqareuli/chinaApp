@@ -8,5 +8,5 @@ export const entryCreatorGuard: CanActivateFn = () => {
   const role = auth.editor()?.role;
   return role === 'SuperAdmin' || role === 'ChiefEditor' || role === 'AssistantEditor'
     ? true
-    : router.createUrlTree(['/dashboard']);
+    : router.createUrlTree(['/adminpanel/dashboard']);
 };

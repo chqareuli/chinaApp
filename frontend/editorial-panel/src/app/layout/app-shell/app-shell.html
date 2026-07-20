@@ -8,9 +8,9 @@
     >
       ☰
     </button>
-    <a class="mobile-logo" routerLink="/dashboard"><span>中</span> Chinese.ge</a>
+    <a class="mobile-logo" routerLink="/adminpanel/dashboard"><span>中</span> Chinese.ge</a>
     <div class="mobile-actions">
-      <a class="header-action" routerLink="/notifications" aria-label="ნოტიფიკაციები">
+      <a class="header-action" routerLink="/adminpanel/notifications" aria-label="ნოტიფიკაციები">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
         </svg>
@@ -20,7 +20,7 @@
           }}</span>
         }
       </a>
-      <a class="header-action" routerLink="/messages" aria-label="წერილები">
+      <a class="header-action" routerLink="/adminpanel/messages" aria-label="წერილები">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
         </svg>
@@ -28,7 +28,9 @@
           <span class="header-badge">{{ unreadMessages() > 99 ? '99+' : unreadMessages() }}</span>
         }
       </a>
-      <a class="mobile-avatar" routerLink="/profile" aria-label="პროფილი">{{ initials() }}</a>
+      <a class="mobile-avatar" routerLink="/adminpanel/profile" aria-label="პროფილი">{{
+        initials()
+      }}</a>
     </div>
   </header>
 
@@ -43,7 +45,7 @@
 
   <aside class="sidebar" [class.sidebar-open]="menuOpen()">
     <div class="sidebar-head">
-      <a class="logo" routerLink="/dashboard" (click)="closeMenu()"
+      <a class="logo" routerLink="/adminpanel/dashboard" (click)="closeMenu()"
         ><span class="logo-mark" aria-hidden="true">中</span
         ><span><strong>Chinese.ge</strong><small>Editorial panel</small></span></a
       >
@@ -54,15 +56,15 @@
 
     <nav class="main-nav" aria-label="მთავარი ნავიგაცია">
       <p class="nav-label">სამუშაო სივრცე</p>
-      <a routerLink="/dashboard" routerLinkActive="active" (click)="closeMenu()"
+      <a routerLink="/adminpanel/dashboard" routerLinkActive="active" (click)="closeMenu()"
         ><span class="nav-icon">მ</span><span>მთავარი</span></a
       >
       @if (canCreateEntry()) {
-        <a routerLink="/entries/new" routerLinkActive="active" (click)="closeMenu()"
+        <a routerLink="/adminpanel/entries/new" routerLinkActive="active" (click)="closeMenu()"
           ><span class="nav-icon">＋</span><span>ახალი სტატია</span></a
         >
       }
-      <a routerLink="/notifications" routerLinkActive="active" (click)="closeMenu()"
+      <a routerLink="/adminpanel/notifications" routerLinkActive="active" (click)="closeMenu()"
         ><span class="nav-icon">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
@@ -72,7 +74,7 @@
           <span class="nav-pill">{{ unreadNotifications() }}</span>
         }
       </a>
-      <a routerLink="/messages" routerLinkActive="active" (click)="closeMenu()"
+      <a routerLink="/adminpanel/messages" routerLinkActive="active" (click)="closeMenu()"
         ><span class="nav-icon">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
@@ -84,18 +86,18 @@
       </a>
 
       <p class="nav-label nav-label-spaced">მონაცემები</p>
-      <a routerLink="/accounting" routerLinkActive="active" (click)="closeMenu()"
+      <a routerLink="/adminpanel/accounting" routerLinkActive="active" (click)="closeMenu()"
         ><span class="nav-icon">ა</span><span>აღრიცხვა</span></a
       >
       @if (isSuperAdmin()) {
-        <a routerLink="/users" routerLinkActive="active" (click)="closeMenu()"
+        <a routerLink="/adminpanel/users" routerLinkActive="active" (click)="closeMenu()"
           ><span class="nav-icon">მ</span><span>მომხმარებლები</span></a
         >
       }
     </nav>
 
     <div class="sidebar-foot">
-      <a class="profile" routerLink="/profile" (click)="closeMenu()">
+      <a class="profile" routerLink="/adminpanel/profile" (click)="closeMenu()">
         <span class="avatar">{{ initials() }}</span
         ><span class="profile-copy"
           ><strong>{{ editor()?.displayName }}</strong
@@ -115,7 +117,7 @@
         <span>სტატიები, გუნდი და მიმოწერა</span>
       </div>
       <nav class="toolbar-actions" aria-label="სწრაფი შეტყობინებები">
-        <a class="header-action" routerLink="/notifications" aria-label="ნოტიფიკაციები">
+        <a class="header-action" routerLink="/adminpanel/notifications" aria-label="ნოტიფიკაციები">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
           </svg>
@@ -125,7 +127,7 @@
             }}</span>
           }
         </a>
-        <a class="header-action" routerLink="/messages" aria-label="წერილები">
+        <a class="header-action" routerLink="/adminpanel/messages" aria-label="წერილები">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
           </svg>
@@ -133,7 +135,7 @@
             <span class="header-badge">{{ unreadMessages() > 99 ? '99+' : unreadMessages() }}</span>
           }
         </a>
-        <a class="toolbar-profile" routerLink="/profile">
+        <a class="toolbar-profile" routerLink="/adminpanel/profile">
           <span class="toolbar-avatar">{{ initials() }}</span>
           <span
             ><strong>{{ editor()?.displayName }}</strong

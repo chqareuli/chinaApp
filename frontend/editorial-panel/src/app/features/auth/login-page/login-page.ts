@@ -41,7 +41,8 @@ export class LoginPage {
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: () => {
-          const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/dashboard';
+          const returnUrl =
+            this.route.snapshot.queryParamMap.get('returnUrl') || '/adminpanel/dashboard';
           void this.router.navigateByUrl(returnUrl);
         },
         error: (error: HttpErrorResponse) => {

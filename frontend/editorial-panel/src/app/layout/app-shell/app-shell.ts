@@ -67,8 +67,8 @@ export class AppShell implements OnInit, OnDestroy {
       .logout()
       .pipe(finalize(() => this.loggingOut.set(false)))
       .subscribe({
-        next: () => void this.router.navigate(['/login']),
-        error: () => void this.router.navigate(['/login']),
+        next: () => void this.router.navigate(['/adminpanel']),
+        error: () => void this.router.navigate(['/adminpanel']),
       });
   }
 }

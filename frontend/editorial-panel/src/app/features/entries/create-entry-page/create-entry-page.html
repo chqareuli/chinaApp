@@ -1,5 +1,5 @@
 <section class="entry-form-page">
-  <a class="back-link" routerLink="/dashboard">← მთავარ გვერდზე</a>
+  <a class="back-link" routerLink="/adminpanel/dashboard">← მთავარ გვერდზე</a>
   <header>
     <p class="page-kicker">ახალი ჩანაწერი</p>
     <h1 class="page-title">ახალი სტატიის შექმნა</h1>
@@ -7,11 +7,19 @@
   </header>
 
   <form class="entry-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-    @if (error()) { <div class="error-banner" role="alert">{{ error() }}</div> }
+    @if (error()) {
+      <div class="error-banner" role="alert">{{ error() }}</div>
+    }
 
     <div class="field">
       <label for="lemma">სიტყვა <span>*</span></label>
-      <input id="lemma" formControlName="lemma" autocomplete="off" placeholder="მაგ. 为" lang="zh" />
+      <input
+        id="lemma"
+        formControlName="lemma"
+        autocomplete="off"
+        placeholder="მაგ. 为"
+        lang="zh"
+      />
       <small>ჩინური სათაური ან სიტყვათშეთანხმება</small>
       @if (form.controls.lemma.touched && form.controls.lemma.invalid) {
         <span class="field-error">სიტყვის მითითება აუცილებელია.</span>
@@ -30,7 +38,7 @@
     </div>
 
     <footer>
-      <a class="btn btn-secondary" routerLink="/dashboard">გაუქმება</a>
+      <a class="btn btn-secondary" routerLink="/adminpanel/dashboard">გაუქმება</a>
       <button class="btn btn-primary" type="submit" [disabled]="saving()">
         {{ saving() ? 'იქმნება…' : 'შექმნა და გაგრძელება' }}
       </button>

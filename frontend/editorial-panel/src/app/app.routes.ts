@@ -6,17 +6,34 @@ import { superAdminGuard } from './core/guards/super-admin.guard';
 
 export const routes: Routes = [
   {
-    path: 'login',
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./features/public-dictionary/public-dictionary-page/public-dictionary-page').then(
+        (m) => m.PublicDictionaryPage,
+      ),
+    title: 'ჩინურ-ქართული ლექსიკონი — Chinese.ge',
+  },
+  {
+    path: 'word/:id',
+    loadComponent: () =>
+      import('./features/public-dictionary/public-dictionary-entry-page/public-dictionary-entry-page').then(
+        (m) => m.PublicDictionaryEntryPage,
+      ),
+    title: 'სიტყვა — ჩინურ-ქართული ლექსიკონი',
+  },
+  {
+    path: 'adminpanel',
+    pathMatch: 'full',
     canActivate: [guestGuard],
     loadComponent: () => import('./features/auth/login-page/login-page').then((m) => m.LoginPage),
     title: 'შესვლა — სარედაქციო პანელი',
   },
   {
-    path: '',
+    path: 'adminpanel',
     canActivate: [authGuard],
     loadComponent: () => import('./layout/app-shell/app-shell').then((m) => m.AppShell),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {
         path: 'dashboard',
         loadComponent: () =>

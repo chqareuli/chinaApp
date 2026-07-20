@@ -2,11 +2,13 @@
   <header class="page-head">
     <div>
       <p class="page-kicker">სამუშაო დაფა</p>
-      <h1 class="page-title">გამარჯობა, {{ editor()?.displayName?.split(' ')?.[0] || 'რედაქტორო' }}</h1>
+      <h1 class="page-title">
+        გამარჯობა, {{ editor()?.displayName?.split(' ')?.[0] || 'რედაქტორო' }}
+      </h1>
       <p class="page-subtitle">აქ ჩანს ყველა განახლებული სტატია, გარდა ახალი სტატიის სტატუსისა.</p>
     </div>
     @if (canCreateEntry()) {
-      <a class="btn btn-primary new-entry-button" routerLink="/entries/new">
+      <a class="btn btn-primary new-entry-button" routerLink="/adminpanel/entries/new">
         <span aria-hidden="true">＋</span> ახალი სტატია
       </a>
     }
@@ -49,7 +51,14 @@
       />
       <span class="search-hint">სათაურით ძიება</span>
       @if (searchQuery()) {
-        <button type="button" class="clear-search" (click)="clearSearch(searchInput)" aria-label="ძიების გასუფთავება">×</button>
+        <button
+          type="button"
+          class="clear-search"
+          (click)="clearSearch(searchInput)"
+          aria-label="ძიების გასუფთავება"
+        >
+          ×
+        </button>
       }
     </label>
 
@@ -66,8 +75,11 @@
         } @else {
           <div class="search-results">
             @for (entry of searchResults(); track entry.id) {
-              <a [routerLink]="['/entries', entry.id]">
-                <span class="result-word"><strong>{{ entry.lemma }}</strong><small>{{ entry.pinyin || '—' }}</small></span>
+              <a [routerLink]="['/adminpanel/entries', entry.id]">
+                <span class="result-word"
+                  ><strong>{{ entry.lemma }}</strong
+                  ><small>{{ entry.pinyin || '—' }}</small></span
+                >
                 <app-status-badge [status]="entry.status" />
               </a>
             }
@@ -119,20 +131,34 @@
               <tr>
                 <td data-label="ავტორი">
                   <span class="author-line">
-                    <span class="author-avatar">{{ (entry.mainAuthorDisplayName || entry.lastEditorDisplayName).charAt(0) }}</span>
-                    <span><strong>{{ entry.mainAuthorDisplayName || 'ავტორი არ არის დაფიქსირებული' }}</strong><small>{{ entry.lastEditorDisplayName }}</small></span>
+                    <span class="author-avatar">{{
+                      (entry.mainAuthorDisplayName || entry.lastEditorDisplayName).charAt(0)
+                    }}</span>
+                    <span
+                      ><strong>{{
+                        entry.mainAuthorDisplayName || 'ავტორი არ არის დაფიქსირებული'
+                      }}</strong
+                      ><small>{{ entry.lastEditorDisplayName }}</small></span
+                    >
                   </span>
                 </td>
                 <td data-label="სიტყვა">
-                  <a class="word-link" [routerLink]="['/entries', entry.id]">
-                    <strong>{{ entry.lemma }}</strong><small>{{ entry.pinyin || '—' }}</small>
+                  <a class="word-link" [routerLink]="['/adminpanel/entries', entry.id]">
+                    <strong>{{ entry.lemma }}</strong
+                    ><small>{{ entry.pinyin || '—' }}</small>
                   </a>
                 </td>
                 <td data-label="მდგომარეობა"><app-status-badge [status]="entry.status" /></td>
                 <td data-label="თარიღი">
-                  <time [attr.datetime]="entry.updatedAtUtc">{{ entry.updatedAtUtc | date: 'dd MMM yyyy, HH:mm':'+0400' }}</time>
+                  <time [attr.datetime]="entry.updatedAtUtc">{{
+                    entry.updatedAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400'
+                  }}</time>
                 </td>
-                <td class="row-action"><a [routerLink]="['/entries', entry.id]" aria-label="სტატიის გახსნა">→</a></td>
+                <td class="row-action">
+                  <a [routerLink]="['/adminpanel/entries', entry.id]" aria-label="სტატიის გახსნა"
+                    >→</a
+                  >
+                </td>
               </tr>
             }
           </tbody>

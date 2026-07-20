@@ -1,0 +1,160 @@
+<div class="public-page">
+  <div class="ink ink-one" aria-hidden="true">竹</div>
+  <div class="ink ink-two" aria-hidden="true">水</div>
+
+  <header class="public-header">
+    <a class="public-brand" routerLink="/">
+      <span class="brand-mark" aria-hidden="true">汉</span>
+      <span><strong>Chinese.ge</strong><small>დიდი ჩინურ-ქართული ლექსიკონი</small></span>
+    </a>
+    <a class="editor-link" routerLink="/adminpanel">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8M5 21a7 7 0 0 1 14 0" />
+      </svg>
+      რედაქტორებისთვის
+    </a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">ქართული სინოლოგიის ციფრული სივრცე</p>
+      <h1>ჩინური სიტყვა — ქართულად,<br /><span>ზუსტად და გასაგებად.</span></h1>
+      <p class="hero-copy">
+        მოძებნეთ სიტყვა სათაურით ან იპოვეთ სასურველი ფრაზა ლექსიკონის მთელ ტექსტში.
+      </p>
+
+      <div class="search-card">
+        <div class="search-modes" role="tablist" aria-label="ძიების რეჟიმი">
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="mode() === 'word'"
+            [class.active]="mode() === 'word'"
+            (click)="setMode('word')"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="m20 20-4-4"></path>
+            </svg>
+            სიტყვით ძიება
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="mode() === 'text'"
+            [class.active]="mode() === 'text'"
+            (click)="setMode('text')"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 3h9l3 3v15H6z"></path>
+              <path d="M9 11h6M9 15h6"></path>
+            </svg>
+            ტექსტით ძიება
+          </button>
+        </div>
+
+        <div class="search-field">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-4-4"></path>
+          </svg>
+          <input
+            type="search"
+            [placeholder]="placeholder()"
+            [value]="query()"
+            (input)="updateQuery($event)"
+            (keydown.enter)="searchNow()"
+            aria-label="ლექსიკონში ძიება"
+            lang="zh"
+          />
+          <button type="button" (click)="searchNow()" [disabled]="!query().trim()">ძიება</button>
+        </div>
+
+        <div class="search-hint">
+          @if (mode() === 'word') {
+            <span>სათაურისა და პინინის დასაწყისით ძიება</span>
+          } @else {
+            <span>განმარტებებსა და მაგალითებში დამთხვევის ძიება</span>
+          }
+          @if (publishedEntries()) {
+            <strong>{{ publishedEntries() | number }} გამოქვეყნებული სიტყვა-სტატია</strong>
+          }
+        </div>
+      </div>
+    </section>
+
+    @if (query().trim()) {
+      <section class="results" aria-live="polite">
+        <div class="results-head">
+          <div>
+            <p class="eyebrow">ძიების შედეგები</p>
+            <h2>„{{ query() }}“</h2>
+          </div>
+          @if (searching()) {
+            <span class="loading">იძებნება…</span>
+          } @else if (searched()) {
+            <span>{{ results().length }} შედეგი</span>
+          }
+        </div>
+
+        @if (error()) {
+          <div class="search-message error">{{ error() }}</div>
+        } @else if (!searching()) {
+          <div class="result-list">
+            @for (item of results(); track item.id) {
+              <a [routerLink]="['/word', item.id]">
+                <span class="result-glyph" lang="zh">{{ item.lemma.charAt(0) }}</span>
+                <span class="result-copy">
+                  <strong lang="zh">{{ item.lemma }}</strong>
+                  @if (item.pinyin) {
+                    <small>{{ item.pinyin }}</small>
+                  }
+                  @if (item.snippet) {
+                    <p>{{ item.snippet }}</p>
+                  }
+                </span>
+                <span class="result-arrow" aria-hidden="true">→</span>
+              </a>
+            } @empty {
+              @if (searched()) {
+                <div class="search-message">
+                  <strong>შედეგი ვერ მოიძებნა</strong>
+                  <span>სცადეთ სხვა სიტყვა ან გადართეთ ძიების რეჟიმი.</span>
+                </div>
+              }
+            }
+          </div>
+        }
+      </section>
+    } @else {
+      <section class="about-grid">
+        <article>
+          <span>01</span>
+          <h2>ლექსიკონი</h2>
+          <p>
+            უწყვეტად განახლებადი ჩინურ-ქართული ლექსიკონი სიტყვებით, განმარტებებითა და ცოცხალი
+            მაგალითებით.
+          </p>
+        </article>
+        <article>
+          <span>02</span>
+          <h2>მისია</h2>
+          <p>
+            ჩინური ენითა და კულტურით დაინტერესებულ ადამიანებს გავუმარტივოთ სწავლისა და თარგმნის
+            პროცესი.
+          </p>
+        </article>
+        <article>
+          <span>03</span>
+          <h2>გუნდი</h2>
+          <p>სტატიები გადის ჩინური და ქართული ენის რედაქტორების მრავალსაფეხურიან შემოწმებას.</p>
+        </article>
+      </section>
+    }
+  </main>
+
+  <footer>
+    <span>© 2013–2026 Chinese.ge</span>
+    <span>დიდი ჩინურ-ქართული ონლაინლექსიკონი</span>
+  </footer>
+</div>

@@ -20,7 +20,7 @@ interface MessagePart {
   imports: [RouterLink],
   template: `@for (part of parts(); track $index) {
     @if (part.entryId) {
-      <a [routerLink]="['/entries', part.entryId]" lang="zh">{{ part.text }}</a>
+      <a [routerLink]="['/adminpanel/entries', part.entryId]" lang="zh">{{ part.text }}</a>
     } @else {
       <span>{{ part.text }}</span>
     }

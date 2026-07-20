@@ -5,5 +5,7 @@ import { AuthService } from '../services/auth.service';
 export const superAdminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  return auth.editor()?.role === 'SuperAdmin' ? true : router.createUrlTree(['/dashboard']);
+  return auth.editor()?.role === 'SuperAdmin'
+    ? true
+    : router.createUrlTree(['/adminpanel/dashboard']);
 };

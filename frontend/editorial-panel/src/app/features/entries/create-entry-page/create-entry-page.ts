@@ -37,7 +37,7 @@ export class CreateEntryPage {
       .create({ lemma: value.lemma.trim(), pinyin: value.pinyin.trim() || null })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
-        next: (entry) => void this.router.navigate(['/entries', entry.id]),
+        next: (entry) => void this.router.navigate(['/adminpanel/entries', entry.id]),
         error: (error: HttpErrorResponse) => {
           this.error.set(
             error.status === 403

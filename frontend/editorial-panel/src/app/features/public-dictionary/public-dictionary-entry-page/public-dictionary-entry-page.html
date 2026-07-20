@@ -1,0 +1,66 @@
+<div class="entry-page">
+  <header>
+    <a class="brand" routerLink="/"><span>汉</span><strong>Chinese.ge</strong></a>
+    <a class="back" routerLink="/">← ლექსიკონში დაბრუნება</a>
+  </header>
+
+  <main>
+    @if (loading()) {
+      <div class="state">სტატია იტვირთება…</div>
+    } @else if (notFound()) {
+      <div class="state">
+        <strong>სტატია ვერ მოიძებნა</strong>
+        <span>სტატია არ არსებობს ან ჯერ არ არის გამოქვეყნებული.</span>
+        <a routerLink="/">ძიებაზე დაბრუნება</a>
+      </div>
+    } @else if (entry(); as article) {
+      <article>
+        <div class="entry-head">
+          <div class="character" lang="zh">{{ article.lemma.charAt(0) }}</div>
+          <div>
+            <p>ჩინურ-ქართული სიტყვა-სტატია</p>
+            <h1 lang="zh">{{ article.lemma }}</h1>
+            @if (article.pinyin) {
+              <strong>{{ article.pinyin }}</strong>
+            }
+          </div>
+        </div>
+
+        <div class="entry-content">
+          @for (homonym of article.homonyms; track $index; let homonymIndex = $index) {
+            <section class="homonym">
+              @if (article.homonyms.length > 1) {
+                <span class="homonym-number">{{ homonymIndex + 1 }}</span>
+              }
+              @for (sense of homonym.senses; track sense.number) {
+                <div class="sense">
+                  <span class="sense-number">{{ sense.number || $index + 1 }}</span>
+                  <div>
+                    <p class="definition">{{ sense.definition }}</p>
+                    @if (sense.examples.length) {
+                      <div class="examples">
+                        @for (example of sense.examples; track $index) {
+                          <div>
+                            <span lang="zh">{{ example.zh }}</span>
+                            <small>{{ example.ka }}</small>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </section>
+          } @empty {
+            <div class="state compact">სტატიის განმარტება ჯერ არ არის დამატებული.</div>
+          }
+        </div>
+
+        <footer>
+          <span>ბოლოს განახლდა</span>
+          <time>{{ article.updatedAtUtc | date: 'dd MMMM yyyy' : '+0400' }}</time>
+        </footer>
+      </article>
+    }
+  </main>
+</div>
