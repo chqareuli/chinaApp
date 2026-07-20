@@ -22,10 +22,37 @@ public class MediaService(
             throw new MediaValidationException($"Entry {entryId} does not exist.");
         }
 
-        return await QueryItems()
-            .Where(item => item.EntryId == entryId)
-            .OrderByDescending(item => item.UploadedAtUtc)
-            .ToListAsync(ct);
+        var rows = await (
+            from asset in db.MediaAssets.AsNoTracking()
+            where asset.EntryId == entryId
+            join editor in db.Editors.AsNoTracking() on asset.UploadedByEditorId equals editor.Id
+            orderby asset.UploadedAtUtc descending
+            select new
+            {
+                asset.Id,
+                asset.EntryId,
+                asset.OriginalFilename,
+                asset.MimeType,
+                asset.StorageUrl,
+                asset.ThumbnailUrl,
+                asset.Placement,
+                asset.UploadedByEditorId,
+                UploadedByDisplayName = editor.DisplayName,
+                asset.UploadedAtUtc,
+            }).ToListAsync(ct);
+
+        return rows.Select(row => new MediaAssetItem(
+                row.Id,
+                row.EntryId ?? entryId,
+                row.OriginalFilename,
+                row.MimeType,
+                row.StorageUrl,
+                row.ThumbnailUrl,
+                row.Placement,
+                row.UploadedByEditorId,
+                row.UploadedByDisplayName,
+                row.UploadedAtUtc))
+            .ToList();
     }
 
     public async Task<MediaAssetItem> UploadAsync(
@@ -156,10 +183,4 @@ public class MediaService(
         return content is null ? null : new MediaFileContent(content, asset.MimeType, asset.OriginalFilename);
     }
 
-    private IQueryable<MediaAssetItem> QueryItems() =>
-        from asset in db.MediaAssets.AsNoTracking()
-        join editor in db.Editors.AsNoTracking() on asset.UploadedByEditorId equals editor.Id
-        select new MediaAssetItem(
-            asset.Id, asset.EntryId!.Value, asset.OriginalFilename, asset.MimeType, asset.StorageUrl,
-            asset.ThumbnailUrl, asset.Placement, asset.UploadedByEditorId, editor.DisplayName, asset.UploadedAtUtc);
 }
