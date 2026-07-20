@@ -3,6 +3,7 @@ using Chiniseapp.Application.Auth;
 using Chiniseapp.Application.Comments;
 using Chiniseapp.Application.Entries;
 using Chiniseapp.Application.Notifications;
+using Chiniseapp.Application.Media;
 using Chiniseapp.Application.ReferenceMaterials;
 using Chiniseapp.Application.Scoring;
 using Chiniseapp.Domain.Enums;
@@ -11,6 +12,7 @@ using Chiniseapp.Infrastructure.Auth;
 using Chiniseapp.Infrastructure.Comments;
 using Chiniseapp.Infrastructure.Entries;
 using Chiniseapp.Infrastructure.Notifications;
+using Chiniseapp.Infrastructure.Media;
 using Chiniseapp.Infrastructure.Persistence;
 using Chiniseapp.Infrastructure.ReferenceMaterials;
 using Chiniseapp.Infrastructure.Scoring;
@@ -62,6 +64,8 @@ public static class DependencyInjection
         services.AddScoped<IAccountingService, AccountingService>();
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<IReferenceMaterialService, ReferenceMaterialService>();
+        services.AddSingleton<IMediaFileStorage, LocalMediaFileStorage>();
+        services.AddScoped<IMediaService, MediaService>();
 
         return services;
     }

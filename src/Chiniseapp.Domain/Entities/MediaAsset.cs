@@ -12,6 +12,9 @@ public class MediaAsset
 {
     public int Id { get; set; }
 
+    /// <summary>Entry this image belongs to.</summary>
+    public int? EntryId { get; set; }
+
     /// <summary>Segment the media is inserted into, if any.</summary>
     public int? InsertedIntoSegmentId { get; set; }
 

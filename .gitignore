@@ -41,6 +41,7 @@ secrets.json
 [Tt]est[Rr]esult*/
 *.trx
 *.log
+/storage/media/
 
 # Frontend generated output (the Angular source lives on its own branch)
 **/node_modules/

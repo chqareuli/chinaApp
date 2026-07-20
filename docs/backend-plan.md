@@ -242,6 +242,12 @@ Editor, Chief Editor, and Super Admin.
   entry audit timeline; comment and reference-material changes update the entry's last-editor
   activity fields; and editors can update their own display name and password without gaining
   any user-administration privileges. These contracts are covered by the full 245-test suite.
+- **Entry image attachments (done)** — authenticated list/upload/download/delete APIs attach
+  validated images to an entry. Uploads are limited to 10 MB JPEG/PNG/WebP/GIF files and verify
+  both declared MIME type and binary signature; safe generated storage names prevent path
+  traversal while original Unicode filenames are preserved for display. Upload/delete follows
+  the same status-aware content-permission matrix, updates entry activity/audit history, scoring,
+  and notifications. `AddEntryMediaLink` keeps pre-existing unattached library rows valid.
 - **M8b (not started)** — Legacy-import console tool: parses the old database's raw comment
   blobs (`&Author&` shift markers, `#...#` → Georgian editor notes) and reference-material
   blobs (`**`/`***`/`****`/`*****` delimiters, `//`/`///` → bullet markers), preserving the
@@ -249,5 +255,5 @@ Editor, Chief Editor, and Super Admin.
   real legacy data or DB access to build against meaningfully — product owner confirmed
   "CRUD first, import later."
 - **Stage 2 (named only, detailed later)** — full IE/XR/STYLE/DOMAIN authoring, gramGrp/POS UI,
-  TEI-XML export/import, media library, segment reorder, refined permission edge cases, fuzzy
+  TEI-XML export/import, shared/video media library and segment placement, segment reorder, refined permission edge cases, fuzzy
   search.

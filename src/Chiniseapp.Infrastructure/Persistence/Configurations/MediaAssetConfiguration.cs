@@ -16,6 +16,7 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
         builder.Property(m => m.SafeStorageName).IsRequired();
         builder.Property(m => m.MimeType).IsRequired().HasMaxLength(255);
         builder.Property(m => m.StorageUrl).IsRequired();
+        builder.Property(m => m.Placement).HasMaxLength(50);
 
         builder.Property(m => m.FileType)
             .HasColumnType("media_file_type")
@@ -25,8 +26,15 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
             .HasForeignKey(m => m.InsertedIntoSegmentId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne<Entry>().WithMany()
+            .HasForeignKey(m => m.EntryId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasOne<Editor>().WithMany()
             .HasForeignKey(m => m.UploadedByEditorId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(m => m.SafeStorageName).IsUnique();
+        builder.HasIndex(m => m.EntryId);
     }
 }

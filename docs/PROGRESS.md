@@ -3,7 +3,7 @@
 Quick-glance resume pointer. Full architecture, domain model, and roadmap live in
 `docs/backend-plan.md` — this file just tracks "what's done, what's next."
 
-## Current stage: core backend workflow complete → Angular integration in progress
+## Current stage: core backend workflow and entry images complete → Angular media integration next
 
 Latest backend work: publication validation, audit-history API, entry activity tracking for
 comments/reference material, and self-service profile/password endpoints.
@@ -35,6 +35,9 @@ comments/reference material, and self-service profile/password endpoints.
 - **Workflow completion** — publish-readiness validation with structured errors; entry history
   endpoint backed by the audit log; comment/reference changes reflected in main-page activity;
   self-service display-name/password changes; 245/245 automated tests passing.
+- **Entry images** — status-aware list/upload/download/delete endpoints, 10 MB and MIME/signature
+  validation, safe local storage keys, audit/scoring/notification integration, and a non-destructive
+  nullable entry-link migration. Full backend suite: 257/257 tests passing.
 
 ### Resolved product decisions (see `docs/backend-plan.md` for full detail)
 - ZH-editor status-transition scope: strict `new_entry → zh_review → ka_review`, implemented and

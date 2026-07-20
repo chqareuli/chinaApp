@@ -399,6 +399,10 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("EntryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("entry_id");
+
                     b.Property<MediaFileType>("FileType")
                         .HasColumnType("media_file_type")
                         .HasColumnName("file_type");
@@ -419,7 +423,8 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                         .HasColumnName("original_filename");
 
                     b.Property<string>("Placement")
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("placement");
 
                     b.Property<string>("SafeStorageName")
@@ -447,8 +452,15 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_media_assets");
 
+                    b.HasIndex("EntryId")
+                        .HasDatabaseName("ix_media_assets_entry_id");
+
                     b.HasIndex("InsertedIntoSegmentId")
                         .HasDatabaseName("ix_media_assets_inserted_into_segment_id");
+
+                    b.HasIndex("SafeStorageName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_media_assets_safe_storage_name");
 
                     b.HasIndex("UploadedByEditorId")
                         .HasDatabaseName("ix_media_assets_uploaded_by_editor_id");
@@ -748,6 +760,12 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Chiniseapp.Domain.Entities.MediaAsset", b =>
                 {
+                    b.HasOne("Chiniseapp.Domain.Entities.Entry", null)
+                        .WithMany()
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_media_assets_entries_entry_id");
+
                     b.HasOne("Chiniseapp.Domain.Entities.Segment", null)
                         .WithMany()
                         .HasForeignKey("InsertedIntoSegmentId")
