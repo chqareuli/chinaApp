@@ -71,6 +71,16 @@ public class NotificationService(ChiniseDbContext db) : INotificationService
             .ToList();
     }
 
+    public async Task<UnreadActivitySummary> GetUnreadActivityAsync(int editorId, CancellationToken ct = default)
+    {
+        var notifications = await db.Notifications
+            .CountAsync(notification => notification.RecipientEditorId == editorId && !notification.IsRead, ct);
+        var messages = await db.DirectMessages
+            .CountAsync(message => message.RecipientEditorId == editorId && message.ReadAtUtc == null, ct);
+
+        return new UnreadActivitySummary(notifications, messages);
+    }
+
     public async Task<bool> MarkReadAsync(int notificationId, int requestingEditorId, CancellationToken ct = default)
     {
         var notification = await db.Notifications.FindAsync([notificationId], ct);
@@ -92,7 +102,14 @@ public class NotificationService(ChiniseDbContext db) : INotificationService
             throw new NotificationValidationException("Message body is required.");
         }
 
-        var recipientExists = await db.Editors.AnyAsync(e => e.Id == request.RecipientEditorId, ct);
+        if (request.RecipientEditorId == senderEditorId)
+        {
+            throw new NotificationValidationException("You cannot send a direct message to yourself.");
+        }
+
+        var recipientExists = await db.Editors.AnyAsync(
+            e => e.Id == request.RecipientEditorId && e.IsActive,
+            ct);
         if (!recipientExists)
         {
             throw new NotificationValidationException("Recipient editor does not exist.");

@@ -7,6 +7,8 @@ public record NotificationSummary(
 
 public record SendMessageRequest(int RecipientEditorId, string Body);
 
+public record UnreadActivitySummary(int Notifications, int Messages);
+
 public record DirectMessageSummary(
     int Id,
     int SenderEditorId, string SenderDisplayName,

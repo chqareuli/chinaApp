@@ -15,6 +15,8 @@ public interface INotificationService
 
     Task<IReadOnlyList<NotificationSummary>> GetForEditorAsync(int editorId, bool unreadOnly, CancellationToken ct = default);
 
+    Task<UnreadActivitySummary> GetUnreadActivityAsync(int editorId, CancellationToken ct = default);
+
     /// <summary>Returns false if the notification doesn't exist or isn't addressed to requestingEditorId.</summary>
     Task<bool> MarkReadAsync(int notificationId, int requestingEditorId, CancellationToken ct = default);
 
