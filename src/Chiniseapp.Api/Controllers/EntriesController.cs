@@ -34,13 +34,13 @@ public class EntriesController(IEntryService entryService) : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<EntryDetail>> Get(int id, CancellationToken ct)
     {
-        var entry = await entryService.GetAsync(id, ct);
+        var entry = await entryService.GetAsync(id, User.GetEditorId(), ct);
         return entry is null ? NotFound() : Ok(entry);
     }
 
     /// <summary>Minimum viable create: headword only (spec 9 — title is the only required field).</summary>
     [HttpPost]
-    [Authorize(Roles = AuthorizationPolicies.ContentEditorRoles)]
+    [Authorize(Roles = AuthorizationPolicies.EntryCreatorRoles)]
     public async Task<ActionResult<EntryDetail>> Create(CreateEntryRequest request, CancellationToken ct)
     {
         try
@@ -50,19 +50,19 @@ public class EntriesController(IEntryService entryService) : ControllerBase
         }
         catch (EntryValidationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return EntryProblem(StatusCodes.Status400BadRequest, "entry_validation", ex.Message);
+        }
+        catch (EntryContentForbiddenException ex)
+        {
+            return EntryProblem(StatusCodes.Status403Forbidden, "entry_content_forbidden", ex.Message);
         }
     }
 
     /// <summary>
-    /// Full-replace structured content save, gated to "Edit new_entry content" from the 11.1
-    /// permissions matrix. Note: this is still a fixed role list, not status-aware — an entry
-    /// that's moved past new_entry (via M5's status endpoint below) should really narrow who can
-    /// edit it further (e.g. ka_editor should gain ka_review-only edit rights); that refinement
-    /// isn't built yet and is a known gap, not an oversight.
+    /// Full-replace structured content save. Authorization is status-aware and enforced in the
+    /// service through Domain.Rules.EntryContentRules.
     /// </summary>
     [HttpPut("{id:int}/content")]
-    [Authorize(Roles = AuthorizationPolicies.ContentEditorRoles)]
     public async Task<ActionResult<EntryDetail>> SaveContent(int id, SaveEntryContentRequest request, CancellationToken ct)
     {
         try
@@ -72,11 +72,22 @@ public class EntriesController(IEntryService entryService) : ControllerBase
         }
         catch (EntryConcurrencyException)
         {
-            return Conflict(new { message = "This entry was modified by someone else since you loaded it. Reload and try again." });
+            return EntryProblem(
+                StatusCodes.Status409Conflict,
+                "entry_concurrency_conflict",
+                "This entry was modified by someone else since you loaded it. Reload and try again.");
+        }
+        catch (EntryNotFoundException ex)
+        {
+            return EntryProblem(StatusCodes.Status404NotFound, "entry_not_found", ex.Message);
+        }
+        catch (EntryContentForbiddenException ex)
+        {
+            return EntryProblem(StatusCodes.Status403Forbidden, "entry_content_forbidden", ex.Message);
         }
         catch (EntryValidationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return EntryProblem(StatusCodes.Status400BadRequest, "entry_validation", ex.Message);
         }
     }
 
@@ -90,9 +101,13 @@ public class EntriesController(IEntryService entryService) : ControllerBase
     [HttpPost("{id:int}/status")]
     public async Task<ActionResult<EntryDetail>> ChangeStatus(int id, ChangeStatusRequest request, CancellationToken ct)
     {
-        if (!Enum.TryParse<EntryStatus>(request.TargetStatus, out var targetStatus))
+        if (!Enum.TryParse<EntryStatus>(request.TargetStatus, ignoreCase: true, out var targetStatus) ||
+            !Enum.IsDefined(targetStatus))
         {
-            return BadRequest(new { message = $"Unknown status '{request.TargetStatus}'." });
+            return EntryProblem(
+                StatusCodes.Status400BadRequest,
+                "entry_status_invalid",
+                $"Unknown status '{request.TargetStatus}'.");
         }
 
         try
@@ -102,11 +117,27 @@ public class EntriesController(IEntryService entryService) : ControllerBase
         }
         catch (EntryStatusTransitionForbiddenException ex)
         {
-            return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden);
+            return EntryProblem(StatusCodes.Status403Forbidden, "entry_status_transition_forbidden", ex.Message);
+        }
+        catch (EntryNotFoundException ex)
+        {
+            return EntryProblem(StatusCodes.Status404NotFound, "entry_not_found", ex.Message);
         }
         catch (EntryValidationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return EntryProblem(StatusCodes.Status400BadRequest, "entry_validation", ex.Message);
         }
+    }
+
+    private ObjectResult EntryProblem(int status, string code, string detail)
+    {
+        var problem = new ProblemDetails
+        {
+            Status = status,
+            Title = code,
+            Detail = detail,
+        };
+        problem.Extensions["code"] = code;
+        return new ObjectResult(problem) { StatusCode = status };
     }
 }

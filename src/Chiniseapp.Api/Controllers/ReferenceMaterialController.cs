@@ -21,12 +21,15 @@ public class ReferenceMaterialController(IReferenceMaterialService referenceMate
     }
 
     [HttpPut]
-    [Authorize(Roles = AuthorizationPolicies.ContentEditorRoles)]
     public async Task<ActionResult<ReferenceMaterialDetail>> Save(int entryId, SaveReferenceMaterialRequest request, CancellationToken ct)
     {
         try
         {
-            return Ok(await referenceMaterialService.SaveAsync(entryId, request, ct));
+            return Ok(await referenceMaterialService.SaveAsync(entryId, request, User.GetEditorId(), ct));
+        }
+        catch (ReferenceMaterialAccessDeniedException ex)
+        {
+            return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden);
         }
         catch (ReferenceMaterialValidationException ex)
         {

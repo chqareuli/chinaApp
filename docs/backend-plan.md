@@ -97,29 +97,25 @@ for cleaner routing), `CommentsController`, `ReferenceMaterialController`, `Voca
 
 ## Status workflow (resolved role × transition rules)
 
-A second, shorter spec (from a third team member) described a narrower ZH-editor scope
-(`new_entry → zh_review → ka_review` only, forward-only). Product owner decision: **the
-original detailed spec below is authoritative**; the narrower version is not implemented. Revisit
-only if explicitly requested again.
+The current product-owner requirements define a strict hand-off workflow. This replaces the
+previous broader ZH-editor interpretation and is locked in by exhaustive role × status tests.
 
 | From status | To status | Super Admin | Chief Editor | ZH Editor | KA Editor | Assistant Editor |
 |---|---|---|---|---|---|---|
-| new_entry | zh_review / ka_review / ready / published | Yes | Yes | Yes | No | No |
-| new_entry | zh_review / higher, *by a supervisor promoting an assistant's entry* | Yes | Yes | Yes | No | No (may remain `main_author`) |
-| zh_review | new_entry / ka_review / ready | Yes | Yes | Yes | No | No |
-| zh_review | published | Yes | Yes | No | No | No |
-| ka_review | zh_review | Yes | Yes | Yes | Yes | No |
-| ka_review | ready | Yes | Yes | Yes | Yes | No |
-| ka_review | published | Yes | Yes | No | No | No |
-| ready | zh_review / ka_review | Yes | Yes | Yes (not from published) | No | No |
-| ready | published | Yes | Yes | No | No | No |
-| published | any lower status | Yes | Yes | No | No | No |
-| any | archived / problem flag | Yes | Yes | No | No | No |
+| new_entry | zh_review | Yes | Yes | Yes | No | No |
+| zh_review | ka_review | Yes | Yes | Yes | No | No |
+| ka_review | zh_review | Yes | Yes | No | Yes | No |
+| ka_review | ready | Yes | Yes | No | Yes | No |
+| any status | any other status | Yes | Yes | No | No | No |
 
-Summary: ZH Editor may move an entry freely among `new_entry`/`zh_review`/`ka_review`/`ready` in
-either direction, but never publishes and never moves a published entry backward. KA Editor may
-only move `ka_review ↔ zh_review` and `ka_review → ready`. Only Chief Editor/Super Admin publish,
-un-publish, or archive. Assistant Editor never changes status directly.
+Summary: ZH Editor follows `new_entry → zh_review → ka_review`. KA Editor may move
+`ka_review → zh_review` or `ka_review → ready`. Chief Editor/Super Admin may move entries between
+all statuses in either direction. Assistant Editor never changes status directly.
+
+Content editing is a separate status-aware rule: Assistant Editor edits only `new_entry`, ZH
+Editor only `zh_review`, KA Editor only `ka_review`, and Chief Editor/Super Admin every status.
+Every active role retains read access to all entries. New entry creation is allowed to Assistant
+Editor, Chief Editor, and Super Admin.
 
 ### Status colors (reference for the future Angular UI — no backend impact)
 
@@ -149,9 +145,10 @@ un-publish, or archive. Assistant Editor never changes status directly.
   claims) and longer-lived stateless refresh tokens (identity claim only, re-validated against
   the DB on every refresh so a role change or deactivation always takes effect); refresh token
   travels as an httpOnly/Secure cookie scoped to `/auth`, access token as a bearer header.
-  `AddJwtAuthentication`'s `OnTokenValidated` hook re-checks `Editor.IsActive` on every request —
-  verified end-to-end that deactivating an editor immediately 401s their still-unexpired access
-  token, not just at natural expiry. `DbSeeder` idempotently bootstraps one `super_admin` from
+  `AddJwtAuthentication`'s `OnTokenValidated` hook re-checks `Editor.IsActive` and the current
+  role on every request — deactivation immediately rejects a still-unexpired access token, while
+  a role change forces the client to refresh and receive current claims. `DbSeeder` idempotently
+  bootstraps one `super_admin` from
   `Seed:SuperAdminEmail`/`Seed:SuperAdminPassword` (user-secrets) on startup — no password hash
   ever committed to source. `AuthController` (login/refresh/logout) and `EditorsController`
   (me/list/get/create/deactivate/reactivate/reset-password) added; role-gated endpoints verified
@@ -188,9 +185,9 @@ un-publish, or archive. Assistant Editor never changes status directly.
   `ka_review` (zh_editor) → `ready` (ka_editor) → blocked publish attempt by zh_editor (403) →
   `published` (super_admin) → blocked backward move by zh_editor (403); plus same-status and
   unknown-status rejected with 400, and the entry correctly appearing in the main list only
-  once it left `new_entry`. Known gap (not built): content-edit permissions
-  (`PUT .../content`) are still a fixed role list, not status-aware (e.g. ka_editor should gain
-  ka_review-scoped edit rights) — noted in the controller, deferred.
+  once it left `new_entry`. The later workflow-hardening pass replaced the fixed content-editor
+  role list with the status-aware `EntryContentRules` matrix and exposes per-entry capabilities
+  (`canEditContent`, `allowedStatusTransitions`) to the UI.
 - **M6 (done)** — `IScoringService`/`ScoringService`: Main score to `MainAuthorEditorId`, once,
   the first time an entry leaves `new_entry`; Additional score to any other editor who edits
   content or changes status on an entry they don't author, once per entry (the `ScoreEntry`

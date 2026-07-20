@@ -16,6 +16,8 @@ public record HomonymDto(List<SenseDto> Senses);
 /// </summary>
 public record SaveEntryContentRequest(string? Lemma, string? Pinyin, List<HomonymDto> Homonyms, uint RowVersion);
 
+public record EntryCapabilities(bool CanEditContent, IReadOnlyList<string> AllowedStatusTransitions);
+
 public record EntryDetail(
     int Id,
     string Lemma,
@@ -26,7 +28,8 @@ public record EntryDetail(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     uint RowVersion,
-    List<HomonymDto> Homonyms);
+    List<HomonymDto> Homonyms,
+    EntryCapabilities Capabilities);
 
 public record EntrySummary(
     int Id,

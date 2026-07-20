@@ -9,5 +9,9 @@ public interface IReferenceMaterialService
     Task<ReferenceMaterialDetail?> GetForEntryAsync(int entryId, CancellationToken ct = default);
 
     /// <summary>Creates or replaces the G1..G5 fields for an entry (1:1 relationship).</summary>
-    Task<ReferenceMaterialDetail> SaveAsync(int entryId, SaveReferenceMaterialRequest request, CancellationToken ct = default);
+    Task<ReferenceMaterialDetail> SaveAsync(
+        int entryId,
+        SaveReferenceMaterialRequest request,
+        int currentEditorId,
+        CancellationToken ct = default);
 }

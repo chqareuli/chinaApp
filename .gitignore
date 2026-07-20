@@ -41,6 +41,11 @@ secrets.json
 [Tt]est[Rr]esult*/
 *.trx
 
+# Frontend generated output (the Angular source lives on its own branch)
+**/node_modules/
+**/dist/
+**/.angular/
+
 # OS files
 .DS_Store
 Thumbs.db

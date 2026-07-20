@@ -1,4 +1,5 @@
 using System.Text;
+using Chiniseapp.Domain.Enums;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -24,9 +25,9 @@ public static class JwtAuthenticationExtensions
                 bearerOptions.TokenValidationParameters = BuildValidationParameters(jwtOptions);
                 bearerOptions.Events = new JwtBearerEvents
                 {
-                    // Defense in depth: a blocked/deactivated editor's still-unexpired
-                    // access token must stop working immediately, not just at its
-                    // natural (short) expiry.
+                    // Defense in depth: deactivation and role changes invalidate an
+                    // otherwise-unexpired access token immediately. The client can then
+                    // refresh and receive a token with the current role.
                     OnTokenValidated = async context =>
                     {
                         var subject = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -36,15 +37,28 @@ public static class JwtAuthenticationExtensions
                             return;
                         }
 
+                        var roleClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+                        if (!Enum.TryParse<EditorRole>(roleClaim, out var claimedRole) || !Enum.IsDefined(claimedRole))
+                        {
+                            context.Fail("Missing or invalid role claim.");
+                            return;
+                        }
+
                         var db = context.HttpContext.RequestServices.GetRequiredService<ChiniseDbContext>();
-                        var isActive = await db.Editors
+                        var editorState = await db.Editors
                             .Where(e => e.Id == editorId)
-                            .Select(e => (bool?)e.IsActive)
+                            .Select(e => new { e.IsActive, e.Role })
                             .FirstOrDefaultAsync();
 
-                        if (isActive != true)
+                        if (editorState is null || !editorState.IsActive)
                         {
                             context.Fail("Editor account is inactive or no longer exists.");
+                            return;
+                        }
+
+                        if (editorState.Role != claimedRole)
+                        {
+                            context.Fail("Editor role has changed; refresh the access token.");
                         }
                     },
                 };

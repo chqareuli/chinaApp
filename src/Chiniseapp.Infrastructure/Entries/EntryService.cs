@@ -14,6 +14,12 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 {
     public async Task<EntryDetail> CreateAsync(CreateEntryRequest request, int currentEditorId, CancellationToken ct = default)
     {
+        var actor = await GetCurrentEditorAsync(currentEditorId, ct);
+        if (!EntryContentRules.CanCreate(actor.Role))
+        {
+            throw new EntryContentForbiddenException("Your role cannot create entries.");
+        }
+
         var lemma = NormalizeLemma(request.Lemma);
 
         var now = DateTime.UtcNow;
@@ -33,10 +39,10 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         db.Entries.Add(entry);
         await db.SaveChangesAsync(ct);
 
-        return await BuildDetailAsync(entry, [], ct);
+        return await BuildDetailAsync(entry, [], actor.Role, ct);
     }
 
-    public async Task<EntryDetail?> GetAsync(int id, CancellationToken ct = default)
+    public async Task<EntryDetail?> GetAsync(int id, int currentEditorId, CancellationToken ct = default)
     {
         var entry = await db.Entries.FindAsync([id], ct);
         if (entry is null)
@@ -44,14 +50,22 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             return null;
         }
 
+        var actor = await GetCurrentEditorAsync(currentEditorId, ct);
         var homonyms = await LoadHomonymsAsync(id, ct);
-        return await BuildDetailAsync(entry, homonyms, ct);
+        return await BuildDetailAsync(entry, homonyms, actor.Role, ct);
     }
 
     public async Task<EntryDetail> SaveContentAsync(int id, SaveEntryContentRequest request, int currentEditorId, CancellationToken ct = default)
     {
         var entry = await db.Entries.FindAsync([id], ct)
-            ?? throw new EntryValidationException($"Entry {id} does not exist.");
+            ?? throw new EntryNotFoundException(id);
+        var actor = await GetCurrentEditorAsync(currentEditorId, ct);
+
+        if (!EntryContentRules.CanEdit(actor.Role, entry.Status))
+        {
+            throw new EntryContentForbiddenException(
+                $"Your role cannot edit content while the entry is in '{entry.Status}' status.");
+        }
 
         // The xmin shadow property drives EF Core's optimistic-concurrency
         // check: setting OriginalValue makes the generated UPDATE include
@@ -108,16 +122,15 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             throw new EntryConcurrencyException();
         }
 
-        return await BuildDetailAsync(entry, request.Homonyms, ct);
+        return await BuildDetailAsync(entry, request.Homonyms, actor.Role, ct);
     }
 
     public async Task<EntryDetail> ChangeStatusAsync(int id, EntryStatus targetStatus, int currentEditorId, CancellationToken ct = default)
     {
         var entry = await db.Entries.FindAsync([id], ct)
-            ?? throw new EntryValidationException($"Entry {id} does not exist.");
+            ?? throw new EntryNotFoundException(id);
 
-        var actor = await db.Editors.FindAsync([currentEditorId], ct)
-            ?? throw new EntryValidationException("Current editor not found.");
+        var actor = await GetCurrentEditorAsync(currentEditorId, ct);
 
         var previousStatus = entry.Status;
         if (previousStatus == targetStatus)
@@ -162,7 +175,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         await db.SaveChangesAsync(ct);
 
         var homonyms = await LoadHomonymsAsync(id, ct);
-        return await BuildDetailAsync(entry, homonyms, ct);
+        return await BuildDetailAsync(entry, homonyms, actor.Role, ct);
     }
 
     public async Task<PagedResult<EntrySummary>> GetMainListAsync(int page, int pageSize, CancellationToken ct = default)
@@ -327,7 +340,11 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         return homonyms;
     }
 
-    private async Task<EntryDetail> BuildDetailAsync(Entry entry, List<HomonymDto> homonyms, CancellationToken ct)
+    private async Task<EntryDetail> BuildDetailAsync(
+        Entry entry,
+        List<HomonymDto> homonyms,
+        EditorRole actorRole,
+        CancellationToken ct)
     {
         string? mainAuthorName = null;
         if (entry.MainAuthorEditorId is int mainAuthorId)
@@ -355,8 +372,25 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             entry.CreatedAtUtc,
             entry.UpdatedAtUtc,
             rowVersion,
-            homonyms);
+            homonyms,
+            BuildCapabilities(actorRole, entry.Status));
     }
+
+    private static EntryCapabilities BuildCapabilities(EditorRole role, EntryStatus currentStatus)
+    {
+        var allowedTransitions = Enum.GetValues<EntryStatus>()
+            .Where(target => StatusTransitionRules.CanTransition(role, currentStatus, target))
+            .Select(target => target.ToString())
+            .ToList();
+
+        return new EntryCapabilities(
+            EntryContentRules.CanEdit(role, currentStatus),
+            allowedTransitions);
+    }
+
+    private async Task<Editor> GetCurrentEditorAsync(int currentEditorId, CancellationToken ct) =>
+        await db.Editors.FindAsync([currentEditorId], ct)
+        ?? throw new EntryValidationException("Current editor not found.");
 
     private async Task<Dictionary<int, string>> LoadDisplayNamesAsync(List<Entry> entries, CancellationToken ct)
     {

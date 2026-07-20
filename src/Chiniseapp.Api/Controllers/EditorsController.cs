@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Chiniseapp.Application.Auth;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
@@ -13,6 +14,8 @@ public record EditorListItem(int Id, string Email, string DisplayName, string Ro
 public record CreateEditorRequest(string Email, string DisplayName, string Role, string InitialPassword);
 
 public record ResetPasswordRequest(string NewPassword);
+
+public record ChangeEditorRoleRequest(string Role);
 
 /// <summary>
 /// Bootstrap-level editor management. Only what M3 (auth) needs to be usable —
@@ -51,10 +54,10 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{nameof(EditorRole.SuperAdmin)},{nameof(EditorRole.ChiefEditor)}")]
+    [Authorize(Roles = nameof(EditorRole.SuperAdmin))]
     public async Task<ActionResult<EditorListItem>> Create(CreateEditorRequest request, CancellationToken ct)
     {
-        if (!Enum.TryParse<EditorRole>(request.Role, out var role))
+        if (!Enum.TryParse<EditorRole>(request.Role, ignoreCase: true, out var role) || !Enum.IsDefined(role))
         {
             return BadRequest(new { message = $"Unknown role '{request.Role}'." });
         }
@@ -81,6 +84,53 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
         return CreatedAtAction(nameof(Get), new { id = editor.Id }, ToListItem(editor));
     }
 
+    [HttpPut("{id:int}/role")]
+    [Authorize(Roles = nameof(EditorRole.SuperAdmin))]
+    public async Task<ActionResult<EditorListItem>> ChangeRole(
+        int id,
+        ChangeEditorRoleRequest request,
+        CancellationToken ct)
+    {
+        if (!Enum.TryParse<EditorRole>(request.Role, ignoreCase: true, out var newRole) || !Enum.IsDefined(newRole))
+        {
+            return BadRequest(new { message = $"Unknown role '{request.Role}'." });
+        }
+
+        var editor = await db.Editors.FindAsync([id], ct);
+        if (editor is null)
+        {
+            return NotFound();
+        }
+
+        if (editor.Role == newRole)
+        {
+            return BadRequest(new { message = "The editor already has that role." });
+        }
+
+        if (editor.Role == EditorRole.SuperAdmin &&
+            newRole != EditorRole.SuperAdmin &&
+            !await HasAnotherActiveSuperAdminAsync(editor.Id, ct))
+        {
+            return Conflict(new { message = "The last active super admin cannot be demoted." });
+        }
+
+        var previousRole = editor.Role;
+        editor.Role = newRole;
+        db.AuditLogEntries.Add(new AuditLogEntry
+        {
+            EntityType = nameof(Editor),
+            EntityId = editor.Id,
+            Action = AuditAction.RoleChanged,
+            PerformedByEditorId = User.GetEditorId(),
+            PerformedAtUtc = DateTime.UtcNow,
+            OldValue = JsonSerializer.Serialize(new { role = previousRole.ToString() }),
+            NewValue = JsonSerializer.Serialize(new { role = newRole.ToString() }),
+        });
+
+        await db.SaveChangesAsync(ct);
+        return Ok(ToListItem(editor));
+    }
+
     [HttpPost("{id:int}/deactivate")]
     [Authorize(Roles = nameof(EditorRole.SuperAdmin))]
     public async Task<IActionResult> Deactivate(int id, CancellationToken ct)
@@ -91,7 +141,27 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
             return NotFound();
         }
 
+        if (editor.Id == User.GetEditorId())
+        {
+            return BadRequest(new { message = "You cannot deactivate your own account." });
+        }
+
+        if (editor.Role == EditorRole.SuperAdmin &&
+            editor.IsActive &&
+            !await HasAnotherActiveSuperAdminAsync(editor.Id, ct))
+        {
+            return Conflict(new { message = "The last active super admin cannot be deactivated." });
+        }
+
         editor.IsActive = false;
+        db.AuditLogEntries.Add(new AuditLogEntry
+        {
+            EntityType = nameof(Editor),
+            EntityId = editor.Id,
+            Action = AuditAction.Deactivated,
+            PerformedByEditorId = User.GetEditorId(),
+            PerformedAtUtc = DateTime.UtcNow,
+        });
         await db.SaveChangesAsync(ct);
         return NoContent();
     }
@@ -130,4 +200,9 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
 
     private static EditorListItem ToListItem(Editor e) =>
         new(e.Id, e.Email, e.DisplayName, e.Role.ToString(), e.IsActive, e.CreatedAtUtc);
+
+    private async Task<bool> HasAnotherActiveSuperAdminAsync(int editorId, CancellationToken ct) =>
+        await db.Editors.AnyAsync(
+            e => e.Id != editorId && e.IsActive && e.Role == EditorRole.SuperAdmin,
+            ct);
 }

@@ -1,4 +1,5 @@
 using Chiniseapp.Application.ReferenceMaterials;
+using Chiniseapp.Domain.Rules;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,12 +13,24 @@ public class ReferenceMaterialService(ChiniseDbContext db) : IReferenceMaterialS
         return material is null ? null : ToDetail(material);
     }
 
-    public async Task<ReferenceMaterialDetail> SaveAsync(int entryId, SaveReferenceMaterialRequest request, CancellationToken ct = default)
+    public async Task<ReferenceMaterialDetail> SaveAsync(
+        int entryId,
+        SaveReferenceMaterialRequest request,
+        int currentEditorId,
+        CancellationToken ct = default)
     {
-        var entryExists = await db.Entries.AnyAsync(e => e.Id == entryId, ct);
-        if (!entryExists)
+        var entry = await db.Entries.FindAsync([entryId], ct);
+        if (entry is null)
         {
             throw new ReferenceMaterialValidationException($"Entry {entryId} does not exist.");
+        }
+
+        var actor = await db.Editors.FindAsync([currentEditorId], ct)
+            ?? throw new ReferenceMaterialValidationException("Current editor not found.");
+        if (!EntryContentRules.CanEdit(actor.Role, entry.Status))
+        {
+            throw new ReferenceMaterialAccessDeniedException(
+                $"Your role cannot edit reference material while the entry is in '{entry.Status}' status.");
         }
 
         var material = await db.ReferenceMaterials.FirstOrDefaultAsync(r => r.EntryId == entryId, ct);

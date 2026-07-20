@@ -35,18 +35,9 @@ public class StatusTransitionRulesTests
             }
         }
 
-        // ZH Editor: free movement among the four non-published, non-archived statuses.
-        EntryStatus[] zhReachable = [EntryStatus.NewEntry, EntryStatus.ZhReview, EntryStatus.KaReview, EntryStatus.Ready];
-        foreach (var from in zhReachable)
-        {
-            foreach (var to in zhReachable)
-            {
-                if (from != to)
-                {
-                    set.Add((EditorRole.ZhEditor, from, to));
-                }
-            }
-        }
+        // ZH Editor: accepts a new entry, then passes Chinese-reviewed content to KA review.
+        set.Add((EditorRole.ZhEditor, EntryStatus.NewEntry, EntryStatus.ZhReview));
+        set.Add((EditorRole.ZhEditor, EntryStatus.ZhReview, EntryStatus.KaReview));
 
         // KA Editor: only the ka_review boundary, forward to ready or back to zh_review.
         set.Add((EditorRole.KaEditor, EntryStatus.KaReview, EntryStatus.ZhReview));
@@ -120,11 +111,18 @@ public class StatusTransitionRulesTests
     [Theory]
     [InlineData(EntryStatus.NewEntry, EntryStatus.ZhReview)]
     [InlineData(EntryStatus.ZhReview, EntryStatus.KaReview)]
-    [InlineData(EntryStatus.KaReview, EntryStatus.ZhReview)]
-    [InlineData(EntryStatus.Ready, EntryStatus.NewEntry)]
-    public void Zh_editor_moves_freely_among_the_four_working_statuses(EntryStatus from, EntryStatus to)
+    public void Zh_editor_follows_the_forward_chinese_review_workflow(EntryStatus from, EntryStatus to)
     {
         Assert.True(StatusTransitionRules.CanTransition(EditorRole.ZhEditor, from, to));
+    }
+
+    [Theory]
+    [InlineData(EntryStatus.ZhReview, EntryStatus.NewEntry)]
+    [InlineData(EntryStatus.KaReview, EntryStatus.ZhReview)]
+    [InlineData(EntryStatus.Ready, EntryStatus.KaReview)]
+    public void Zh_editor_cannot_move_an_entry_backward(EntryStatus from, EntryStatus to)
+    {
+        Assert.False(StatusTransitionRules.CanTransition(EditorRole.ZhEditor, from, to));
     }
 
     [Fact]

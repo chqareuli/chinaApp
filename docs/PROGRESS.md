@@ -3,7 +3,7 @@
 Quick-glance resume pointer. Full architecture, domain model, and roadmap live in
 `docs/backend-plan.md` — this file just tracks "what's done, what's next."
 
-## Current stage: M8a done → M8b next (legacy-import tool, blocked on data)
+## Current stage: workflow hardening done → full Angular editor integration next
 
 Latest work: M8a — Comments + Reference Material CRUD. See `git log --oneline` for the hash.
 
@@ -28,9 +28,13 @@ Latest work: M8a — Comments + Reference Material CRUD. See `git log --oneline`
   (new migration, `ALTER TYPE audit_action ADD VALUE`). Verified live: scoring/notification
   fan-out from a comment, non-owner-non-privileged edit/archive rejected (403), privileged
   override works, multi-script (EN/ZH/RU/KA) reference material round-trips correctly.
+- **Workflow hardening** — strict ZH/KA status hand-off matrix; status-aware content and
+  reference-material editing; per-entry UI capabilities; stable entry error codes; SuperAdmin-only
+  user creation/blocking/role assignment with role-change audit and last-SuperAdmin protection.
 
 ### Resolved product decisions (see `docs/backend-plan.md` for full detail)
-- ZH-editor status-transition scope: broad model, implemented and locked in by tests.
+- ZH-editor status-transition scope: strict `new_entry → zh_review → ka_review`, implemented and
+  locked in by exhaustive tests.
 - Status colors recorded for the future Angular UI — no backend impact.
 - Q5 (accounting privacy): KA/Assistant Editor see only their own accounting page.
 - Q4 (self-notifications): not sent.
@@ -44,16 +48,19 @@ Latest work: M8a — Comments + Reference Material CRUD. See `git log --oneline`
 ### Known simplifications / gaps (intentional, revisit later — not oversights)
 - **M4**: content save is full-replace (segment ids not stable across saves); no gramGrp/POS
   UI; no IE elements yet. All Stage 2.
-- **M5**: `PUT /entries/{id}/content` authorization is still a fixed role list, not
-  status-aware.
-- Main-list/search visibility is not role-scoped yet (KA Editor should see only `ka_review`
-  entries on their main view, Assistant Editor only assigned/new ones).
+- All active roles can view all entries. The main activity list intentionally excludes only
+  `new_entry`, while search includes every status.
 - **M7**: notification "type" is just the raw `AuditAction` name, no richer summary text yet.
   Message-to-entry linkification and Super Admin notification mute/unmute are Stage 2 per spec.
 - **M8a**: `Comment.TargetSegmentId` stays null always (entry-level only) — segment-level
   comments are a Stage 2 concept once the full Editorial Panel segment tree exists.
 
-### Next up: M8b — Legacy-import console tool (blocked on data)
+### Next up: full Angular structured editor integration
+The Angular UI consumes the backend-provided `capabilities` object rather than duplicating role
+rules. The next slice adds full content editing, status actions, comments, reference material,
+and concurrency-conflict handling. Legacy import remains deliberately deferred.
+
+### Deferred: M8b — Legacy-import console tool (blocked on data)
 **Needs from the product owner before this can start meaningfully**: either a sample export
 (or DB access) of the old database's comment and reference-material blob fields, so the parser
 can be built and tested against real formatting quirks rather than guessed examples.

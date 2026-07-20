@@ -7,7 +7,7 @@ public interface IEntryService
     /// <summary>Minimum viable create: headword only, per spec 9 (title is the only required field).</summary>
     Task<EntryDetail> CreateAsync(CreateEntryRequest request, int currentEditorId, CancellationToken ct = default);
 
-    Task<EntryDetail?> GetAsync(int id, CancellationToken ct = default);
+    Task<EntryDetail?> GetAsync(int id, int currentEditorId, CancellationToken ct = default);
 
     /// <summary>Throws <see cref="EntryConcurrencyException"/> if RowVersion is stale.</summary>
     Task<EntryDetail> SaveContentAsync(int id, SaveEntryContentRequest request, int currentEditorId, CancellationToken ct = default);
