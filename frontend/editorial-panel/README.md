@@ -50,6 +50,7 @@ npm run start:qa
 - backend-driven content permissions and status-transition actions;
 - comments and G1-G5 reference-material editing;
 - entry audit-history timeline;
+- validated entry-image upload, authenticated preview and removal;
 - notification center and conversation-style private messages;
 - automatic Chinese-token links to matching entries;
 - SuperAdmin user/role/block/password-reset management;

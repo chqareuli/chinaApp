@@ -53,6 +53,19 @@ export interface EntryHistoryItem {
   notes: string | null;
 }
 
+export interface MediaAssetItem {
+  id: number;
+  entryId: number;
+  originalFilename: string;
+  mimeType: string;
+  storageUrl: string;
+  thumbnailUrl: string | null;
+  placement: string | null;
+  uploadedByEditorId: number;
+  uploadedByDisplayName: string;
+  uploadedAtUtc: string;
+}
+
 export interface SaveEntryContentRequest {
   lemma: string;
   pinyin: string | null;

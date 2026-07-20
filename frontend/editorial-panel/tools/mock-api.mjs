@@ -98,6 +98,20 @@ let history = [
     notes: null,
   },
 ];
+let media = [
+  {
+    id: 1,
+    entryId: 17,
+    originalFilename: '学习-cover.png',
+    mimeType: 'image/png',
+    storageUrl: '/media/files/mock-image.png',
+    thumbnailUrl: null,
+    placement: 'cover',
+    uploadedByEditorId: 1,
+    uploadedByDisplayName: editor.displayName,
+    uploadedAtUtc: '2026-07-20T06:00:00Z',
+  },
+];
 let notifications = [
   {
     id: 1,
@@ -146,6 +160,14 @@ const json = (response, status, body) => {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
   response.end(body === undefined ? '' : JSON.stringify(body));
 };
+const png = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
+const image = (response) => {
+  response.writeHead(200, { 'content-type': 'image/png', 'content-length': png.length });
+  response.end(png);
+};
 const readBody = async (request) => {
   let raw = '';
   for await (const chunk of request) raw += chunk;
@@ -192,6 +214,39 @@ createServer(async (request, response) => {
   if (path === '/entries/17' && request.method === 'GET') return json(response, 200, entry);
   if (path === '/entries/17/history' && request.method === 'GET')
     return json(response, 200, history);
+  if (path === '/entries/17/media' && request.method === 'GET') return json(response, 200, media);
+  if (path === '/entries/17/media' && request.method === 'POST') {
+    for await (const _chunk of request) {
+      // Drain the multipart request; QA only needs the response contract.
+    }
+    const item = {
+      id: Date.now(),
+      entryId: 17,
+      originalFilename: 'qa-upload.png',
+      mimeType: 'image/png',
+      storageUrl: '/media/files/mock-image.png',
+      thumbnailUrl: null,
+      placement: 'cover',
+      uploadedByEditorId: 1,
+      uploadedByDisplayName: editor.displayName,
+      uploadedAtUtc: new Date().toISOString(),
+    };
+    media = [item, ...media];
+    history = [
+      {
+        id: Date.now(),
+        action: 'ContentEdited',
+        performedByEditorId: 1,
+        performedByDisplayName: editor.displayName,
+        performedAtUtc: new Date().toISOString(),
+        oldValue: null,
+        newValue: null,
+        notes: `Image attached: ${item.originalFilename}`,
+      },
+      ...history,
+    ];
+    return json(response, 201, item);
+  }
   if (path === '/entries/17/content' && request.method === 'PUT') {
     const body = await readBody(request);
     entry = {
@@ -354,6 +409,13 @@ createServer(async (request, response) => {
     return json(response, 200, item);
   }
   if (/^\/messages\/\d+\/read$/.test(path)) return json(response, 204);
+  if (/^\/media\/files\/[a-zA-Z0-9._-]+$/.test(path) && request.method === 'GET')
+    return image(response);
+  if (/^\/media\/\d+$/.test(path) && request.method === 'DELETE') {
+    const id = Number(path.split('/')[2]);
+    media = media.filter((item) => item.id !== id);
+    return json(response, 204);
+  }
   if (path === '/editors/me' && request.method === 'PUT') {
     const body = await readBody(request);
     editor.displayName = body.displayName;

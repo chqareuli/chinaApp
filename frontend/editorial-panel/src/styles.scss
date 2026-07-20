@@ -82,7 +82,10 @@ button {
   border-radius: 10px;
   font-weight: 700;
   text-decoration: none;
-  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
 }
 
 .btn:hover:not(:disabled) {
@@ -138,7 +141,9 @@ button {
   border: 1px solid var(--line-strong);
   border-radius: 10px;
   background: var(--surface);
-  transition: border-color 140ms ease, box-shadow 140ms ease;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .field input:hover,
@@ -188,4 +193,145 @@ button {
   border: 1px solid #edcaca;
   border-radius: 10px;
   background: var(--danger-light);
+}
+
+.media-uploader {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(250px, 1.2fr);
+  gap: 18px;
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8faf7;
+}
+
+.media-picker {
+  display: grid;
+  min-height: 190px;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  overflow: hidden;
+  color: var(--ink-soft);
+  border: 1px dashed #9eaea2;
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: center;
+  cursor: pointer;
+}
+
+.media-picker img {
+  width: 100%;
+  height: 190px;
+  object-fit: contain;
+}
+.upload-symbol {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--forest);
+  border-radius: 50%;
+  background: var(--forest-light);
+  font-size: 1.2rem;
+}
+.media-picker small {
+  font-size: 0.68rem;
+}
+.media-upload-controls {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 12px;
+}
+.media-upload-controls .field {
+  width: 100%;
+}
+.media-upload-controls .btn {
+  margin-top: auto;
+}
+.selected-file {
+  display: grid;
+  max-width: 100%;
+  gap: 3px;
+}
+.selected-file span {
+  overflow: hidden;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selected-file small,
+.media-meta span,
+.media-meta small {
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+}
+.media-error {
+  margin-top: 14px;
+}
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.media-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+}
+.media-image {
+  display: grid;
+  height: 170px;
+  place-items: center;
+  color: var(--ink-soft);
+  background: #edf1ed;
+  font-size: 0.7rem;
+}
+.media-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.media-meta {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 12px;
+}
+.media-meta strong {
+  overflow: hidden;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.media-meta span,
+.media-meta small {
+  font-size: 0.64rem;
+}
+.media-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px 10px;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+}
+.media-empty {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 760px) {
+  .media-uploader,
+  .media-grid {
+    grid-template-columns: 1fr;
+  }
+  .media-upload-controls .btn {
+    width: 100%;
+  }
 }

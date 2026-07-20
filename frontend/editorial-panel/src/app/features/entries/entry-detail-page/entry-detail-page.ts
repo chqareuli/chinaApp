@@ -1,12 +1,15 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   inject,
+  OnDestroy,
   OnInit,
   signal,
+  ViewChild,
 } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -17,28 +20,33 @@ import {
   EntryDetail,
   EntryHistoryItem,
   Homonym,
+  MediaAssetItem,
   SaveEntryContentRequest,
 } from '../../../core/models/entry.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { CollaborationService } from '../../../core/services/collaboration.service';
 import { EntriesService } from '../../../core/services/entries.service';
+import { MediaService } from '../../../core/services/media.service';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 
-type EntryTab = 'content' | 'comments' | 'reference' | 'history';
+type EntryTab = 'content' | 'comments' | 'reference' | 'media' | 'history';
 
 @Component({
   selector: 'app-entry-detail-page',
-  imports: [DatePipe, ReactiveFormsModule, RouterLink, StatusBadge],
+  imports: [DatePipe, DecimalPipe, ReactiveFormsModule, RouterLink, StatusBadge],
   templateUrl: './entry-detail-page.html',
   styleUrl: './entry-detail-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EntryDetailPage implements OnInit {
+export class EntryDetailPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly entriesService = inject(EntriesService);
   private readonly collaboration = inject(CollaborationService);
+  private readonly mediaService = inject(MediaService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+
+  @ViewChild('mediaInput') private mediaInput?: ElementRef<HTMLInputElement>;
 
   private entryId = 0;
   readonly entry = signal<EntryDetail | null>(null);
@@ -67,6 +75,17 @@ export class EntryDetailPage implements OnInit {
   readonly history = signal<EntryHistoryItem[]>([]);
   readonly historyLoading = signal(false);
   readonly historyError = signal<string | null>(null);
+
+  readonly media = signal<MediaAssetItem[]>([]);
+  readonly mediaUrls = signal<Record<number, string>>({});
+  readonly mediaLoading = signal(false);
+  readonly mediaSaving = signal(false);
+  readonly mediaError = signal<string | null>(null);
+  readonly selectedMedia = signal<File | null>(null);
+  readonly selectedMediaPreview = signal<string | null>(null);
+  readonly mediaPlacement = signal('cover');
+  readonly pendingMediaDeleteId = signal<number | null>(null);
+  readonly deletingMediaId = signal<number | null>(null);
 
   readonly entryForm = this.fb.group({
     lemma: ['', [Validators.required, Validators.maxLength(255)]],
@@ -115,6 +134,13 @@ export class EntryDetailPage implements OnInit {
     this.loadComments();
     this.loadReferenceMaterial();
     this.loadHistory();
+    this.loadMedia();
+  }
+
+  ngOnDestroy(): void {
+    const selectedPreview = this.selectedMediaPreview();
+    if (selectedPreview) URL.revokeObjectURL(selectedPreview);
+    Object.values(this.mediaUrls()).forEach((url) => URL.revokeObjectURL(url));
   }
 
   setTab(tab: EntryTab): void {
@@ -317,6 +343,95 @@ export class EntryDetailPage implements OnInit {
       });
   }
 
+  selectMedia(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    this.clearSelectedMedia(false);
+    this.mediaError.set(null);
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      this.mediaError.set('დასაშვებია მხოლოდ JPEG, PNG, WebP ან GIF სურათი.');
+      input.value = '';
+      return;
+    }
+    if (file.size <= 0 || file.size > 10 * 1024 * 1024) {
+      this.mediaError.set('სურათის ზომა უნდა იყოს 10 MB-მდე.');
+      input.value = '';
+      return;
+    }
+
+    this.selectedMedia.set(file);
+    this.selectedMediaPreview.set(URL.createObjectURL(file));
+  }
+
+  updateMediaPlacement(event: Event): void {
+    this.mediaPlacement.set((event.target as HTMLSelectElement).value);
+  }
+
+  uploadMedia(): void {
+    const file = this.selectedMedia();
+    if (!file || !this.canEdit() || this.mediaSaving()) return;
+
+    this.mediaSaving.set(true);
+    this.mediaError.set(null);
+    this.mediaService
+      .upload(this.entryId, file, this.mediaPlacement())
+      .pipe(finalize(() => this.mediaSaving.set(false)))
+      .subscribe({
+        next: (item) => {
+          this.media.update((items) => [item, ...items]);
+          this.loadMediaUrl(item);
+          this.clearSelectedMedia();
+          this.loadHistory();
+        },
+        error: (error: HttpErrorResponse) =>
+          this.mediaError.set(this.problemMessage(error, 'სურათის ატვირთვა ვერ მოხერხდა.')),
+      });
+  }
+
+  requestMediaDelete(id: number): void {
+    this.pendingMediaDeleteId.set(id);
+  }
+
+  deleteMedia(id: number): void {
+    if (!this.canEdit() || this.deletingMediaId()) return;
+    this.deletingMediaId.set(id);
+    this.mediaError.set(null);
+    this.mediaService
+      .delete(id)
+      .pipe(finalize(() => this.deletingMediaId.set(null)))
+      .subscribe({
+        next: () => {
+          const url = this.mediaUrls()[id];
+          if (url) URL.revokeObjectURL(url);
+          this.mediaUrls.update((urls) => {
+            const next = { ...urls };
+            delete next[id];
+            return next;
+          });
+          this.media.update((items) => items.filter((item) => item.id !== id));
+          this.pendingMediaDeleteId.set(null);
+          this.loadHistory();
+        },
+        error: (error: HttpErrorResponse) =>
+          this.mediaError.set(this.problemMessage(error, 'სურათის წაშლა ვერ მოხერხდა.')),
+      });
+  }
+
+  mediaUrl(id: number): string | null {
+    return this.mediaUrls()[id] ?? null;
+  }
+
+  clearSelectedMedia(resetInput = true): void {
+    const preview = this.selectedMediaPreview();
+    if (preview) URL.revokeObjectURL(preview);
+    this.selectedMedia.set(null);
+    this.selectedMediaPreview.set(null);
+    if (resetInput && this.mediaInput) this.mediaInput.nativeElement.value = '';
+  }
+
   statusLabel(status: string): string {
     const key = this.normalizeStatus(status);
     return (
@@ -409,6 +524,34 @@ export class EntryDetailPage implements OnInit {
         next: (items) => this.history.set(items),
         error: () => this.historyError.set('ცვლილებების ისტორიის ჩატვირთვა ვერ მოხერხდა.'),
       });
+  }
+
+  private loadMedia(): void {
+    this.mediaLoading.set(true);
+    this.mediaError.set(null);
+    this.mediaService
+      .listForEntry(this.entryId)
+      .pipe(finalize(() => this.mediaLoading.set(false)))
+      .subscribe({
+        next: (items) => {
+          this.media.set(items);
+          items.forEach((item) => this.loadMediaUrl(item));
+        },
+        error: (error: HttpErrorResponse) =>
+          this.mediaError.set(this.problemMessage(error, 'სურათების ჩატვირთვა ვერ მოხერხდა.')),
+      });
+  }
+
+  private loadMediaUrl(item: MediaAssetItem): void {
+    this.mediaService.getContent(item.storageUrl).subscribe({
+      next: (blob) => {
+        const previous = this.mediaUrls()[item.id];
+        if (previous) URL.revokeObjectURL(previous);
+        const url = URL.createObjectURL(blob);
+        this.mediaUrls.update((urls) => ({ ...urls, [item.id]: url }));
+      },
+      error: () => this.mediaError.set(`სურათი „${item.originalFilename}“ ვერ ჩაიტვირთა.`),
+    });
   }
 
   private populateEntryForm(entry: EntryDetail): void {

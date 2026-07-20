@@ -71,6 +71,9 @@
       >
         საცნობარო მასალა
       </button>
+      <button type="button" [class.active]="activeTab() === 'media'" (click)="setTab('media')">
+        სურათები <span>{{ media().length }}</span>
+      </button>
       <button type="button" [class.active]="activeTab() === 'history'" (click)="setTab('history')">
         ისტორია <span>{{ history().length }}</span>
       </button>
@@ -354,6 +357,137 @@
               </button>
             }
           </form>
+        }
+      </section>
+    }
+
+    @if (activeTab() === 'media') {
+      <section class="panel-card media-panel">
+        <div class="section-head">
+          <div>
+            <p class="page-kicker">Entry media</p>
+            <h2>სტატიის სურათები</h2>
+          </div>
+          <span class="permission" [class.readonly]="!canEdit()">{{
+            canEdit() ? 'ატვირთვა ნებადართულია' : 'მხოლოდ ნახვა'
+          }}</span>
+        </div>
+
+        @if (canEdit()) {
+          <div class="media-uploader">
+            <label class="media-picker" for="entry-media-input">
+              @if (selectedMediaPreview()) {
+                <img [src]="selectedMediaPreview()" alt="არჩეული სურათის წინასწარი ნახვა" />
+              } @else {
+                <span class="upload-symbol">＋</span>
+                <strong>აირჩიეთ სურათი</strong>
+                <small>JPEG, PNG, WebP ან GIF · მაქს. 10 MB</small>
+              }
+            </label>
+            <input
+              #mediaInput
+              id="entry-media-input"
+              class="visually-hidden"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              (change)="selectMedia($event)"
+            />
+            <div class="media-upload-controls">
+              <div class="field">
+                <label for="media-placement">განთავსება</label>
+                <select
+                  id="media-placement"
+                  [value]="mediaPlacement()"
+                  (change)="updateMediaPlacement($event)"
+                >
+                  <option value="cover">მთავარი სურათი</option>
+                  <option value="inline">შინაარსში</option>
+                  <option value="attached">დანართი</option>
+                </select>
+              </div>
+              @if (selectedMedia(); as file) {
+                <div class="selected-file">
+                  <span>{{ file.name }}</span>
+                  <small>{{ file.size / 1024 / 1024 | number: '1.1-2' }} MB</small>
+                </div>
+                <button class="text-button danger" type="button" (click)="clearSelectedMedia()">
+                  არჩევის გაუქმება
+                </button>
+              }
+              <button
+                class="btn btn-primary"
+                type="button"
+                (click)="uploadMedia()"
+                [disabled]="!selectedMedia() || mediaSaving()"
+              >
+                {{ mediaSaving() ? 'იტვირთება…' : 'სურათის ატვირთვა' }}
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (mediaError()) {
+          <div class="error-banner media-error">{{ mediaError() }}</div>
+        }
+        @if (mediaLoading()) {
+          <div class="empty-state">სურათები იტვირთება…</div>
+        } @else {
+          <div class="media-grid">
+            @for (item of media(); track item.id) {
+              <article class="media-card">
+                <div class="media-image">
+                  @if (mediaUrl(item.id); as url) {
+                    <img [src]="url" [alt]="item.originalFilename" />
+                  } @else {
+                    <span>იტვირთება…</span>
+                  }
+                </div>
+                <div class="media-meta">
+                  <strong>{{ item.originalFilename }}</strong>
+                  <span
+                    >{{ item.uploadedByDisplayName }} ·
+                    {{ item.uploadedAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</span
+                  >
+                  <small>{{ item.placement || 'განთავსება არ არის მითითებული' }}</small>
+                </div>
+                @if (canEdit()) {
+                  <div class="media-actions">
+                    @if (pendingMediaDeleteId() === item.id) {
+                      <span>წავშალოთ?</span>
+                      <button
+                        class="text-button danger"
+                        type="button"
+                        (click)="deleteMedia(item.id)"
+                        [disabled]="deletingMediaId() === item.id"
+                      >
+                        {{ deletingMediaId() === item.id ? 'იშლება…' : 'დიახ' }}
+                      </button>
+                      <button
+                        class="text-button"
+                        type="button"
+                        (click)="pendingMediaDeleteId.set(null)"
+                      >
+                        არა
+                      </button>
+                    } @else {
+                      <button
+                        class="text-button danger"
+                        type="button"
+                        (click)="requestMediaDelete(item.id)"
+                      >
+                        წაშლა
+                      </button>
+                    }
+                  </div>
+                }
+              </article>
+            } @empty {
+              <div class="empty-state media-empty">
+                <strong>სურათები ჯერ არ არის</strong>
+                <span>სტატიას დაურთეთ პირველი ილუსტრაცია.</span>
+              </div>
+            }
+          </div>
         }
       </section>
     }

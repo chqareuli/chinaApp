@@ -54,7 +54,8 @@
 
 ### UI-5 — Media and extended editorial model
 
-- validated image/media upload, preview and segment attachment
+- [x] validated entry-image upload, authenticated preview and removal
+- [ ] shared media library, video support and exact segment attachment
 - POS, gramGrp, IE, XR, STYLE, DOMAIN, abbreviation and language controls
 - segment reorder and richer preview
 - TEI XML / JSON export UI after backend exporters exist
