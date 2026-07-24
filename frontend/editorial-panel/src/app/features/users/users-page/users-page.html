@@ -99,45 +99,112 @@
               ><small>{{ editor.email }}</small>
             </div>
           </div>
-          <select
-            [value]="editor.role"
-            (change)="changeRole(editor, $event)"
-            [disabled]="actionId() === editor.id"
-          >
-            @for (role of roles; track role) {
-              <option [value]="role">{{ roleLabels[role] }}</option>
-            }</select
-          ><span class="state" [class.blocked]="!editor.isActive">{{
+          <span class="role-text">{{ roleLabels[editor.role] }}</span>
+          <span class="state" [class.blocked]="!editor.isActive">{{
             editor.isActive ? 'აქტიური' : 'დაბლოკილი'
           }}</span
           ><time>{{ editor.createdAtUtc | date: 'dd MMM yyyy' : '+0400' }}</time>
           <div class="actions">
-            <button
-              type="button"
-              (click)="toggleActive(editor)"
-              [disabled]="actionId() === editor.id"
-            >
-              {{ editor.isActive ? 'დაბლოკვა' : 'აღდგენა' }}</button
-            ><button type="button" (click)="beginReset(editor.id)">პაროლი</button>
+            <button type="button" (click)="beginEdit(editor)">რედაქტირება</button>
           </div>
-          @if (resetEditorId() === editor.id) {
-            <div class="password-reset">
-              <input
-                type="password"
-                placeholder="ახალი პაროლი (მინ. 8)"
-                [value]="resetPassword()"
-                (input)="updateResetPassword($event)"
-              /><button
-                class="btn btn-primary"
-                type="button"
-                (click)="submitReset()"
-                [disabled]="resetPassword().length < 8"
-              >
-                შეცვლა</button
-              ><button class="btn btn-secondary" type="button" (click)="resetEditorId.set(null)">
-                გაუქმება
-              </button>
-            </div>
+
+          @if (editingId() === editor.id) {
+            <form
+              class="edit-card"
+              [formGroup]="editForm"
+              (ngSubmit)="saveEdit(editor)"
+              autocomplete="off"
+              novalidate
+            >
+              <div class="edit-card__head">
+                <div>
+                  <strong>მომხმარებლის რედაქტირება</strong>
+                  <small>შეცვალეთ ანგარიშის მონაცემები ერთიანად.</small>
+                </div>
+                <button type="button" aria-label="რედაქტირების დახურვა" (click)="cancelEdit()">
+                  ×
+                </button>
+              </div>
+
+              <div class="form-grid edit-grid">
+                <div class="field">
+                  <label [for]="'editor-display-name-' + editor.id">სახელი</label>
+                  <input
+                    [id]="'editor-display-name-' + editor.id"
+                    [name]="'editor-display-name-' + editor.id"
+                    formControlName="displayName"
+                    autocomplete="off"
+                  />
+                  @if (
+                    editForm.controls.displayName.touched && editForm.controls.displayName.invalid
+                  ) {
+                    <small class="field-error">სახელი აუცილებელია.</small>
+                  }
+                </div>
+
+                <div class="field">
+                  <label [for]="'editor-email-' + editor.id">ელფოსტა</label>
+                  <input
+                    [id]="'editor-email-' + editor.id"
+                    [name]="'editor-email-' + editor.id"
+                    type="email"
+                    formControlName="email"
+                    autocomplete="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                  />
+                  @if (editForm.controls.email.touched && editForm.controls.email.invalid) {
+                    <small class="field-error">მიუთითეთ სწორი ელფოსტა.</small>
+                  }
+                </div>
+
+                <div class="field">
+                  <label [for]="'editor-role-' + editor.id">როლი</label>
+                  <select
+                    [id]="'editor-role-' + editor.id"
+                    [name]="'editor-role-' + editor.id"
+                    formControlName="role"
+                  >
+                    @for (role of roles; track role) {
+                      <option [value]="role">{{ roleLabels[role] }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label [for]="'editor-password-' + editor.id">ახალი პაროლი</label>
+                  <input
+                    [id]="'editor-password-' + editor.id"
+                    [name]="'editor-password-' + editor.id"
+                    type="password"
+                    formControlName="newPassword"
+                    autocomplete="new-password"
+                    placeholder="დატოვეთ ცარიელი, თუ არ იცვლება"
+                  />
+                  @if (
+                    editForm.controls.newPassword.touched && editForm.controls.newPassword.invalid
+                  ) {
+                    <small class="field-error">პაროლი მინიმუმ 8 სიმბოლო უნდა იყოს.</small>
+                  } @else {
+                    <small class="field-hint">არსებული პაროლი უსაფრთხოების გამო არ ჩანს.</small>
+                  }
+                </div>
+              </div>
+
+              <label class="status-toggle">
+                <input type="checkbox" formControlName="isActive" />
+                <span>ანგარიში აქტიურია</span>
+              </label>
+
+              <div class="edit-actions">
+                <button class="btn btn-primary" type="submit" [disabled]="editingSaving()">
+                  {{ editingSaving() ? 'ინახება…' : 'ცვლილებების შენახვა' }}
+                </button>
+                <button class="btn btn-secondary" type="button" (click)="cancelEdit()">
+                  გაუქმება
+                </button>
+              </div>
+            </form>
           }
         </article>
       }

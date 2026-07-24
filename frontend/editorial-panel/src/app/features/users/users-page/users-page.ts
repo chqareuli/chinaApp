@@ -3,7 +3,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { CreateEditorRequest, EditorListItem } from '../../../core/models/admin.models';
+import {
+  CreateEditorRequest,
+  EditorListItem,
+  UpdateEditorRequest,
+} from '../../../core/models/admin.models';
 import { EditorRole, editorRoleLabels } from '../../../core/models/auth.models';
 import { EditorsService } from '../../../core/services/editors.service';
 
@@ -22,9 +26,8 @@ export class UsersPage implements OnInit {
   readonly error = signal<string | null>(null);
   readonly createOpen = signal(false);
   readonly saving = signal(false);
-  readonly actionId = signal<number | null>(null);
-  readonly resetEditorId = signal<number | null>(null);
-  readonly resetPassword = signal('');
+  readonly editingId = signal<number | null>(null);
+  readonly editingSaving = signal(false);
   readonly roles: EditorRole[] = [
     'SuperAdmin',
     'ChiefEditor',
@@ -39,6 +42,13 @@ export class UsersPage implements OnInit {
     role: ['AssistantEditor' as EditorRole, Validators.required],
     initialPassword: ['', [Validators.required, Validators.minLength(8)]],
   });
+  readonly editForm = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email]],
+    displayName: ['', [Validators.required, Validators.pattern(/\S/)]],
+    role: ['AssistantEditor' as EditorRole, Validators.required],
+    isActive: [true],
+    newPassword: ['', Validators.minLength(8)],
+  });
   ngOnInit(): void {
     this.load();
   }
@@ -49,6 +59,7 @@ export class UsersPage implements OnInit {
     }
 
     this.error.set(null);
+    this.editingId.set(null);
     this.createForm.reset({
       email: '',
       displayName: '',
@@ -98,54 +109,66 @@ export class UsersPage implements OnInit {
         error: (e: HttpErrorResponse) => this.error.set(this.createMessage(e)),
       });
   }
-  changeRole(editor: EditorListItem, event: Event): void {
-    const role = (event.target as HTMLSelectElement).value as EditorRole;
-    if (role === editor.role) return;
-    this.actionId.set(editor.id);
-    this.editorsService
-      .changeRole(editor.id, role)
-      .pipe(finalize(() => this.actionId.set(null)))
-      .subscribe({
-        next: (updated) => this.replace(updated),
-        error: (e: HttpErrorResponse) => {
-          (event.target as HTMLSelectElement).value = editor.role;
-          this.error.set(this.message(e, 'როლის შეცვლა ვერ მოხერხდა.'));
-        },
-      });
-  }
-  toggleActive(editor: EditorListItem): void {
-    this.actionId.set(editor.id);
-    const request = editor.isActive
-      ? this.editorsService.deactivate(editor.id)
-      : this.editorsService.reactivate(editor.id);
-    request.pipe(finalize(() => this.actionId.set(null))).subscribe({
-      next: () => this.replace({ ...editor, isActive: !editor.isActive }),
-      error: (e: HttpErrorResponse) =>
-        this.error.set(this.message(e, 'მომხმარებლის სტატუსის შეცვლა ვერ მოხერხდა.')),
+
+  beginEdit(editor: EditorListItem): void {
+    this.error.set(null);
+    this.createOpen.set(false);
+    this.editingId.set(editor.id);
+    this.editForm.reset({
+      email: editor.email,
+      displayName: editor.displayName,
+      role: editor.role,
+      isActive: editor.isActive,
+      newPassword: '',
     });
   }
-  beginReset(editorId: number): void {
-    this.resetEditorId.set(editorId);
-    this.resetPassword.set('');
+
+  cancelEdit(): void {
+    this.editingId.set(null);
+    this.editForm.reset({
+      email: '',
+      displayName: '',
+      role: 'AssistantEditor',
+      isActive: true,
+      newPassword: '',
+    });
   }
-  updateResetPassword(event: Event): void {
-    this.resetPassword.set((event.target as HTMLInputElement).value);
-  }
-  submitReset(): void {
-    const id = this.resetEditorId(),
-      password = this.resetPassword();
-    if (!id || password.length < 8) return;
-    this.actionId.set(id);
+
+  saveEdit(editor: EditorListItem): void {
+    const currentValue = this.editForm.getRawValue();
+    this.editForm.patchValue({
+      email: currentValue.email.trim(),
+      displayName: currentValue.displayName.trim(),
+    });
+    this.editForm.markAllAsTouched();
+    if (this.editForm.invalid) {
+      this.error.set(
+        'შეავსეთ სახელი და ელფოსტა სწორად. ახალი პაროლი, თუ შეგყავთ, მინიმუმ 8 სიმბოლო უნდა იყოს.',
+      );
+      return;
+    }
+    if (this.editingSaving()) return;
+
+    const rawValue = this.editForm.getRawValue();
+    const request: UpdateEditorRequest = {
+      email: rawValue.email.trim(),
+      displayName: rawValue.displayName.trim(),
+      role: rawValue.role,
+      isActive: rawValue.isActive,
+      newPassword: rawValue.newPassword || null,
+    };
+
+    this.editingSaving.set(true);
+    this.error.set(null);
     this.editorsService
-      .resetPassword(id, password)
-      .pipe(finalize(() => this.actionId.set(null)))
+      .update(editor.id, request)
+      .pipe(finalize(() => this.editingSaving.set(false)))
       .subscribe({
-        next: () => {
-          this.resetEditorId.set(null);
-          this.resetPassword.set('');
+        next: (updated) => {
+          this.replace(updated);
+          this.cancelEdit();
         },
-        error: (e: HttpErrorResponse) =>
-          this.error.set(this.message(e, 'პაროლის შეცვლა ვერ მოხერხდა.')),
+        error: (e: HttpErrorResponse) => this.error.set(this.updateMessage(e)),
       });
   }
   private load(): void {
@@ -168,6 +191,15 @@ export class UsersPage implements OnInit {
       return 'შეამოწმეთ სახელი, ელფოსტა, როლი და პაროლი.';
     }
     return this.message(error, 'მომხმარებლის შექმნა ვერ მოხერხდა.');
+  }
+  private updateMessage(error: HttpErrorResponse): string {
+    if (error.status === 409) {
+      return 'ამ ელფოსტით სხვა მომხმარებელი უკვე არსებობს ან ბოლო სუპერ ადმინის შეცვლა შეუძლებელია.';
+    }
+    if (error.status === 400) {
+      return this.message(error, 'შეამოწმეთ სახელი, ელფოსტა, როლი, სტატუსი და პაროლი.');
+    }
+    return this.message(error, 'მომხმარებლის მონაცემების შეცვლა ვერ მოხერხდა.');
   }
   private message(error: HttpErrorResponse, fallback: string): string {
     return error.error?.detail ?? error.error?.message ?? fallback;

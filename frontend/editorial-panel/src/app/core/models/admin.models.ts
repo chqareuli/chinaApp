@@ -16,6 +16,14 @@ export interface CreateEditorRequest {
   initialPassword: string;
 }
 
+export interface UpdateEditorRequest {
+  email: string;
+  displayName: string;
+  role: EditorRole;
+  isActive: boolean;
+  newPassword: string | null;
+}
+
 export interface EditorScoreSummary {
   editorId: number;
   displayName: string;

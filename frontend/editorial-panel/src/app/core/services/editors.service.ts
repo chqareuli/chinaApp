@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
-import { CreateEditorRequest, EditorListItem } from '../models/admin.models';
+import { CreateEditorRequest, EditorListItem, UpdateEditorRequest } from '../models/admin.models';
 import { EditorRole } from '../models/auth.models';
 
 @Injectable({ providedIn: 'root' })
@@ -27,6 +27,10 @@ export class EditorsService {
 
   create(request: CreateEditorRequest): Observable<EditorListItem> {
     return this.http.post<EditorListItem>(`${this.apiBaseUrl}/editors`, request);
+  }
+
+  update(id: number, request: UpdateEditorRequest): Observable<EditorListItem> {
+    return this.http.put<EditorListItem>(`${this.apiBaseUrl}/editors/${id}`, request);
   }
 
   changeRole(id: number, role: EditorRole): Observable<EditorListItem> {
