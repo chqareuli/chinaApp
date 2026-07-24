@@ -13,10 +13,10 @@ namespace Chiniseapp.Api.Controllers;
 public record EditorListItem(int Id, string Email, string DisplayName, string Role, bool IsActive, DateTime CreatedAtUtc);
 
 public record CreateEditorRequest(
-    [property: Required, EmailAddress] string Email,
-    [property: Required] string DisplayName,
-    [property: Required] string Role,
-    [property: Required, MinLength(8)] string InitialPassword);
+    [Required, EmailAddress] string Email,
+    [Required] string DisplayName,
+    [Required] string Role,
+    [Required, MinLength(8)] string InitialPassword);
 
 public record ResetPasswordRequest(string NewPassword);
 
