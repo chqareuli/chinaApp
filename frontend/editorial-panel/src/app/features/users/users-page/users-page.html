@@ -210,47 +210,4 @@
       }
     </div>
   }
-
-  @if (statusConfirmationEditor(); as editor) {
-    <div class="status-confirm-backdrop">
-      <section
-        class="status-confirm"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="status-confirm-title"
-        aria-describedby="status-confirm-description"
-      >
-        <span class="status-confirm__icon" aria-hidden="true">!</span>
-        <h2 id="status-confirm-title">
-          {{ editor.isActive ? 'მომხმარებლის დაბლოკვა' : 'მომხმარებლის გააქტიურება' }}
-        </h2>
-        <p id="status-confirm-description">
-          ნამდვილად გსურთ
-          <strong>{{ editor.displayName }}</strong>
-          {{ editor.isActive ? 'დაბლოკოთ?' : 'გაააქტიუროთ?' }}
-        </p>
-        <small>
-          {{
-            editor.isActive
-              ? 'დაბლოკვის შემდეგ მომხმარებელი სისტემაში ვეღარ შევა.'
-              : 'გააქტიურების შემდეგ მომხმარებელი სისტემაში შესვლას კვლავ შეძლებს.'
-          }}
-        </small>
-        <div class="status-confirm__actions">
-          <button class="btn btn-secondary" type="button" (click)="cancelStatusChange()">
-            გაუქმება
-          </button>
-          <button
-            class="btn"
-            [class.btn-danger]="editor.isActive"
-            [class.btn-primary]="!editor.isActive"
-            type="button"
-            (click)="confirmStatusChange()"
-          >
-            {{ editor.isActive ? 'დაბლოკვის დადასტურება' : 'გააქტიურების დადასტურება' }}
-          </button>
-        </div>
-      </section>
-    </div>
-  }
 </section>

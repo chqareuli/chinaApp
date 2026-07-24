@@ -146,7 +146,7 @@ describe('UsersPage', () => {
     expect(password.value).toBe('');
   });
 
-  it('requires confirmation before updating status with the other account fields', () => {
+  it('updates name, email, role, status and an optional new password together', () => {
     component.editors.set([existingEditor]);
     component.beginEdit(existingEditor);
     component.editForm.setValue({
@@ -158,16 +158,6 @@ describe('UsersPage', () => {
     });
 
     component.saveEdit(existingEditor);
-
-    expect(editorsService.updateRequests).toHaveLength(0);
-    expect(component.statusConfirmationEditor()).toEqual(existingEditor);
-
-    fixture.detectChanges();
-    const dialog = fixture.nativeElement.querySelector('[role="alertdialog"]') as HTMLElement;
-    expect(dialog.textContent).toContain('მომხმარებლის დაბლოკვა');
-    expect(dialog.textContent).toContain(existingEditor.displayName);
-
-    component.confirmStatusChange();
 
     expect(editorsService.updateRequests).toEqual([
       {
@@ -190,19 +180,5 @@ describe('UsersPage', () => {
       }),
     );
     expect(component.editingId()).toBeNull();
-    expect(component.statusConfirmationEditor()).toBeNull();
-  });
-
-  it('does not submit a status change when confirmation is cancelled', () => {
-    component.editors.set([existingEditor]);
-    component.beginEdit(existingEditor);
-    component.editForm.patchValue({ isActive: false });
-
-    component.saveEdit(existingEditor);
-    component.cancelStatusChange();
-
-    expect(editorsService.updateRequests).toHaveLength(0);
-    expect(component.statusConfirmationEditor()).toBeNull();
-    expect(component.editingId()).toBe(existingEditor.id);
   });
 });

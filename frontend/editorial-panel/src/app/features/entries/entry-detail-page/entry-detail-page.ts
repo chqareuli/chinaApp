@@ -59,6 +59,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly concurrencyConflict = signal(false);
   readonly changingStatus = signal<string | null>(null);
   readonly statusError = signal<string | null>(null);
+  readonly statusConfirmation = signal<string | null>(null);
 
   readonly comments = signal<CommentSummary[]>([]);
   readonly commentsLoading = signal(false);
@@ -239,6 +240,16 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       return;
     }
 
+    this.statusError.set(null);
+    this.statusConfirmation.set(targetStatus);
+  }
+
+  confirmStatusChange(): void {
+    const item = this.entry();
+    const targetStatus = this.statusConfirmation();
+    if (!item || !targetStatus || this.changingStatus()) return;
+
+    this.statusConfirmation.set(null);
     this.changingStatus.set(targetStatus);
     this.statusError.set(null);
     this.entriesService
@@ -252,6 +263,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
         error: (error: HttpErrorResponse) =>
           this.statusError.set(this.problemMessage(error, 'სტატუსის შეცვლა ვერ მოხერხდა.')),
       });
+  }
+
+  cancelStatusChange(): void {
+    this.statusConfirmation.set(null);
   }
 
   updateCommentText(event: Event): void {

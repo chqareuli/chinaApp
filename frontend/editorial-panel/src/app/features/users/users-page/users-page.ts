@@ -28,7 +28,6 @@ export class UsersPage implements OnInit {
   readonly saving = signal(false);
   readonly editingId = signal<number | null>(null);
   readonly editingSaving = signal(false);
-  readonly statusConfirmationEditor = signal<EditorListItem | null>(null);
   readonly roles: EditorRole[] = [
     'SuperAdmin',
     'ChiefEditor',
@@ -125,7 +124,6 @@ export class UsersPage implements OnInit {
   }
 
   cancelEdit(): void {
-    this.statusConfirmationEditor.set(null);
     this.editingId.set(null);
     this.editForm.reset({
       email: '',
@@ -136,7 +134,7 @@ export class UsersPage implements OnInit {
     });
   }
 
-  saveEdit(editor: EditorListItem, statusConfirmed = false): void {
+  saveEdit(editor: EditorListItem): void {
     const currentValue = this.editForm.getRawValue();
     this.editForm.patchValue({
       email: currentValue.email.trim(),
@@ -152,12 +150,6 @@ export class UsersPage implements OnInit {
     if (this.editingSaving()) return;
 
     const rawValue = this.editForm.getRawValue();
-    if (rawValue.isActive !== editor.isActive && !statusConfirmed) {
-      this.statusConfirmationEditor.set(editor);
-      return;
-    }
-
-    this.statusConfirmationEditor.set(null);
     const request: UpdateEditorRequest = {
       email: rawValue.email.trim(),
       displayName: rawValue.displayName.trim(),
@@ -178,18 +170,6 @@ export class UsersPage implements OnInit {
         },
         error: (e: HttpErrorResponse) => this.error.set(this.updateMessage(e)),
       });
-  }
-
-  confirmStatusChange(): void {
-    const editor = this.statusConfirmationEditor();
-    if (!editor) return;
-
-    this.statusConfirmationEditor.set(null);
-    this.saveEdit(editor, true);
-  }
-
-  cancelStatusChange(): void {
-    this.statusConfirmationEditor.set(null);
   }
 
   private load(): void {

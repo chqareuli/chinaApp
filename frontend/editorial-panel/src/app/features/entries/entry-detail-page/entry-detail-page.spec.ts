@@ -1,0 +1,89 @@
+import { TestBed } from '@angular/core/testing';
+import { FormBuilder } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { of } from 'rxjs';
+import { EntryDetail } from '../../../core/models/entry.models';
+import { AuthService } from '../../../core/services/auth.service';
+import { CollaborationService } from '../../../core/services/collaboration.service';
+import { EntriesService } from '../../../core/services/entries.service';
+import { MediaService } from '../../../core/services/media.service';
+import { EntryDetailPage } from './entry-detail-page';
+
+const entry: EntryDetail = {
+  id: 14,
+  lemma: '中国',
+  pinyin: 'Zhōngguó',
+  status: 'NewEntry',
+  mainAuthorDisplayName: 'რედაქტორი',
+  lastEditorDisplayName: 'რედაქტორი',
+  updatedAtUtc: '2026-07-24T00:00:00Z',
+  createdAtUtc: '2026-07-24T00:00:00Z',
+  rowVersion: 1,
+  homonyms: [],
+  capabilities: {
+    canEditContent: true,
+    allowedStatusTransitions: ['ZhReview'],
+  },
+};
+
+class EntriesServiceStub {
+  readonly statusRequests: Array<{ id: number; targetStatus: string }> = [];
+
+  changeStatus(id: number, targetStatus: string) {
+    this.statusRequests.push({ id, targetStatus });
+    return of({ ...entry, status: targetStatus });
+  }
+
+  getHistory() {
+    return of([]);
+  }
+}
+
+describe('EntryDetailPage status confirmation', () => {
+  let component: EntryDetailPage;
+  let entriesService: EntriesServiceStub;
+
+  beforeEach(() => {
+    entriesService = new EntriesServiceStub();
+    TestBed.configureTestingModule({
+      providers: [
+        FormBuilder,
+        { provide: EntriesService, useValue: entriesService },
+        { provide: CollaborationService, useValue: {} },
+        { provide: MediaService, useValue: {} },
+        { provide: AuthService, useValue: { editor: () => ({ role: 'SuperAdmin' }) } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => String(entry.id) } } },
+        },
+      ],
+    });
+
+    component = TestBed.runInInjectionContext(() => new EntryDetailPage());
+    component.entry.set(entry);
+  });
+
+  it('does not send a status request before confirmation', () => {
+    component.changeStatus('ZhReview');
+
+    expect(component.statusConfirmation()).toBe('ZhReview');
+    expect(entriesService.statusRequests).toHaveLength(0);
+  });
+
+  it('cancels a pending status change without sending a request', () => {
+    component.changeStatus('ZhReview');
+    component.cancelStatusChange();
+
+    expect(component.statusConfirmation()).toBeNull();
+    expect(entriesService.statusRequests).toHaveLength(0);
+  });
+
+  it('sends the status request only after confirmation', () => {
+    component.changeStatus('ZhReview');
+    component.confirmStatusChange();
+
+    expect(entriesService.statusRequests).toEqual([{ id: entry.id, targetStatus: 'ZhReview' }]);
+    expect(component.statusConfirmation()).toBeNull();
+    expect(component.entry()?.status).toBe('ZhReview');
+  });
+});

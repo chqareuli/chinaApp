@@ -53,6 +53,41 @@
       }
     </section>
 
+    @if (statusConfirmation(); as targetStatus) {
+      <div class="status-confirm-backdrop">
+        <section
+          class="status-confirm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="entry-status-confirm-title"
+          aria-describedby="entry-status-confirm-description"
+        >
+          <span class="status-confirm__icon" aria-hidden="true">!</span>
+          <p class="page-kicker">სტატია #{{ item.id }}</p>
+          <h2 id="entry-status-confirm-title">სტატუსის შეცვლის დადასტურება</h2>
+          <p id="entry-status-confirm-description">
+            ნამდვილად გსურთ სტატიის
+            <strong lang="zh">{{ item.lemma }}</strong>
+            შემდეგ სტატუსში გადაყვანა?
+          </p>
+          <div class="status-transition">
+            <span>{{ statusLabel(item.status) }}</span>
+            <span aria-hidden="true">→</span>
+            <strong>{{ statusLabel(targetStatus) }}</strong>
+          </div>
+          <small>დადასტურების შემდეგ ცვლილება აისახება სტატიის ისტორიაში.</small>
+          <div class="status-confirm__actions">
+            <button class="btn btn-secondary" type="button" (click)="cancelStatusChange()">
+              გაუქმება
+            </button>
+            <button class="btn btn-primary" type="button" (click)="confirmStatusChange()">
+              სტატუსის შეცვლის დადასტურება
+            </button>
+          </div>
+        </section>
+      </div>
+    }
+
     <nav class="entry-tabs" aria-label="სტატიის სექციები">
       <button type="button" [class.active]="activeTab() === 'content'" (click)="setTab('content')">
         შინაარსი
