@@ -6,6 +6,7 @@ import {
   CreateEntryRequest,
   EntryDetail,
   EntryHistoryItem,
+  EntryListQuery,
   EntryStatusTotals,
   EntrySummary,
   PagedResult,
@@ -20,6 +21,25 @@ export class EntriesService {
   getMainList(page = 1, pageSize = 25): Observable<PagedResult<EntrySummary>> {
     const params = new HttpParams().set('page', page).set('pageSize', pageSize);
     return this.http.get<PagedResult<EntrySummary>>(`${this.apiBaseUrl}/entries`, { params });
+  }
+
+  getAllList(options: EntryListQuery): Observable<PagedResult<EntrySummary>> {
+    let params = new HttpParams()
+      .set('page', options.page)
+      .set('pageSize', options.pageSize)
+      .set('sort', options.sort);
+
+    if (options.query?.trim()) {
+      params = params.set('q', options.query.trim());
+    }
+    if (options.status) {
+      params = params.set('status', options.status);
+    }
+    if (options.editorId) {
+      params = params.set('editorId', options.editorId);
+    }
+
+    return this.http.get<PagedResult<EntrySummary>>(`${this.apiBaseUrl}/entries/all`, { params });
   }
 
   search(query: string, limit = 12): Observable<EntrySummary[]> {

@@ -59,6 +59,13 @@
       <a routerLink="/adminpanel/dashboard" routerLinkActive="active" (click)="closeMenu()"
         ><span class="nav-icon">მ</span><span>მთავარი</span></a
       >
+      <a
+        routerLink="/adminpanel/entries"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        (click)="closeMenu()"
+        ><span class="nav-icon">ს</span><span>სტატიები</span></a
+      >
       @if (canCreateEntry()) {
         <a routerLink="/adminpanel/entries/new" routerLinkActive="active" (click)="closeMenu()"
           ><span class="nav-icon">＋</span><span>ახალი სტატია</span></a

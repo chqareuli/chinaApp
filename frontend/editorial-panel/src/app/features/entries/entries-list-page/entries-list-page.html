@@ -1,0 +1,129 @@
+<section class="entries-list-page">
+  <header class="page-head">
+    <div>
+      <p class="page-kicker">ლექსიკონის ბაზა</p>
+      <h1 class="page-title">სტატიები</h1>
+      <p>ყველა სტატია ერთ სივრცეში — ახალი, სამუშაო პროცესში მყოფი და გამოქვეყნებული.</p>
+    </div>
+    @if (canCreateEntry()) {
+      <a class="btn btn-primary" routerLink="/adminpanel/entries/new">
+        <span aria-hidden="true">＋</span> ახალი სტატია
+      </a>
+    }
+  </header>
+
+  <section class="filters-card" aria-label="სტატიების ფილტრები">
+    <label class="search-field">
+      <span>სიტყვით ან პინინით ძიება</span>
+      <span class="search-control">
+        <i aria-hidden="true">⌕</i>
+        <input
+          type="search"
+          autocomplete="off"
+          placeholder="მაგალითად: 中国 ან Zhōngguó"
+          [formControl]="queryControl"
+        />
+      </span>
+    </label>
+    <label>
+      <span>სტატუსი</span>
+      <select [formControl]="statusControl">
+        @for (status of statuses; track status.value) {
+          <option [value]="status.value">{{ status.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>ავტორი / რედაქტორი</span>
+      <select [formControl]="editorControl">
+        <option value="">ყველა თანამშრომელი</option>
+        @for (editor of editors(); track editor.id) {
+          <option [value]="editor.id">{{ editor.displayName }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>დალაგება</span>
+      <select [formControl]="sortControl">
+        @for (sort of sorts; track sort.value) {
+          <option [value]="sort.value">{{ sort.label }}</option>
+        }
+      </select>
+    </label>
+    <button class="clear-button" type="button" (click)="clearFilters()" [disabled]="!hasFilters()">
+      გასუფთავება
+    </button>
+  </section>
+
+  <section class="entries-card">
+    <div class="list-head">
+      <div>
+        <h2>სრული ჩამონათვალი</h2>
+        <p>{{ totalCount() }} სტატია</p>
+      </div>
+      <span>{{ rangeStart() }}–{{ rangeEnd() }} / {{ totalCount() }}</span>
+    </div>
+
+    @if (error()) {
+      <div class="load-error">
+        <div class="error-banner">{{ error() }}</div>
+        <button class="btn btn-secondary" type="button" (click)="retry()">ხელახლა ცდა</button>
+      </div>
+    } @else if (loading()) {
+      <div class="skeleton-list" aria-label="სტატიები იტვირთება">
+        @for (_ of [1, 2, 3, 4, 5]; track $index) {
+          <span></span>
+        }
+      </div>
+    } @else if (entries().length === 0) {
+      <div class="empty-state">
+        <strong>სტატია ვერ მოიძებნა</strong>
+        <span>შეცვალეთ ფილტრები ან შექმენით ახალი სტატია.</span>
+      </div>
+    } @else {
+      <div class="table-head" aria-hidden="true">
+        <span>სიტყვა</span>
+        <span>სტატუსი</span>
+        <span>ავტორი / ბოლო რედაქტორი</span>
+        <span>განახლება</span>
+        <span></span>
+      </div>
+      <div class="entry-rows">
+        @for (entry of entries(); track entry.id) {
+          <article>
+            <a class="word-link" [routerLink]="['/adminpanel/entries', entry.id]">
+              <strong lang="zh">{{ entry.lemma }}</strong>
+              <small>{{ entry.pinyin || 'პინინი არ არის' }}</small>
+            </a>
+            <app-status-badge [status]="entry.status" />
+            <div class="editor-copy">
+              <strong>{{
+                entry.mainAuthorDisplayName || 'ავტორი ჯერ არ არის დაფიქსირებული'
+              }}</strong>
+              <small>ბოლო: {{ entry.lastEditorDisplayName || '—' }}</small>
+            </div>
+            <time [attr.datetime]="entry.updatedAtUtc">
+              {{ entry.updatedAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}
+            </time>
+            <a
+              class="open-link"
+              [routerLink]="['/adminpanel/entries', entry.id]"
+              aria-label="სტატიის გახსნა"
+              >→</a
+            >
+          </article>
+        }
+      </div>
+    }
+
+    <footer class="pagination">
+      <span>გვერდი {{ page() }} / {{ pageCount() }}</span>
+      <div>
+        <button type="button" (click)="previousPage()" [disabled]="page() <= 1">← წინა</button>
+        <button type="button" (click)="nextPage()" [disabled]="page() >= pageCount()">
+          შემდეგი →
+        </button>
+      </div>
+    </footer>
+  </section>
+</section>

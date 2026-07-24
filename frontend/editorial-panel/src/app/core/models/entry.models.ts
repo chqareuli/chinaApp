@@ -15,6 +15,17 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
+export type EntryListSort = 'UpdatedDesc' | 'UpdatedAsc' | 'LemmaAsc' | 'LemmaDesc' | 'Status';
+
+export interface EntryListQuery {
+  page: number;
+  pageSize: number;
+  query?: string;
+  status?: string;
+  editorId?: number;
+  sort: EntryListSort;
+}
+
 export interface Example {
   zh: string;
   ka: string;

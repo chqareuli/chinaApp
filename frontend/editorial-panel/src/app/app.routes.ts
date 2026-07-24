@@ -41,6 +41,15 @@ export const routes: Routes = [
         title: 'მთავარი — სარედაქციო პანელი',
       },
       {
+        path: 'entries',
+        pathMatch: 'full',
+        loadComponent: () =>
+          import('./features/entries/entries-list-page/entries-list-page').then(
+            (m) => m.EntriesListPage,
+          ),
+        title: 'სტატიები — სარედაქციო პანელი',
+      },
+      {
         path: 'entries/new',
         canActivate: [entryCreatorGuard],
         loadComponent: () =>
