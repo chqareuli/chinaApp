@@ -204,6 +204,71 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         return new PagedResult<EntrySummary>(items, totalCount, page, pageSize);
     }
 
+    public async Task<PagedResult<EntrySummary>> GetAllListAsync(
+        int page,
+        int pageSize,
+        string? query,
+        EntryStatus? status,
+        int? editorId,
+        EntryListSort sort,
+        CancellationToken ct = default)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 200);
+
+        IQueryable<Entry> entries = db.Entries.AsNoTracking();
+
+        if (status.HasValue)
+        {
+            entries = entries.Where(entry => entry.Status == status.Value);
+        }
+
+        if (editorId.HasValue)
+        {
+            entries = entries.Where(entry =>
+                entry.CreatedByEditorId == editorId.Value ||
+                entry.MainAuthorEditorId == editorId.Value ||
+                entry.LastEditorEditorId == editorId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var pattern = $"%{EscapeLikePattern(query.Trim())}%";
+            entries = entries.Where(entry =>
+                EF.Functions.ILike(entry.Lemma, pattern, "\\") ||
+                (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pattern, "\\")));
+        }
+
+        var totalCount = await entries.CountAsync(ct);
+        var ordered = sort switch
+        {
+            EntryListSort.UpdatedAsc => entries
+                .OrderBy(entry => entry.UpdatedAtUtc)
+                .ThenBy(entry => entry.Id),
+            EntryListSort.LemmaAsc => entries
+                .OrderBy(entry => entry.Lemma)
+                .ThenByDescending(entry => entry.UpdatedAtUtc),
+            EntryListSort.LemmaDesc => entries
+                .OrderByDescending(entry => entry.Lemma)
+                .ThenByDescending(entry => entry.UpdatedAtUtc),
+            EntryListSort.Status => entries
+                .OrderBy(entry => entry.StatusPriority)
+                .ThenByDescending(entry => entry.UpdatedAtUtc),
+            _ => entries
+                .OrderByDescending(entry => entry.UpdatedAtUtc)
+                .ThenByDescending(entry => entry.Id),
+        };
+
+        var pageEntries = await ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        var names = await LoadDisplayNamesAsync(pageEntries, ct);
+        var items = pageEntries.Select(entry => ToSummary(entry, names)).ToList();
+        return new PagedResult<EntrySummary>(items, totalCount, page, pageSize);
+    }
+
     public async Task<IReadOnlyList<EntrySummary>> SearchAsync(string query, int limit, CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 100);
@@ -471,4 +536,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         entry.MainAuthorEditorId is int id && names.TryGetValue(id, out var mainName) ? mainName : null,
         names.GetValueOrDefault(entry.LastEditorEditorId, string.Empty),
         entry.UpdatedAtUtc);
+
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 }

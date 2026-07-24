@@ -1,5 +1,14 @@
 namespace Chiniseapp.Application.Entries;
 
+public enum EntryListSort
+{
+    UpdatedDesc,
+    UpdatedAsc,
+    LemmaAsc,
+    LemmaDesc,
+    Status,
+}
+
 public record CreateEntryRequest(string Lemma, string? Pinyin);
 
 public record ExampleDto(string Zh, string Ka);

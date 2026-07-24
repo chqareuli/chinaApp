@@ -15,6 +15,16 @@ public interface IEntryService
     /// <summary>5.1 Main editor page list: all entries except new_entry, status priority then last-modified desc.</summary>
     Task<PagedResult<EntrySummary>> GetMainListAsync(int page, int pageSize, CancellationToken ct = default);
 
+    /// <summary>Complete administrative list, including new_entry, with filters and sorting.</summary>
+    Task<PagedResult<EntrySummary>> GetAllListAsync(
+        int page,
+        int pageSize,
+        string? query,
+        EntryStatus? status,
+        int? editorId,
+        EntryListSort sort,
+        CancellationToken ct = default);
+
     /// <summary>5.2 Search dropdown: starts-with title match, includes new_entry, title-length-first sort.</summary>
     Task<IReadOnlyList<EntrySummary>> SearchAsync(string query, int limit, CancellationToken ct = default);
 

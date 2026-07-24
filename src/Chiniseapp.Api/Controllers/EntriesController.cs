@@ -18,6 +18,59 @@ public class EntriesController(IEntryService entryService) : ControllerBase
         return Ok(await entryService.GetMainListAsync(page, pageSize, ct));
     }
 
+    /// <summary>Complete administrative list, including new_entry, with filters and sorting.</summary>
+    [HttpGet("all")]
+    public async Task<ActionResult<PagedResult<EntrySummary>>> All(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? q = null,
+        [FromQuery] string? status = null,
+        [FromQuery] int? editorId = null,
+        [FromQuery] string sort = nameof(EntryListSort.UpdatedDesc),
+        CancellationToken ct = default)
+    {
+        EntryStatus? statusFilter = null;
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!Enum.TryParse<EntryStatus>(status, ignoreCase: true, out var parsedStatus) ||
+                !Enum.IsDefined(parsedStatus))
+            {
+                return EntryProblem(
+                    StatusCodes.Status400BadRequest,
+                    "entry_status_invalid",
+                    $"Unknown status '{status}'.");
+            }
+
+            statusFilter = parsedStatus;
+        }
+
+        if (editorId is <= 0)
+        {
+            return EntryProblem(
+                StatusCodes.Status400BadRequest,
+                "editor_filter_invalid",
+                "Editor id must be a positive number.");
+        }
+
+        if (!Enum.TryParse<EntryListSort>(sort, ignoreCase: true, out var listSort) ||
+            !Enum.IsDefined(listSort))
+        {
+            return EntryProblem(
+                StatusCodes.Status400BadRequest,
+                "entry_sort_invalid",
+                $"Unknown sort '{sort}'.");
+        }
+
+        return Ok(await entryService.GetAllListAsync(
+            page,
+            pageSize,
+            q,
+            statusFilter,
+            editorId,
+            listSort,
+            ct));
+    }
+
     /// <summary>5.2 Search dropdown: starts-with match, includes new_entry.</summary>
     [HttpGet("search")]
     public async Task<ActionResult<IReadOnlyList<EntrySummary>>> Search(
