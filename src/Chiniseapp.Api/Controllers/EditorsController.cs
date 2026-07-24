@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Chiniseapp.Application.Auth;
 using Chiniseapp.Domain.Entities;
@@ -11,7 +12,11 @@ namespace Chiniseapp.Api.Controllers;
 
 public record EditorListItem(int Id, string Email, string DisplayName, string Role, bool IsActive, DateTime CreatedAtUtc);
 
-public record CreateEditorRequest(string Email, string DisplayName, string Role, string InitialPassword);
+public record CreateEditorRequest(
+    [property: Required, EmailAddress] string Email,
+    [property: Required] string DisplayName,
+    [property: Required] string Role,
+    [property: Required, MinLength(8)] string InitialPassword);
 
 public record ResetPasswordRequest(string NewPassword);
 
@@ -114,6 +119,11 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
     [Authorize(Roles = nameof(EditorRole.SuperAdmin))]
     public async Task<ActionResult<EditorListItem>> Create(CreateEditorRequest request, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.DisplayName))
+        {
+            return BadRequest(new { message = "Display name is required." });
+        }
+
         if (!Enum.TryParse<EditorRole>(request.Role, ignoreCase: true, out var role) || !Enum.IsDefined(role))
         {
             return BadRequest(new { message = $"Unknown role '{request.Role}'." });
