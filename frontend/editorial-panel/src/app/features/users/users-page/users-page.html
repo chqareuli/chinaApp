@@ -5,7 +5,7 @@
       <h1 class="page-title">მომხმარებლები</h1>
       <p>როლები, წვდომა და ანგარიშების უსაფრთხო მართვა.</p>
     </div>
-    <button class="btn btn-primary" type="button" (click)="createOpen.update((v) => !v)">
+    <button class="btn btn-primary" type="button" (click)="toggleCreate()">
       ＋ მომხმარებლის დამატება
     </button>
   </header>
@@ -13,26 +13,68 @@
     <div class="error-banner">{{ error() }}</div>
   }
   @if (createOpen()) {
-    <form class="create-card" [formGroup]="createForm" (ngSubmit)="create()">
+    <form
+      class="create-card"
+      [formGroup]="createForm"
+      (ngSubmit)="create()"
+      autocomplete="off"
+      novalidate
+    >
       <div class="section-head">
         <h2>ახალი მომხმარებელი</h2>
         <button type="button" (click)="createOpen.set(false)">×</button>
       </div>
       <div class="form-grid">
-        <div class="field"><label>სახელი</label><input formControlName="displayName" /></div>
         <div class="field">
-          <label>ელფოსტა</label><input type="email" formControlName="email" />
+          <label for="new-editor-display-name">სახელი</label>
+          <input
+            id="new-editor-display-name"
+            name="new-editor-display-name"
+            formControlName="displayName"
+            autocomplete="off"
+          />
+          @if (createForm.controls.displayName.touched && createForm.controls.displayName.invalid) {
+            <small class="field-error">სახელი აუცილებელია.</small>
+          }
         </div>
         <div class="field">
-          <label>როლი</label
-          ><select formControlName="role">
+          <label for="new-editor-email">ელფოსტა</label>
+          <input
+            id="new-editor-email"
+            name="new-editor-email"
+            type="email"
+            formControlName="email"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+          @if (createForm.controls.email.touched && createForm.controls.email.invalid) {
+            <small class="field-error">მიუთითეთ სწორი ელფოსტა.</small>
+          }
+        </div>
+        <div class="field">
+          <label for="new-editor-role">როლი</label
+          ><select id="new-editor-role" name="new-editor-role" formControlName="role">
             @for (role of roles; track role) {
               <option [value]="role">{{ roleLabels[role] }}</option>
             }
           </select>
         </div>
         <div class="field">
-          <label>საწყისი პაროლი</label><input type="password" formControlName="initialPassword" />
+          <label for="new-editor-password">საწყისი პაროლი</label>
+          <input
+            id="new-editor-password"
+            name="new-editor-password"
+            type="password"
+            formControlName="initialPassword"
+            autocomplete="new-password"
+          />
+          @if (
+            createForm.controls.initialPassword.touched &&
+            createForm.controls.initialPassword.invalid
+          ) {
+            <small class="field-error">პაროლი მინიმუმ 8 სიმბოლო უნდა იყოს.</small>
+          }
         </div>
       </div>
       <button class="btn btn-primary" type="submit" [disabled]="saving()">

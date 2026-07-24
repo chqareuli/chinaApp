@@ -35,20 +35,52 @@ export class UsersPage implements OnInit {
   readonly roleLabels = editorRoleLabels;
   readonly createForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
-    displayName: ['', Validators.required],
+    displayName: ['', [Validators.required, Validators.pattern(/\S/)]],
     role: ['AssistantEditor' as EditorRole, Validators.required],
     initialPassword: ['', [Validators.required, Validators.minLength(8)]],
   });
   ngOnInit(): void {
     this.load();
   }
+  toggleCreate(): void {
+    if (this.createOpen()) {
+      this.createOpen.set(false);
+      return;
+    }
+
+    this.error.set(null);
+    this.createForm.reset({
+      email: '',
+      displayName: '',
+      role: 'AssistantEditor',
+      initialPassword: '',
+    });
+    this.createOpen.set(true);
+  }
   create(): void {
+    const currentValue = this.createForm.getRawValue();
+    this.createForm.patchValue({
+      email: currentValue.email.trim(),
+      displayName: currentValue.displayName.trim(),
+    });
     this.createForm.markAllAsTouched();
-    if (this.createForm.invalid || this.saving()) return;
+    if (this.createForm.invalid) {
+      this.error.set('შეავსეთ ყველა ველი სწორად. პაროლი მინიმუმ 8 სიმბოლოს უნდა შეიცავდეს.');
+      return;
+    }
+    if (this.saving()) return;
+
+    const rawValue = this.createForm.getRawValue();
+    const request: CreateEditorRequest = {
+      ...rawValue,
+      email: rawValue.email.trim(),
+      displayName: rawValue.displayName.trim(),
+    };
+
     this.saving.set(true);
     this.error.set(null);
     this.editorsService
-      .create(this.createForm.getRawValue() as CreateEditorRequest)
+      .create(request)
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: (editor) => {
@@ -63,8 +95,7 @@ export class UsersPage implements OnInit {
           });
           this.createOpen.set(false);
         },
-        error: (e: HttpErrorResponse) =>
-          this.error.set(this.message(e, 'მომხმარებლის შექმნა ვერ მოხერხდა.')),
+        error: (e: HttpErrorResponse) => this.error.set(this.createMessage(e)),
       });
   }
   changeRole(editor: EditorListItem, event: Event): void {
@@ -87,13 +118,11 @@ export class UsersPage implements OnInit {
     const request = editor.isActive
       ? this.editorsService.deactivate(editor.id)
       : this.editorsService.reactivate(editor.id);
-    request
-      .pipe(finalize(() => this.actionId.set(null)))
-      .subscribe({
-        next: () => this.replace({ ...editor, isActive: !editor.isActive }),
-        error: (e: HttpErrorResponse) =>
-          this.error.set(this.message(e, 'მომხმარებლის სტატუსის შეცვლა ვერ მოხერხდა.')),
-      });
+    request.pipe(finalize(() => this.actionId.set(null))).subscribe({
+      next: () => this.replace({ ...editor, isActive: !editor.isActive }),
+      error: (e: HttpErrorResponse) =>
+        this.error.set(this.message(e, 'მომხმარებლის სტატუსის შეცვლა ვერ მოხერხდა.')),
+    });
   }
   beginReset(editorId: number): void {
     this.resetEditorId.set(editorId);
@@ -130,6 +159,15 @@ export class UsersPage implements OnInit {
   }
   private replace(editor: EditorListItem): void {
     this.editors.update((items) => items.map((item) => (item.id === editor.id ? editor : item)));
+  }
+  private createMessage(error: HttpErrorResponse): string {
+    if (error.status === 409) {
+      return 'ამ ელფოსტით მომხმარებელი უკვე არსებობს.';
+    }
+    if (error.status === 400) {
+      return 'შეამოწმეთ სახელი, ელფოსტა, როლი და პაროლი.';
+    }
+    return this.message(error, 'მომხმარებლის შექმნა ვერ მოხერხდა.');
   }
   private message(error: HttpErrorResponse, fallback: string): string {
     return error.error?.detail ?? error.error?.message ?? fallback;
