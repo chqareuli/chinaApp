@@ -18,6 +18,13 @@ public record CreateEditorRequest(
     [Required] string Role,
     [Required, MinLength(8)] string InitialPassword);
 
+public record UpdateEditorRequest(
+    [Required, EmailAddress, MaxLength(255)] string Email,
+    [Required, MaxLength(255)] string DisplayName,
+    [Required] string Role,
+    bool IsActive,
+    [MinLength(8)] string? NewPassword);
+
 public record ResetPasswordRequest(string NewPassword);
 
 public record ChangeEditorRoleRequest(string Role);
@@ -149,6 +156,122 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
         await db.SaveChangesAsync(ct);
 
         return CreatedAtAction(nameof(Get), new { id = editor.Id }, ToListItem(editor));
+    }
+
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = nameof(EditorRole.SuperAdmin))]
+    public async Task<ActionResult<EditorListItem>> Update(
+        int id,
+        UpdateEditorRequest request,
+        CancellationToken ct)
+    {
+        var email = request.Email?.Trim();
+        var displayName = request.DisplayName?.Trim();
+
+        if (string.IsNullOrWhiteSpace(email) || email.Length > 255)
+        {
+            return BadRequest(new { message = "A valid email is required and must be 255 characters or fewer." });
+        }
+
+        if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 255)
+        {
+            return BadRequest(new { message = "Display name is required and must be 255 characters or fewer." });
+        }
+
+        if (!Enum.TryParse<EditorRole>(request.Role, ignoreCase: true, out var newRole) ||
+            !Enum.IsDefined(newRole))
+        {
+            return BadRequest(new { message = $"Unknown role '{request.Role}'." });
+        }
+
+        if (request.NewPassword is { Length: > 0 and < 8 })
+        {
+            return BadRequest(new { message = "The new password must be at least 8 characters long." });
+        }
+
+        var editor = await db.Editors.FindAsync([id], ct);
+        if (editor is null)
+        {
+            return NotFound();
+        }
+
+        var normalizedEmail = email.ToLowerInvariant();
+        if (await db.Editors.AnyAsync(
+                e => e.Id != id && e.Email.ToLower() == normalizedEmail,
+                ct))
+        {
+            return Conflict(new { message = "An editor with this email already exists." });
+        }
+
+        if (editor.Id == User.GetEditorId() && !request.IsActive)
+        {
+            return BadRequest(new { message = "You cannot deactivate your own account." });
+        }
+
+        if (editor.Role == EditorRole.SuperAdmin &&
+            editor.IsActive &&
+            (newRole != EditorRole.SuperAdmin || !request.IsActive) &&
+            !await HasAnotherActiveSuperAdminAsync(editor.Id, ct))
+        {
+            return Conflict(new { message = "The last active super admin cannot be demoted or deactivated." });
+        }
+
+        var passwordChanged = !string.IsNullOrEmpty(request.NewPassword);
+        var detailsChanged =
+            !string.Equals(editor.Email, email, StringComparison.Ordinal) ||
+            !string.Equals(editor.DisplayName, displayName, StringComparison.Ordinal) ||
+            editor.Role != newRole ||
+            editor.IsActive != request.IsActive;
+
+        if (!detailsChanged && !passwordChanged)
+        {
+            return Ok(ToListItem(editor));
+        }
+
+        var oldValue = JsonSerializer.Serialize(new
+        {
+            editor.Email,
+            editor.DisplayName,
+            Role = editor.Role.ToString(),
+            editor.IsActive,
+        });
+        var roleChanged = editor.Role != newRole;
+        var deactivated = editor.IsActive && !request.IsActive;
+
+        editor.Email = email;
+        editor.DisplayName = displayName;
+        editor.Role = newRole;
+        editor.IsActive = request.IsActive;
+        if (passwordChanged)
+        {
+            editor.PasswordHash = passwordHasher.HashPassword(editor, request.NewPassword!);
+        }
+
+        db.AuditLogEntries.Add(new AuditLogEntry
+        {
+            EntityType = nameof(Editor),
+            EntityId = editor.Id,
+            Action = roleChanged
+                ? AuditAction.RoleChanged
+                : deactivated
+                    ? AuditAction.Deactivated
+                    : AuditAction.Other,
+            PerformedByEditorId = User.GetEditorId(),
+            PerformedAtUtc = DateTime.UtcNow,
+            OldValue = oldValue,
+            NewValue = JsonSerializer.Serialize(new
+            {
+                editor.Email,
+                editor.DisplayName,
+                Role = editor.Role.ToString(),
+                editor.IsActive,
+                PasswordChanged = passwordChanged,
+            }),
+            Notes = "Editor account updated by super admin.",
+        });
+
+        await db.SaveChangesAsync(ct);
+        return Ok(ToListItem(editor));
     }
 
     [HttpPut("{id:int}/role")]
