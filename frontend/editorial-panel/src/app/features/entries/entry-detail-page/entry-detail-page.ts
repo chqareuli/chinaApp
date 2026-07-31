@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -17,23 +17,42 @@ import { catchError, finalize, of } from 'rxjs';
 import { CommentSummary, ReferenceMaterialDetail } from '../../../core/models/collaboration.models';
 import {
   ApiProblem,
+  CrossReference,
+  DirectPos,
+  EditorialMarker,
   EntryDetail,
   EntryHistoryItem,
+  Example,
+  GramGroup,
   Homonym,
   MediaAssetItem,
+  PinyinItem,
   SaveEntryContentRequest,
+  Sense,
+  VocabularyItem,
 } from '../../../core/models/entry.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { CollaborationService } from '../../../core/services/collaboration.service';
 import { EntriesService } from '../../../core/services/entries.service';
 import { MediaService } from '../../../core/services/media.service';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
+import { EditorialDecorations } from '../../../shared/editorial-decorations/editorial-decorations';
+import { RepeatableTextList } from '../../../shared/repeatable-text-list/repeatable-text-list';
 
 type EntryTab = 'content' | 'comments' | 'reference' | 'media' | 'history';
 
 @Component({
   selector: 'app-entry-detail-page',
-  imports: [DatePipe, DecimalPipe, ReactiveFormsModule, RouterLink, StatusBadge],
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    NgTemplateOutlet,
+    ReactiveFormsModule,
+    RouterLink,
+    StatusBadge,
+    EditorialDecorations,
+    RepeatableTextList,
+  ],
   templateUrl: './entry-detail-page.html',
   styleUrl: './entry-detail-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -87,11 +106,16 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly mediaPlacement = signal('cover');
   readonly pendingMediaDeleteId = signal<number | null>(null);
   readonly deletingMediaId = signal<number | null>(null);
+  readonly vocabularies = signal<VocabularyItem[]>([]);
+  readonly vocabularyError = signal<string | null>(null);
 
   readonly entryForm = this.fb.group({
     lemma: ['', [Validators.required, Validators.maxLength(255)]],
-    pinyin: [''],
+    pinyins: this.fb.array<FormGroup>([]),
     homonyms: this.fb.array<FormGroup>([]),
+    gramGroups: this.fb.array<FormGroup>([]),
+    directPoses: this.fb.array<FormGroup>([]),
+    senses: this.fb.array<FormGroup>([]),
   });
 
   readonly referenceForm = this.fb.group({
@@ -123,6 +147,22 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     return this.entryForm.controls.homonyms;
   }
 
+  get pinyins(): FormArray<FormGroup> {
+    return this.entryForm.controls.pinyins;
+  }
+
+  get rootGramGroups(): FormArray<FormGroup> {
+    return this.entryForm.controls.gramGroups;
+  }
+
+  get directPoses(): FormArray<FormGroup> {
+    return this.entryForm.controls.directPoses;
+  }
+
+  get rootSenses(): FormArray<FormGroup> {
+    return this.entryForm.controls.senses;
+  }
+
   ngOnInit(): void {
     this.entryId = Number(this.route.snapshot.paramMap.get('id'));
     if (!Number.isInteger(this.entryId) || this.entryId < 1) {
@@ -136,6 +176,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.loadReferenceMaterial();
     this.loadHistory();
     this.loadMedia();
+    this.loadVocabularies();
   }
 
   ngOnDestroy(): void {
@@ -148,12 +189,45 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.activeTab.set(tab);
   }
 
-  sensesAt(homonymIndex: number): FormArray<FormGroup> {
-    return this.homonyms.at(homonymIndex).get('senses') as FormArray<FormGroup>;
+  gramGroupsAt(homonymIndex: number): FormArray<FormGroup> {
+    return this.homonyms.at(homonymIndex).get('gramGroups') as FormArray<FormGroup>;
   }
 
-  examplesAt(homonymIndex: number, senseIndex: number): FormArray<FormGroup> {
-    return this.sensesAt(homonymIndex).at(senseIndex).get('examples') as FormArray<FormGroup>;
+  sensesAt(homonymIndex: number, gramGroupIndex: number): FormArray<FormGroup> {
+    return this.gramGroupsAt(homonymIndex).at(gramGroupIndex).get('senses') as FormArray<FormGroup>;
+  }
+
+  examplesAt(homonymIndex: number, gramGroupIndex: number, senseIndex: number): FormArray<FormGroup> {
+    return this.sensesAt(homonymIndex, gramGroupIndex).at(senseIndex).get('examples') as FormArray<FormGroup>;
+  }
+
+  formArrayAt(group: FormGroup, name: string): FormArray<FormGroup> {
+    return group.get(name) as FormArray<FormGroup>;
+  }
+
+  posOptions(): VocabularyItem[] {
+    return this.vocabularies().filter((item) => item.category === 'pos');
+  }
+
+  markContentChanged(): void {
+    this.entryForm.markAsDirty();
+  }
+
+  structureKind(): 'homonym' | 'grammar' | 'pos' | 'sense' | null {
+    if (this.homonyms.length) return 'homonym';
+    if (this.rootGramGroups.length) return 'grammar';
+    if (this.directPoses.length) return 'pos';
+    if (this.rootSenses.length) return 'sense';
+    return null;
+  }
+
+  startStructure(kind: 'homonym' | 'grammar' | 'pos' | 'sense'): void {
+    if (this.structureKind() !== null) return;
+    if (kind === 'homonym') this.homonyms.push(this.createHomonym());
+    if (kind === 'grammar') this.rootGramGroups.push(this.createGramGroup(1));
+    if (kind === 'pos') this.directPoses.push(this.createDirectPos());
+    if (kind === 'sense') this.rootSenses.push(this.createSense(1));
+    this.entryForm.markAsDirty();
   }
 
   addHomonym(): void {
@@ -166,26 +240,81 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.entryForm.markAsDirty();
   }
 
-  addSense(homonymIndex: number): void {
-    const senses = this.sensesAt(homonymIndex);
+  addGramGroup(homonymIndex: number): void {
+    const groups = this.gramGroupsAt(homonymIndex);
+    groups.push(this.createGramGroup(groups.length + 1));
+    this.entryForm.markAsDirty();
+  }
+
+  addGroupTo(groups: FormArray<FormGroup>): void {
+    groups.push(this.createGramGroup(groups.length + 1));
+    this.entryForm.markAsDirty();
+  }
+
+  removeGroupFrom(groups: FormArray<FormGroup>, index: number): void {
+    groups.removeAt(index);
+    groups.controls.forEach((group, groupIndex) => group.get('number')?.setValue(groupIndex + 1));
+    this.entryForm.markAsDirty();
+  }
+
+  addDirectPos(): void {
+    this.directPoses.push(this.createDirectPos());
+    this.entryForm.markAsDirty();
+  }
+
+  removeDirectPos(index: number): void {
+    this.directPoses.removeAt(index);
+    this.entryForm.markAsDirty();
+  }
+
+  addSenseTo(senses: FormArray<FormGroup>): void {
     senses.push(this.createSense(senses.length + 1));
     this.entryForm.markAsDirty();
   }
 
-  removeSense(homonymIndex: number, senseIndex: number): void {
-    const senses = this.sensesAt(homonymIndex);
+  removeSenseFrom(senses: FormArray<FormGroup>, index: number): void {
+    senses.removeAt(index);
+    this.renumberSenses(senses);
+    this.entryForm.markAsDirty();
+  }
+
+  addExampleTo(examples: FormArray<FormGroup>): void {
+    examples.push(this.createExample());
+    this.entryForm.markAsDirty();
+  }
+
+  removeExampleFrom(examples: FormArray<FormGroup>, index: number): void {
+    examples.removeAt(index);
+    this.entryForm.markAsDirty();
+  }
+
+  removeGramGroup(homonymIndex: number, gramGroupIndex: number): void {
+    const groups = this.gramGroupsAt(homonymIndex);
+    groups.removeAt(gramGroupIndex);
+    groups.controls.forEach((group, index) => group.get('number')?.setValue(index + 1));
+    this.entryForm.markAsDirty();
+  }
+
+  addSense(homonymIndex: number, gramGroupIndex: number): void {
+    const senses = this.sensesAt(homonymIndex, gramGroupIndex);
+    senses.push(this.createSense(senses.length + 1));
+    this.entryForm.markAsDirty();
+  }
+
+  removeSense(homonymIndex: number, gramGroupIndex: number, senseIndex: number): void {
+    const senses = this.sensesAt(homonymIndex, gramGroupIndex);
     senses.removeAt(senseIndex);
     this.renumberSenses(senses);
     this.entryForm.markAsDirty();
   }
 
-  addExample(homonymIndex: number, senseIndex: number): void {
-    this.examplesAt(homonymIndex, senseIndex).push(this.createExample());
+  addExample(homonymIndex: number, gramGroupIndex: number, senseIndex: number): void {
+    this.examplesAt(homonymIndex, gramGroupIndex, senseIndex).push(this.createExample());
     this.entryForm.markAsDirty();
   }
 
-  removeExample(homonymIndex: number, senseIndex: number, exampleIndex: number): void {
-    this.examplesAt(homonymIndex, senseIndex).removeAt(exampleIndex);
+  removeExample(homonymIndex: number, gramGroupIndex: number, senseIndex: number, exampleIndex: number): void {
+    this.examplesAt(homonymIndex, gramGroupIndex, senseIndex).removeAt(exampleIndex);
     this.entryForm.markAsDirty();
   }
 
@@ -501,6 +630,13 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       });
   }
 
+  private loadVocabularies(): void {
+    this.entriesService.getVocabularies().subscribe({
+      next: (items) => this.vocabularies.set(items),
+      error: () => this.vocabularyError.set('სელექტების მნიშვნელობები ვერ ჩაიტვირთა.'),
+    });
+  }
+
   private loadComments(): void {
     this.commentsLoading.set(true);
     this.collaboration
@@ -571,9 +707,16 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   private populateEntryForm(entry: EntryDetail): void {
     this.entryForm.controls.lemma.setValue(entry.lemma);
-    this.entryForm.controls.pinyin.setValue(entry.pinyin ?? '');
+    this.pinyins.clear();
+    for (const pinyin of entry.pinyins ?? []) this.pinyins.push(this.createPinyin(pinyin));
     this.homonyms.clear();
     for (const homonym of entry.homonyms) this.homonyms.push(this.createHomonym(homonym));
+    this.rootGramGroups.clear();
+    for (const group of entry.gramGroups ?? []) this.rootGramGroups.push(this.createGramGroup(group.number, group));
+    this.directPoses.clear();
+    for (const pos of entry.directPoses ?? []) this.directPoses.push(this.createDirectPos(pos));
+    this.rootSenses.clear();
+    for (const sense of entry.senses ?? []) this.rootSenses.push(this.createSense(sense.number, sense));
     this.entryForm.markAsPristine();
   }
 
@@ -599,32 +742,88 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   private createHomonym(homonym?: Homonym): FormGroup {
     return this.fb.group({
-      senses: this.fb.array<FormGroup>(
-        (homonym?.senses ?? []).map((sense) =>
-          this.fb.group({
-            number: [sense.number],
-            definition: [sense.definition],
-            examples: this.fb.array<FormGroup>(
-              sense.examples.map((example) =>
-                this.fb.group({ zh: [example.zh], ka: [example.ka] }),
-              ),
-            ),
-          }),
-        ),
+      id: [homonym?.id ?? null],
+      markers: this.createMarkers(homonym?.markers),
+      crossReferences: this.createCrossReferences(homonym?.crossReferences),
+      gramGroups: this.fb.array<FormGroup>(
+        homonym
+          ? homonym.gramGroups.map((group) => this.createGramGroup(group.number, group))
+          : [this.createGramGroup(1)],
       ),
     });
   }
 
-  private createSense(number: number): FormGroup {
+  private createPinyin(pinyin: PinyinItem): FormGroup {
+    return this.fb.group({ id: [pinyin.id], value: [pinyin.value], order: [pinyin.order] });
+  }
+
+  private createGramGroup(number: number, group?: GramGroup): FormGroup {
     return this.fb.group({
+      id: [group?.id ?? null],
+      posSegmentId: [group?.posSegmentId ?? null],
       number: [number],
-      definition: [''],
-      examples: this.fb.array<FormGroup>([]),
+      pos: [group?.pos ?? '', Validators.required],
+      markers: this.createMarkers(group?.markers),
+      crossReferences: this.createCrossReferences(group?.crossReferences),
+      senses: this.fb.array<FormGroup>(
+        group
+          ? group.senses.map((sense) => this.createSense(sense.number, sense))
+          : [this.createSense(1)],
+      ),
     });
   }
 
-  private createExample(): FormGroup {
-    return this.fb.group({ zh: [''], ka: [''] });
+  private createDirectPos(pos?: DirectPos): FormGroup {
+    return this.fb.group({
+      id: [pos?.id ?? null],
+      pos: [pos?.pos ?? '', Validators.required],
+      markers: this.createMarkers(pos?.markers),
+      crossReferences: this.createCrossReferences(pos?.crossReferences),
+      senses: this.fb.array<FormGroup>(
+        pos ? pos.senses.map((sense) => this.createSense(sense.number, sense)) : [this.createSense(1)],
+      ),
+    });
+  }
+
+  private createSense(number: number, sense?: Sense): FormGroup {
+    return this.fb.group({
+      id: [sense?.id ?? null],
+      definitionId: [sense?.definitionId ?? null],
+      number: [number],
+      definition: [sense?.definition ?? ''],
+      markers: this.createMarkers(sense?.markers),
+      crossReferences: this.createCrossReferences(sense?.crossReferences),
+      examples: this.fb.array<FormGroup>((sense?.examples ?? []).map((example) => this.createExample(example))),
+    });
+  }
+
+  private createExample(example?: Example): FormGroup {
+    return this.fb.group({
+      id: [example?.id ?? null],
+      zhSegmentId: [example?.zhSegmentId ?? null],
+      kaSegmentId: [example?.kaSegmentId ?? null],
+      zh: [example?.zh ?? ''],
+      ka: [example?.ka ?? ''],
+      markers: this.createMarkers(example?.markers),
+      crossReferences: this.createCrossReferences(example?.crossReferences),
+    });
+  }
+
+  private createMarkers(items: EditorialMarker[] = []): FormArray<FormGroup> {
+    return this.fb.array<FormGroup>(
+      items.map((item) => this.fb.group({ id: [item.id], category: [item.category], value: [item.value] })),
+    );
+  }
+
+  private createCrossReferences(items: CrossReference[] = []): FormArray<FormGroup> {
+    return this.fb.array<FormGroup>(
+      items.map((item) =>
+        this.fb.group({
+          id: [item.id], type: [item.type], label: [item.label], target: [item.target],
+          displayText: [item.displayText ?? ''], placement: [item.placement],
+        }),
+      ),
+    );
   }
 
   private renumberSenses(senses: FormArray<FormGroup>): void {
@@ -633,26 +832,64 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   private toSaveRequest(rowVersion: number): SaveEntryContentRequest {
     const raw = this.entryForm.getRawValue();
-    const homonyms = (raw.homonyms ?? []) as Array<{
-      senses?: Array<{
-        definition?: string | null;
-        examples?: Array<{ zh?: string | null; ka?: string | null }>;
-      }>;
-    }>;
+    const homonyms = (raw.homonyms ?? []) as unknown as Homonym[];
+    const gramGroups = (raw.gramGroups ?? []) as unknown as GramGroup[];
+    const directPoses = (raw.directPoses ?? []) as unknown as DirectPos[];
+    const senses = (raw.senses ?? []) as unknown as Sense[];
+    const pinyins = (raw.pinyins ?? []) as unknown as PinyinItem[];
+
+    const mapExample = (example: Example): Example => ({
+      id: example.id ?? null,
+      zhSegmentId: example.zhSegmentId ?? null,
+      kaSegmentId: example.kaSegmentId ?? null,
+      zh: example.zh?.trim() ?? '',
+      ka: example.ka?.trim() ?? '',
+      markers: example.markers ?? [],
+      crossReferences: example.crossReferences ?? [],
+    });
+    const mapSense = (sense: Sense, index: number): Sense => ({
+      id: sense.id ?? null,
+      definitionId: sense.definitionId ?? null,
+      number: index + 1,
+      definition: sense.definition?.trim() ?? '',
+      markers: sense.markers ?? [],
+      crossReferences: sense.crossReferences ?? [],
+      examples: (sense.examples ?? []).map(mapExample),
+    });
+    const mapGroup = (group: GramGroup, index: number): GramGroup => ({
+      id: group.id ?? null,
+      posSegmentId: group.posSegmentId ?? null,
+      number: index + 1,
+      pos: group.pos?.trim() || null,
+      markers: group.markers ?? [],
+      crossReferences: group.crossReferences ?? [],
+      senses: (group.senses ?? []).map(mapSense),
+    });
+    const mapDirectPos = (pos: DirectPos): DirectPos => ({
+      id: pos.id ?? null,
+      pos: pos.pos?.trim() ?? '',
+      markers: pos.markers ?? [],
+      crossReferences: pos.crossReferences ?? [],
+      senses: (pos.senses ?? []).map(mapSense),
+    });
+
     return {
       lemma: raw.lemma?.trim() ?? '',
-      pinyin: raw.pinyin?.trim() || null,
+      pinyins: pinyins.map((item, index) => ({
+        id: item.id ?? null,
+        value: item.value.trim(),
+        order: index,
+      })),
       rowVersion,
       homonyms: homonyms.map((homonym) => ({
-        senses: (homonym.senses ?? []).map((sense, index) => ({
-          number: index + 1,
-          definition: sense.definition?.trim() ?? '',
-          examples: (sense.examples ?? []).map((example) => ({
-            zh: example.zh?.trim() ?? '',
-            ka: example.ka?.trim() ?? '',
-          })),
-        })),
+        id: homonym.id ?? null,
+        markers: homonym.markers ?? [],
+        crossReferences: homonym.crossReferences ?? [],
+        gramGroups: (homonym.gramGroups ?? []).map(mapGroup),
       })),
+      gramGroups: gramGroups.map(mapGroup),
+      directPoses: directPoses.map(mapDirectPos),
+      senses: senses.map(mapSense),
     };
   }
 
@@ -661,10 +898,23 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     const content = this.toSaveRequest(this.entry()?.rowVersion ?? 0);
     const errors: string[] = [];
     if (!content.lemma) errors.push('გამოქვეყნებისთვის სათაური აუცილებელია.');
-    if (!content.homonyms.length || content.homonyms.some((homonym) => !homonym.senses.length)) {
+    if (content.homonyms.some((homonym) => !homonym.gramGroups.length)) {
+      errors.push('ყველა ჰომონიმს უნდა ჰქონდეს მინიმუმ ერთი გრამატიკული ჯგუფი.');
+    }
+    const groups = [...content.homonyms.flatMap((homonym) => homonym.gramGroups), ...content.gramGroups];
+    if (groups.some((group) => !group.pos) || content.directPoses.some((pos) => !pos.pos)) {
+      errors.push('ყველა გრამატიკულ ჯგუფს უნდა ჰქონდეს არჩეული POS.');
+    }
+    if (groups.some((group) => !group.senses.length) || content.directPoses.some((pos) => !pos.senses.length)) {
       errors.push('გამოქვეყნებისთვის საჭიროა მინიმუმ ერთი მნიშვნელობა.');
     }
-    if (content.homonyms.some((homonym) => homonym.senses.some((sense) => !sense.definition))) {
+    const senses = [
+      ...groups.flatMap((group) => group.senses),
+      ...content.directPoses.flatMap((pos) => pos.senses),
+      ...content.senses,
+    ];
+    if (!senses.length) errors.push('გამოქვეყნებისთვის საჭიროა მინიმუმ ერთი მნიშვნელობა.');
+    if (senses.some((sense) => !sense.definition)) {
       errors.push('ყველა მნიშვნელობას უნდა ჰქონდეს განმარტება.');
     }
     return errors;

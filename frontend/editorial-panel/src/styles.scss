@@ -39,6 +39,30 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Shared structured-entry layout kept global to avoid duplicating component style payloads. */
+.title-grid.single-title { grid-template-columns: 1fr; }
+.pinyin-block { margin-top: 16px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfa; }
+.grammar-list { display: grid; gap: 12px; margin-top: 14px; }
+.grammar-editor { padding: 14px; border: 1px solid #ccd8d0; border-radius: 10px; background: #f5f8f5; }
+.grammar-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.grammar-head strong { font-size: .78rem; }
+.pos-field { max-width: 260px; }
+.nested-senses { margin-top: 12px; }
+.example-editor-wrap { padding: 12px; border-radius: 10px; background: #f3f6f3; }
+.example-editor-wrap .example-editor { padding: 0; }
+.structure-chooser,
+.direct-structure { display: grid; gap: 16px; margin-top: 20px; padding: 18px; border: 1px solid var(--line-strong); border-radius: 12px; background: #fbfcfa; }
+.structure-chooser h3,
+.direct-structure h3 { margin: 0; font-size: .92rem; }
+.structure-chooser > div > span { color: var(--ink-soft); font-size: .72rem; }
+.structure-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.structure-options button { display: grid; gap: 5px; padding: 14px; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: left; }
+.structure-options button:hover { border-color: var(--forest); background: var(--forest-light); }
+.structure-options button strong { color: var(--forest); font-size: .8rem; }
+.structure-options button span { color: var(--ink-soft); font-size: .67rem; }
+.direct-structure > header { display: flex; align-items: center; justify-content: space-between; }
+@media (max-width: 620px) { .structure-options { grid-template-columns: 1fr; } }
+
 button,
 input,
 textarea,

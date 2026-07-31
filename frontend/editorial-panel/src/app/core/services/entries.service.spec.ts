@@ -55,4 +55,12 @@ describe('EntriesService', () => {
     expect(request.request.params.has('editorId')).toBe(false);
     request.flush({ items: [], totalCount: 0, page: 1, pageSize: 25 });
   });
+
+  it('loads a controlled vocabulary category', () => {
+    service.getVocabularies('pos').subscribe();
+
+    const request = http.expectOne('/api/vocabularies?category=pos');
+    expect(request.request.method).toBe('GET');
+    request.flush([{ id: 1, category: 'pos', code: '名', label: '名', sortOrder: 1 }]);
+  });
 });

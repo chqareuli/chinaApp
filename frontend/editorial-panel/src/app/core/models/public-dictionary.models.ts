@@ -19,6 +19,17 @@ export interface PublicDictionarySense {
 }
 
 export interface PublicDictionaryHomonym {
+  gramGroups: PublicDictionaryGramGroup[];
+}
+
+export interface PublicDictionaryGramGroup {
+  number: number;
+  pos: string | null;
+  senses: PublicDictionarySense[];
+}
+
+export interface PublicDictionaryDirectPos {
+  pos: string;
   senses: PublicDictionarySense[];
 }
 
@@ -26,8 +37,12 @@ export interface PublicDictionaryEntry {
   id: number;
   lemma: string;
   pinyin: string | null;
+  pinyins: string[];
   updatedAtUtc: string;
   homonyms: PublicDictionaryHomonym[];
+  gramGroups: PublicDictionaryGramGroup[];
+  directPoses: PublicDictionaryDirectPos[];
+  senses: PublicDictionarySense[];
 }
 
 export interface PublicDictionaryStats {

@@ -126,117 +126,185 @@
           }}</span>
         </div>
 
-        <div class="title-grid">
+        <div class="title-grid single-title">
           <div class="field">
             <label for="entry-lemma">სათაური / ჩინური სიტყვა</label>
             <input id="entry-lemma" formControlName="lemma" lang="zh" [readOnly]="!canEdit()" />
           </div>
-          <div class="field">
-            <label for="entry-pinyin">Pinyin</label>
-            <input id="entry-pinyin" formControlName="pinyin" [readOnly]="!canEdit()" />
-          </div>
         </div>
 
-        <div formArrayName="homonyms" class="homonym-list">
-          @for (homonym of homonyms.controls; track $index; let h = $index) {
-            <article class="homonym-editor" [formGroupName]="h">
-              <header>
-                <div>
-                  <span class="index-chip">{{ h + 1 }}</span>
-                  <h3>ჰომონიმი</h3>
-                </div>
-                @if (canEdit()) {
-                  <button class="text-button danger" type="button" (click)="removeHomonym(h)">
-                    წაშლა
-                  </button>
-                }
-              </header>
+        <div class="pinyin-block">
+          <app-repeatable-text-list
+            [items]="pinyins"
+            label="Pinyin"
+            addLabel="Pinyin-ის დამატება"
+            placeholder="მაგ. wèi"
+            [readonly]="!canEdit()"
+            (contentChanged)="markContentChanged()"
+          />
+        </div>
 
-              <div formArrayName="senses" class="sense-list">
-                @for (sense of sensesAt(h).controls; track $index; let s = $index) {
-                  <section class="sense-editor" [formGroupName]="s">
-                    <div class="sense-head">
-                      <strong>მნიშვნელობა {{ s + 1 }}</strong>
-                      @if (canEdit()) {
-                        <button
-                          class="text-button danger"
-                          type="button"
-                          (click)="removeSense(h, s)"
-                        >
-                          მნიშვნელობის წაშლა
-                        </button>
-                      }
-                    </div>
-                    <input formControlName="number" type="hidden" />
+        @if (vocabularyError()) {
+          <div class="error-banner">{{ vocabularyError() }}</div>
+        }
+
+        <ng-template #senseEditor let-sense="sense" let-senses="senses" let-index="index" let-prefix="prefix" let-implicit="implicit">
+          <section class="sense-editor" [formGroup]="sense">
+            <div class="sense-head">
+              <strong>{{ implicit ? 'იმპლიციტური მნიშვნელობა' : 'მნიშვნელობა ' + (index + 1) }}</strong>
+              @if (canEdit()) {
+                <button class="text-button danger" type="button" (click)="removeSenseFrom(senses, index)">მნიშვნელობის წაშლა</button>
+              }
+            </div>
+            <input formControlName="number" type="hidden" />
+            <div class="field">
+              <label [for]="prefix + '-definition-' + index">ქართული განმარტება</label>
+              <textarea [id]="prefix + '-definition-' + index" formControlName="definition" rows="3" [readOnly]="!canEdit()"></textarea>
+            </div>
+            <app-editorial-decorations
+              [markers]="formArrayAt(sense, 'markers')"
+              [crossReferences]="formArrayAt(sense, 'crossReferences')"
+              [vocabularies]="vocabularies()"
+              [readonly]="!canEdit()"
+              (contentChanged)="markContentChanged()"
+            />
+            @let examples = formArrayAt(sense, 'examples');
+            <div class="example-list">
+              @for (example of examples.controls; track example.get('id')?.value ?? $index; let e = $index) {
+                <div class="example-editor-wrap" [formGroup]="example">
+                  <div class="example-editor">
+                    <span class="example-number">{{ e + 1 }}</span>
                     <div class="field">
-                      <label [for]="'definition-' + h + '-' + s">ქართული განმარტება</label>
-                      <textarea
-                        [id]="'definition-' + h + '-' + s"
-                        formControlName="definition"
-                        rows="3"
-                        [readOnly]="!canEdit()"
-                      ></textarea>
+                      <label [for]="prefix + '-zh-' + index + '-' + e">ჩინური მაგალითი</label>
+                      <textarea [id]="prefix + '-zh-' + index + '-' + e" formControlName="zh" rows="2" lang="zh" [readOnly]="!canEdit()"></textarea>
                     </div>
-
-                    <div formArrayName="examples" class="example-list">
-                      @for (example of examplesAt(h, s).controls; track $index; let e = $index) {
-                        <div class="example-editor" [formGroupName]="e">
-                          <span class="example-number">{{ e + 1 }}</span>
-                          <div class="field">
-                            <label [for]="'zh-example-' + h + '-' + s + '-' + e"
-                              >ჩინური მაგალითი</label
-                            ><textarea
-                              [id]="'zh-example-' + h + '-' + s + '-' + e"
-                              formControlName="zh"
-                              rows="2"
-                              lang="zh"
-                              [readOnly]="!canEdit()"
-                            ></textarea>
-                          </div>
-                          <div class="field">
-                            <label [for]="'ka-example-' + h + '-' + s + '-' + e"
-                              >ქართული თარგმანი</label
-                            ><textarea
-                              [id]="'ka-example-' + h + '-' + s + '-' + e"
-                              formControlName="ka"
-                              rows="2"
-                              [readOnly]="!canEdit()"
-                            ></textarea>
-                          </div>
-                          @if (canEdit()) {
-                            <button
-                              class="icon-button danger"
-                              type="button"
-                              (click)="removeExample(h, s, e)"
-                              aria-label="მაგალითის წაშლა"
-                            >
-                              ×
-                            </button>
-                          }
-                        </div>
-                      }
+                    <div class="field">
+                      <label [for]="prefix + '-ka-' + index + '-' + e">ქართული თარგმანი</label>
+                      <textarea [id]="prefix + '-ka-' + index + '-' + e" formControlName="ka" rows="2" [readOnly]="!canEdit()"></textarea>
                     </div>
                     @if (canEdit()) {
-                      <button class="add-row" type="button" (click)="addExample(h, s)">
-                        ＋ მაგალითის დამატება
-                      </button>
+                      <button class="icon-button danger" type="button" (click)="removeExampleFrom(examples, e)" aria-label="მაგალითის წაშლა">×</button>
                     }
-                  </section>
-                }
-              </div>
-              @if (canEdit()) {
-                <button class="add-row" type="button" (click)="addSense(h)">
-                  ＋ მნიშვნელობის დამატება
-                </button>
+                  </div>
+                  <app-editorial-decorations
+                    [markers]="formArrayAt(example, 'markers')"
+                    [crossReferences]="formArrayAt(example, 'crossReferences')"
+                    [vocabularies]="vocabularies()"
+                    [readonly]="!canEdit()"
+                    (contentChanged)="markContentChanged()"
+                  />
+                </div>
               }
-            </article>
-          }
-        </div>
+            </div>
+            @if (canEdit()) {
+              <button class="add-row" type="button" (click)="addExampleTo(examples)">＋ მაგალითის დამატება</button>
+            }
+          </section>
+        </ng-template>
+
+        <ng-template #grammarEditor let-group="group" let-groups="groups" let-index="index" let-prefix="prefix">
+          <section class="grammar-editor" [formGroup]="group">
+            <div class="grammar-head">
+              <strong>გრამატიკული ჯგუფი {{ index + 1 }}</strong>
+              @if (canEdit()) {
+                <button class="text-button danger" type="button" (click)="removeGroupFrom(groups, index)">ჯგუფის წაშლა</button>
+              }
+            </div>
+            <input formControlName="number" type="hidden" />
+            <div class="field pos-field">
+              <label [for]="prefix + '-pos-' + index">მეტყველების ნაწილი (POS)</label>
+              <select [id]="prefix + '-pos-' + index" formControlName="pos">
+                <option value="">აირჩიეთ</option>
+                @for (pos of posOptions(); track pos.id) { <option [value]="pos.code">{{ pos.label }}</option> }
+              </select>
+            </div>
+            <app-editorial-decorations
+              [markers]="formArrayAt(group, 'markers')"
+              [crossReferences]="formArrayAt(group, 'crossReferences')"
+              [vocabularies]="vocabularies()"
+              [readonly]="!canEdit()"
+              (contentChanged)="markContentChanged()"
+            />
+            @let senses = formArrayAt(group, 'senses');
+            <div class="sense-list nested-senses">
+              @for (sense of senses.controls; track sense.get('id')?.value ?? $index; let s = $index) {
+                <ng-container [ngTemplateOutlet]="senseEditor" [ngTemplateOutletContext]="{sense, senses, index: s, prefix: prefix + '-group-' + index, implicit: false}" />
+              }
+            </div>
+            @if (canEdit()) { <button class="add-row" type="button" (click)="addSenseTo(senses)">＋ მნიშვნელობის დამატება</button> }
+          </section>
+        </ng-template>
+
+        @if (structureKind() === null) {
+          <section class="structure-chooser">
+            <div><p class="page-kicker">Entry structure</p><h3>რით დავიწყოთ სტატია?</h3><span>აირჩიეთ სქემა — საჭირო პირველი მნიშვნელობა ავტომატურად დაემატება.</span></div>
+            @if (canEdit()) {
+              <div class="structure-options">
+                <button type="button" (click)="startStructure('homonym')"><strong>Homonym</strong><span>ჰომონიმი → GramGrp → POS → Sense</span></button>
+                <button type="button" (click)="startStructure('grammar')"><strong>GramGrp</strong><span>პირდაპირ GramGrp → POS → Sense</span></button>
+                <button type="button" (click)="startStructure('pos')"><strong>POS</strong><span>პირდაპირ POS → implicit Sense</span></button>
+                <button type="button" (click)="startStructure('sense')"><strong>Sense</strong><span>პირდაპირ implicit Sense → Definition/XR</span></button>
+              </div>
+            } @else { <div class="empty-state compact">სტრუქტურა ჯერ არ არის დამატებული.</div> }
+          </section>
+        }
+
+        @if (structureKind() === 'homonym') {
+          <div class="homonym-list">
+            @for (homonym of homonyms.controls; track homonym.get('id')?.value ?? $index; let h = $index) {
+              <article class="homonym-editor" [formGroup]="homonym">
+                <header><div><span class="index-chip">{{ h + 1 }}</span><h3>ჰომონიმი</h3></div>@if (canEdit()) { <button class="text-button danger" type="button" (click)="removeHomonym(h)">წაშლა</button> }</header>
+                <app-editorial-decorations [markers]="formArrayAt(homonym, 'markers')" [crossReferences]="formArrayAt(homonym, 'crossReferences')" [vocabularies]="vocabularies()" [readonly]="!canEdit()" (contentChanged)="markContentChanged()" />
+                @let groups = formArrayAt(homonym, 'gramGroups');
+                <div class="grammar-list">
+                  @for (group of groups.controls; track group.get('id')?.value ?? $index; let g = $index) {
+                    <ng-container [ngTemplateOutlet]="grammarEditor" [ngTemplateOutletContext]="{group, groups, index: g, prefix: 'homonym-' + h}" />
+                  }
+                </div>
+                @if (canEdit()) { <button class="add-row" type="button" (click)="addGroupTo(groups)">＋ გრამატიკული ჯგუფის დამატება</button> }
+              </article>
+            }
+          </div>
+          @if (canEdit()) { <button class="add-homonym" type="button" (click)="addHomonym()">＋ ახალი ჰომონიმი</button> }
+        }
+
+        @if (structureKind() === 'grammar') {
+          <section class="direct-structure"><header><div><p class="page-kicker">Entry → GramGrp</p><h3>გრამატიკული ჯგუფები</h3></div></header>
+            <div class="grammar-list">
+              @for (group of rootGramGroups.controls; track group.get('id')?.value ?? $index; let g = $index) {
+                <ng-container [ngTemplateOutlet]="grammarEditor" [ngTemplateOutletContext]="{group, groups: rootGramGroups, index: g, prefix: 'root'}" />
+              }
+            </div>
+            @if (canEdit()) { <button class="add-homonym" type="button" (click)="addGroupTo(rootGramGroups)">＋ გრამატიკული ჯგუფის დამატება</button> }
+          </section>
+        }
+
+        @if (structureKind() === 'pos') {
+          <section class="direct-structure"><header><div><p class="page-kicker">Entry → POS</p><h3>პირდაპირი POS</h3></div></header>
+            <div class="grammar-list">
+              @for (posGroup of directPoses.controls; track posGroup.get('id')?.value ?? $index; let p = $index) {
+                <section class="grammar-editor direct-pos" [formGroup]="posGroup">
+                  <div class="grammar-head"><strong>POS {{ p + 1 }}</strong>@if (canEdit()) { <button class="text-button danger" type="button" (click)="removeDirectPos(p)">წაშლა</button> }</div>
+                  <div class="field pos-field"><label [for]="'direct-pos-' + p">მეტყველების ნაწილი (POS)</label><select [id]="'direct-pos-' + p" formControlName="pos"><option value="">აირჩიეთ</option>@for (pos of posOptions(); track pos.id) { <option [value]="pos.code">{{ pos.label }}</option> }</select></div>
+                  <app-editorial-decorations [markers]="formArrayAt(posGroup, 'markers')" [crossReferences]="formArrayAt(posGroup, 'crossReferences')" [vocabularies]="vocabularies()" [readonly]="!canEdit()" (contentChanged)="markContentChanged()" />
+                  @let senses = formArrayAt(posGroup, 'senses');
+                  <div class="sense-list nested-senses">@for (sense of senses.controls; track sense.get('id')?.value ?? $index; let s = $index) { <ng-container [ngTemplateOutlet]="senseEditor" [ngTemplateOutletContext]="{sense, senses, index: s, prefix: 'direct-pos-' + p, implicit: true}" /> }</div>
+                  @if (canEdit()) { <button class="add-row" type="button" (click)="addSenseTo(senses)">＋ მნიშვნელობის დამატება</button> }
+                </section>
+              }
+            </div>
+            @if (canEdit()) { <button class="add-homonym" type="button" (click)="addDirectPos()">＋ POS-ის დამატება</button> }
+          </section>
+        }
+
+        @if (structureKind() === 'sense') {
+          <section class="direct-structure"><header><div><p class="page-kicker">Entry → Sense</p><h3>პირდაპირი მნიშვნელობები</h3></div></header>
+            <div class="sense-list">@for (sense of rootSenses.controls; track sense.get('id')?.value ?? $index; let s = $index) { <ng-container [ngTemplateOutlet]="senseEditor" [ngTemplateOutletContext]="{sense, senses: rootSenses, index: s, prefix: 'root-sense', implicit: true}" /> }</div>
+            @if (canEdit()) { <button class="add-homonym" type="button" (click)="addSenseTo(rootSenses)">＋ მნიშვნელობის დამატება</button> }
+          </section>
+        }
 
         @if (canEdit()) {
-          <button class="add-homonym" type="button" (click)="addHomonym()">
-            ＋ ახალი ჰომონიმი
-          </button>
           <footer class="save-bar">
             <div>
               @if (saveError()) {

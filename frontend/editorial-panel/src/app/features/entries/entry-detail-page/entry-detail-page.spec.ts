@@ -13,6 +13,7 @@ const entry: EntryDetail = {
   id: 14,
   lemma: '中国',
   pinyin: 'Zhōngguó',
+  pinyins: [{ id: 1, value: 'Zhōngguó', order: 0 }],
   status: 'NewEntry',
   mainAuthorDisplayName: 'რედაქტორი',
   lastEditorDisplayName: 'რედაქტორი',
@@ -20,6 +21,9 @@ const entry: EntryDetail = {
   createdAtUtc: '2026-07-24T00:00:00Z',
   rowVersion: 1,
   homonyms: [],
+  gramGroups: [],
+  directPoses: [],
+  senses: [],
   capabilities: {
     canEditContent: true,
     allowedStatusTransitions: ['ZhReview'],
@@ -85,5 +89,39 @@ describe('EntryDetailPage status confirmation', () => {
     expect(entriesService.statusRequests).toEqual([{ id: entry.id, targetStatus: 'ZhReview' }]);
     expect(component.statusConfirmation()).toBeNull();
     expect(component.entry()?.status).toBe('ZhReview');
+  });
+
+  it('starts the full homonym structure with one grammar group and sense', () => {
+    component.startStructure('homonym');
+
+    expect(component.structureKind()).toBe('homonym');
+    expect(component.homonyms.length).toBe(1);
+    expect(component.formArrayAt(component.homonyms.at(0), 'gramGroups').length).toBe(1);
+    expect(
+      component.formArrayAt(component.formArrayAt(component.homonyms.at(0), 'gramGroups').at(0), 'senses').length,
+    ).toBe(1);
+  });
+
+  it('starts a direct grammar group structure', () => {
+    component.startStructure('grammar');
+
+    expect(component.structureKind()).toBe('grammar');
+    expect(component.rootGramGroups.length).toBe(1);
+    expect(component.formArrayAt(component.rootGramGroups.at(0), 'senses').length).toBe(1);
+  });
+
+  it('starts a direct POS structure with an implicit sense', () => {
+    component.startStructure('pos');
+
+    expect(component.structureKind()).toBe('pos');
+    expect(component.directPoses.length).toBe(1);
+    expect(component.formArrayAt(component.directPoses.at(0), 'senses').length).toBe(1);
+  });
+
+  it('starts a direct implicit sense structure', () => {
+    component.startStructure('sense');
+
+    expect(component.structureKind()).toBe('sense');
+    expect(component.rootSenses.length).toBe(1);
   });
 });

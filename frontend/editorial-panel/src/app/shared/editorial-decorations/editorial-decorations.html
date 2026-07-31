@@ -1,0 +1,49 @@
+<div class="decorations">
+  <section>
+    <div class="decorations-head">
+      <strong>ნიშნები</strong>
+      @if (!readonly && !markerEditorOpen()) { <button type="button" (click)="openMarkerAdd()">＋ დამატება</button> }
+    </div>
+    <div class="chips">
+      @for (marker of markers.controls; track marker.get('id')?.value ?? $index; let i = $index) {
+        <span class="chip">{{ markerText(i) }}
+          @if (!readonly) { <button type="button" (click)="openMarkerEdit(i)" aria-label="რედაქტირება">✎</button><button type="button" (click)="removeMarker(i)" aria-label="წაშლა">×</button> }
+        </span>
+      } @empty { <span class="empty">ნიშანი არ არის.</span> }
+    </div>
+    @if (!readonly && markerEditorOpen()) {
+      <div class="mini-form" [formGroup]="markerDraft">
+        <select formControlName="category" (change)="markerCategoryChanged()">
+          @for (category of categories; track category.value) { <option [value]="category.value">{{ category.label }}</option> }
+        </select>
+        <select formControlName="value">
+          @for (item of valuesFor(); track item.id) { <option [value]="item.code">{{ item.label }}</option> }
+        </select>
+        <div class="mini-actions"><button class="primary" type="button" (click)="saveMarker()">შენახვა</button><button type="button" (click)="markerEditorOpen.set(false)">გაუქმება</button></div>
+      </div>
+    }
+  </section>
+
+  <section>
+    <div class="decorations-head">
+      <strong>მითითებები (XR)</strong>
+      @if (!readonly && !xrEditorOpen()) { <button type="button" (click)="openXrAdd()">＋ დამატება</button> }
+    </div>
+    <div class="chips">
+      @for (xr of crossReferences.controls; track xr.get('id')?.value ?? $index; let i = $index) {
+        <span class="chip xr">{{ xrText(i) }}
+          @if (!readonly) { <button type="button" (click)="openXrEdit(i)" aria-label="რედაქტირება">✎</button><button type="button" (click)="removeXr(i)" aria-label="წაშლა">×</button> }
+        </span>
+      } @empty { <span class="empty">მითითება არ არის.</span> }
+    </div>
+    @if (!readonly && xrEditorOpen()) {
+      <div class="mini-form xr-form" [formGroup]="xrDraft">
+        <label>ტიპი<select formControlName="type">@for (type of xrTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
+        <label>სამიზნე სიტყვა<input formControlName="target" placeholder="მაგ. 学习" /></label>
+        <label>საჩვენებელი ტექსტი<input formControlName="displayText" placeholder="არასავალდებულო" /></label>
+        <label>განთავსება<select formControlName="placement"><option value="Standalone">ცალკე</option><option value="Attached">მიბმული</option><option value="Inline">ტექსტში</option></select></label>
+        <div class="mini-actions"><button class="primary" type="button" (click)="saveXr()">შენახვა</button><button type="button" (click)="xrEditorOpen.set(false)">გაუქმება</button></div>
+      </div>
+    }
+  </section>
+</div>

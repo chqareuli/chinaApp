@@ -11,6 +11,7 @@ import {
   EntrySummary,
   PagedResult,
   SaveEntryContentRequest,
+  VocabularyItem,
 } from '../models/entry.models';
 
 @Injectable({ providedIn: 'root' })
@@ -69,5 +70,11 @@ export class EntriesService {
 
   getStatusTotals(): Observable<EntryStatusTotals> {
     return this.http.get<EntryStatusTotals>(`${this.apiBaseUrl}/accounting/entries-status-totals`);
+  }
+
+  getVocabularies(category?: VocabularyItem['category']): Observable<VocabularyItem[]> {
+    let params = new HttpParams();
+    if (category) params = params.set('category', category);
+    return this.http.get<VocabularyItem[]>(`${this.apiBaseUrl}/vocabularies`, { params });
   }
 }

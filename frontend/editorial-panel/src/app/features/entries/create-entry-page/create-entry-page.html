@@ -26,11 +26,13 @@
       }
     </div>
 
-    <div class="field">
-      <label for="pinyin">Pinyin</label>
-      <input id="pinyin" formControlName="pinyin" autocomplete="off" placeholder="მაგ. wèi" />
-      <small>არასავალდებულო ველი — შესაძლებელია მოგვიანებით დამატება</small>
-    </div>
+    <app-repeatable-text-list
+      [items]="pinyins"
+      label="Pinyin"
+      addLabel="Pinyin-ის დამატება"
+      placeholder="მაგ. wèi"
+      (contentChanged)="markChanged()"
+    />
 
     <div class="status-preview">
       <span class="gray-dot"></span>

@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -7,7 +7,7 @@ import { PublicDictionaryService } from '../../../core/services/public-dictionar
 
 @Component({
   selector: 'app-public-dictionary-entry-page',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, NgTemplateOutlet, RouterLink],
   templateUrl: './public-dictionary-entry-page.html',
   styleUrl: './public-dictionary-entry-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

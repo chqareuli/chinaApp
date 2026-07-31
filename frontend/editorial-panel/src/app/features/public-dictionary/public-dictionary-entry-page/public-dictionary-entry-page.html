@@ -20,38 +20,48 @@
           <div>
             <p>ჩინურ-ქართული სიტყვა-სტატია</p>
             <h1 lang="zh">{{ article.lemma }}</h1>
-            @if (article.pinyin) {
-              <strong>{{ article.pinyin }}</strong>
+            @if (article.pinyins.length) {
+              <strong>{{ article.pinyins.join(' · ') }}</strong>
             }
           </div>
         </div>
 
         <div class="entry-content">
+          <ng-template #senseView let-sense="sense">
+            <div class="sense">
+              <span class="sense-number">{{ sense.number }}</span>
+              <div>
+                <p class="definition">{{ sense.definition }}</p>
+                @if (sense.examples.length) {
+                  <div class="examples">@for (example of sense.examples; track $index) { <div><span lang="zh">{{ example.zh }}</span><small>{{ example.ka }}</small></div> }</div>
+                }
+              </div>
+            </div>
+          </ng-template>
+
+          <ng-template #groupView let-group="group">
+            <div class="grammar-group">
+              @if (group.pos) { <span class="pos">{{ group.pos }}</span> }
+              @for (sense of group.senses; track sense.number) { <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{sense}" /> }
+            </div>
+          </ng-template>
+
           @for (homonym of article.homonyms; track $index; let homonymIndex = $index) {
             <section class="homonym">
               @if (article.homonyms.length > 1) {
                 <span class="homonym-number">{{ homonymIndex + 1 }}</span>
               }
-              @for (sense of homonym.senses; track sense.number) {
-                <div class="sense">
-                  <span class="sense-number">{{ sense.number || $index + 1 }}</span>
-                  <div>
-                    <p class="definition">{{ sense.definition }}</p>
-                    @if (sense.examples.length) {
-                      <div class="examples">
-                        @for (example of sense.examples; track $index) {
-                          <div>
-                            <span lang="zh">{{ example.zh }}</span>
-                            <small>{{ example.ka }}</small>
-                          </div>
-                        }
-                      </div>
-                    }
-                  </div>
-                </div>
+              @for (group of homonym.gramGroups; track group.number) {
+                <ng-container [ngTemplateOutlet]="groupView" [ngTemplateOutletContext]="{group}" />
               }
             </section>
-          } @empty {
+          }
+          @for (group of article.gramGroups; track group.number) { <ng-container [ngTemplateOutlet]="groupView" [ngTemplateOutletContext]="{group}" /> }
+          @for (directPos of article.directPoses; track $index) {
+            <div class="grammar-group"><span class="pos">{{ directPos.pos }}</span>@for (sense of directPos.senses; track sense.number) { <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{sense}" /> }</div>
+          }
+          @for (sense of article.senses; track sense.number) { <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{sense}" /> }
+          @if (!article.homonyms.length && !article.gramGroups.length && !article.directPoses.length && !article.senses.length) {
             <div class="state compact">სტატიის განმარტება ჯერ არ არის დამატებული.</div>
           }
         </div>

@@ -1,0 +1,44 @@
+<section class="repeatable-list">
+  <div class="repeatable-head">
+    <strong>{{ label }}</strong>
+    @if (!readonly && !editorOpen()) {
+      <button type="button" class="compact-add" (click)="openAdd()">＋ {{ addLabel }}</button>
+    }
+  </div>
+
+  <div class="saved-items">
+    @for (item of items.controls; track item.get('id')?.value ?? $index; let i = $index) {
+      <div class="saved-item">
+        <span>{{ itemValue(i) }}</span>
+        @if (!readonly) {
+          <span class="item-actions">
+            <button type="button" (click)="openEdit(i)">რედაქტირება</button>
+            <button type="button" class="danger" (click)="remove(i)">წაშლა</button>
+          </span>
+        }
+      </div>
+    } @empty {
+      <span class="empty-copy">ჯერ არაფერი დამატებულა.</span>
+    }
+  </div>
+
+  @if (!readonly && editorOpen()) {
+    <div class="inline-editor">
+      <label [for]="'repeatable-value-' + label">{{ editingIndex() === null ? 'ახლის დამატება' : 'მნიშვნელობის შეცვლა' }}</label>
+      <input
+        [id]="'repeatable-value-' + label"
+        [formControl]="draft"
+        [placeholder]="placeholder"
+        [maxLength]="maxLength"
+        (keydown.enter)="$event.preventDefault(); save()"
+      />
+      @if (duplicateError()) {
+        <small class="error">ეს მნიშვნელობა უკვე დამატებულია.</small>
+      }
+      <div class="editor-actions">
+        <button type="button" class="save" (click)="save()">შენახვა</button>
+        <button type="button" (click)="cancel()">გაუქმება</button>
+      </div>
+    </div>
+  }
+</section>
