@@ -1,4 +1,3 @@
-using Chiniseapp.Application.Entries;
 using Chiniseapp.Application.PublicDictionary;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
@@ -35,7 +34,9 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
             matches = await entries
                 .Where(entry =>
                     EF.Functions.Like(entry.SearchNormalizedTitle, normalized + "%") ||
-                    (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pinyinPattern, "\\")))
+                    (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pinyinPattern, "\\")) ||
+                    db.EntryPronunciations.Any(item =>
+                        item.EntryId == entry.Id && EF.Functions.ILike(item.Value, pinyinPattern, "\\")))
                 .OrderBy(entry => entry.Lemma.Length)
                 .ThenBy(entry => entry.Lemma)
                 .Take(limit)
@@ -48,6 +49,8 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
                 .Where(entry =>
                     EF.Functions.ILike(entry.Lemma, pattern, "\\") ||
                     (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pattern, "\\")) ||
+                    db.EntryPronunciations.Any(item =>
+                        item.EntryId == entry.Id && EF.Functions.ILike(item.Value, pattern, "\\")) ||
                     db.Segments.Any(segment =>
                         segment.EntryId == entry.Id &&
                         segment.Value != null &&
@@ -84,12 +87,22 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
             return null;
         }
 
+        var content = await LoadContentAsync(entry.Id, ct);
         return new PublicDictionaryEntry(
             entry.Id,
             entry.Lemma,
             entry.Pinyin,
+            await db.EntryPronunciations
+                .AsNoTracking()
+                .Where(item => item.EntryId == entry.Id)
+                .OrderBy(item => item.OrderIndex)
+                .Select(item => item.Value)
+                .ToListAsync(ct),
             entry.UpdatedAtUtc,
-            await LoadHomonymsAsync(entry.Id, ct));
+            content.Homonyms,
+            content.GramGroups,
+            content.DirectPoses,
+            content.Senses);
     }
 
     public async Task<PublicDictionaryStats> GetStatsAsync(CancellationToken ct = default) =>
@@ -112,7 +125,7 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
             .ToDictionary(group => group.Key, group => BuildSnippet(group.First().Value!, term));
     }
 
-    private async Task<List<HomonymDto>> LoadHomonymsAsync(int entryId, CancellationToken ct)
+    private async Task<PublicContentGraph> LoadContentAsync(int entryId, CancellationToken ct)
     {
         var segments = await db.Segments
             .AsNoTracking()
@@ -132,29 +145,52 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
         List<Segment> Children(int? parentId, SegmentType type) =>
             ChildrenOf(parentId).Where(segment => segment.SegmentType == type).ToList();
 
-        var homonyms = new List<HomonymDto>();
-        foreach (var homonym in Children(null, SegmentType.Homonym))
+        PublicDictionarySense MapSense(Segment sense, int fallbackNumber)
         {
-            var gramGrp = Children(homonym.Id, SegmentType.GramGrp).FirstOrDefault();
-            var senses = new List<SenseDto>();
-            if (gramGrp is not null)
-            {
-                foreach (var sense in Children(gramGrp.Id, SegmentType.Sense))
-                {
-                    var definition = Children(sense.Id, SegmentType.Definition).FirstOrDefault();
-                    var examples = Children(sense.Id, SegmentType.Example)
-                        .Select(example => new ExampleDto(
-                            Children(example.Id, SegmentType.ZhSegment).FirstOrDefault()?.Value ?? string.Empty,
-                            Children(example.Id, SegmentType.KaSegment).FirstOrDefault()?.Value ?? string.Empty))
-                        .ToList();
-                    senses.Add(new SenseDto(sense.Number ?? senses.Count + 1, definition?.Value ?? string.Empty, examples));
-                }
-            }
-
-            homonyms.Add(new HomonymDto(senses));
+            var definition = Children(sense.Id, SegmentType.Definition).FirstOrDefault();
+            var examples = Children(sense.Id, SegmentType.Example)
+                .Select(example => new PublicDictionaryExample(
+                    Children(example.Id, SegmentType.ZhSegment).FirstOrDefault()?.Value ?? string.Empty,
+                    Children(example.Id, SegmentType.KaSegment).FirstOrDefault()?.Value ?? string.Empty))
+                .ToList();
+            return new PublicDictionarySense(
+                sense.Number ?? fallbackNumber,
+                definition?.Value ?? string.Empty,
+                examples);
         }
 
-        return homonyms;
+        PublicDictionaryGramGroup MapGrammarGroup(Segment gramGrp, int fallbackNumber) =>
+            new(
+                gramGrp.Number ?? fallbackNumber,
+                Children(gramGrp.Id, SegmentType.Pos).FirstOrDefault()?.Value,
+                Children(gramGrp.Id, SegmentType.Sense)
+                    .Select((sense, index) => MapSense(sense, index + 1))
+                    .ToList());
+
+        var homonyms = Children(null, SegmentType.Homonym)
+            .Select(homonym => new PublicDictionaryHomonym(
+                Children(homonym.Id, SegmentType.GramGrp)
+                    .Select((grammarGroup, index) => MapGrammarGroup(grammarGroup, index + 1))
+                    .ToList()))
+            .ToList();
+
+        var grammarGroups = Children(null, SegmentType.GramGrp)
+            .Select((grammarGroup, index) => MapGrammarGroup(grammarGroup, index + 1))
+            .ToList();
+
+        var directPoses = Children(null, SegmentType.Pos)
+            .Select(pos => new PublicDictionaryDirectPos(
+                pos.Value ?? string.Empty,
+                Children(pos.Id, SegmentType.Sense)
+                    .Select((sense, index) => MapSense(sense, index + 1))
+                    .ToList()))
+            .ToList();
+
+        var senses = Children(null, SegmentType.Sense)
+            .Select((sense, index) => MapSense(sense, index + 1))
+            .ToList();
+
+        return new PublicContentGraph(homonyms, grammarGroups, directPoses, senses);
     }
 
     private static string BuildSnippet(string value, string term)
@@ -174,4 +210,10 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
 
     private static string EscapeLikePattern(string value) =>
         value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
+    private sealed record PublicContentGraph(
+        List<PublicDictionaryHomonym> Homonyms,
+        List<PublicDictionaryGramGroup> GramGroups,
+        List<PublicDictionaryDirectPos> DirectPoses,
+        List<PublicDictionarySense> Senses);
 }

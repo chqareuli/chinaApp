@@ -58,4 +58,6 @@ public class Entry
     public string? LegacyRawCommentBlob { get; set; }
 
     public ICollection<Segment> Segments { get; } = new List<Segment>();
+
+    public ICollection<EntryPronunciation> Pronunciations { get; } = new List<EntryPronunciation>();
 }

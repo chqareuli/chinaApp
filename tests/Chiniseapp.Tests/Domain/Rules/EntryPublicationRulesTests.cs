@@ -18,7 +18,7 @@ public class EntryPublicationRulesTests
     {
         var errors = EntryPublicationRules.Validate("学习", 0, 0, []);
 
-        Assert.Contains(errors, error => error.Contains("homonym", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("sense", StringComparison.OrdinalIgnoreCase));
     }
 
     [Theory]
@@ -46,5 +46,37 @@ public class EntryPublicationRulesTests
         var errors = EntryPublicationRules.Validate("学习", 1, 2, ["სწავლა"]);
 
         Assert.Contains(errors, error => error.Contains("definition", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Every_grammar_group_requires_exactly_one_pos()
+    {
+        var errors = EntryPublicationRules.Validate("学习", 1, 2, 1, 2, ["სწავლა", "ცოდნის შეძენა"]);
+
+        Assert.Contains(errors, error => error.Contains("POS", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Full_structured_entry_is_publishable()
+    {
+        var errors = EntryPublicationRules.Validate("学习", 1, 2, 2, 3, ["სწავლა", "შესწავლა", "ცოდნა"]);
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Direct_sense_entry_is_publishable()
+    {
+        var errors = EntryPublicationRules.Validate("学习", 0, 0, 0, 1, ["სწავლა"]);
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Direct_pos_entry_is_publishable()
+    {
+        var errors = EntryPublicationRules.Validate("学习", 0, 0, 1, 1, ["სწავლა"]);
+
+        Assert.Empty(errors);
     }
 }

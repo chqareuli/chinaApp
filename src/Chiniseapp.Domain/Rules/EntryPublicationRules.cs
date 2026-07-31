@@ -5,6 +5,8 @@ public static class EntryPublicationRules
     public static IReadOnlyList<string> Validate(
         string? lemma,
         int homonymCount,
+        int gramGroupCount,
+        int posCount,
         int senseCount,
         IReadOnlyList<string?> definitions)
     {
@@ -14,9 +16,19 @@ public static class EntryPublicationRules
             errors.Add("A lemma is required before publication.");
         }
 
-        if (homonymCount < 1 || senseCount < 1)
+        if (senseCount < 1)
         {
-            errors.Add("At least one homonym with one sense is required before publication.");
+            errors.Add("At least one sense is required before publication.");
+        }
+
+        if (homonymCount > 0 && gramGroupCount < homonymCount)
+        {
+            errors.Add("Every homonym must contain at least one grammar group before publication.");
+        }
+
+        if (gramGroupCount > 0 && posCount < gramGroupCount)
+        {
+            errors.Add("Every grammar group must have exactly one POS before publication.");
         }
 
         if (senseCount > 0 &&
@@ -27,4 +39,11 @@ public static class EntryPublicationRules
 
         return errors;
     }
+
+    public static IReadOnlyList<string> Validate(
+        string? lemma,
+        int homonymCount,
+        int senseCount,
+        IReadOnlyList<string?> definitions) =>
+        Validate(lemma, homonymCount, homonymCount, homonymCount, senseCount, definitions);
 }

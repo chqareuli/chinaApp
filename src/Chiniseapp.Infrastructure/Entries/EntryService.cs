@@ -12,6 +12,19 @@ namespace Chiniseapp.Infrastructure.Entries;
 
 public class EntryService(ChiniseDbContext db, IScoringService scoringService, INotificationService notificationService) : IEntryService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly HashSet<string> AllowedCrossReferenceTypes =
+        ["see", "seeAlso", "equivalent", "antonym", "illustration"];
+    private static readonly IReadOnlyDictionary<string, string> CrossReferenceLabels =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["see"] = "იხ.",
+            ["seeAlso"] = "ასევე.",
+            ["equivalent"] = "იგივეა,რაც",
+            ["antonym"] = "იხ. ანტ.",
+            ["illustration"] = "იხ. სურ.",
+        };
+
     public async Task<EntryDetail> CreateAsync(CreateEntryRequest request, int currentEditorId, CancellationToken ct = default)
     {
         var actor = await GetCurrentEditorAsync(currentEditorId, ct);
@@ -22,11 +35,12 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 
         var lemma = NormalizeLemma(request.Lemma);
 
+        var pinyins = NormalizePinyins(request.Pinyins, request.Pinyin);
         var now = DateTime.UtcNow;
         var entry = new Entry
         {
             Lemma = lemma,
-            Pinyin = NormalizePinyin(request.Pinyin),
+            Pinyin = pinyins.FirstOrDefault(),
             Status = EntryStatus.NewEntry,
             StatusPriority = EntryStatusPriority.For(EntryStatus.NewEntry),
             CreatedByEditorId = currentEditorId,
@@ -36,10 +50,22 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             SearchNormalizedTitle = TitleNormalizer.Normalize(lemma),
         };
 
+        for (var index = 0; index < pinyins.Count; index++)
+        {
+            entry.Pronunciations.Add(new EntryPronunciation
+            {
+                Value = pinyins[index],
+                NormalizedValue = NormalizePinyinForComparison(pinyins[index]),
+                OrderIndex = index,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now,
+            });
+        }
+
         db.Entries.Add(entry);
         await db.SaveChangesAsync(ct);
 
-        return await BuildDetailAsync(entry, [], actor.Role, ct);
+        return await BuildDetailAsync(entry, EntryContentGraph.Empty, await LoadPinyinsAsync(entry.Id, ct), actor.Role, ct);
     }
 
     public async Task<EntryDetail?> GetAsync(int id, int currentEditorId, CancellationToken ct = default)
@@ -51,8 +77,9 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         }
 
         var actor = await GetCurrentEditorAsync(currentEditorId, ct);
-        var homonyms = await LoadHomonymsAsync(id, ct);
-        return await BuildDetailAsync(entry, homonyms, actor.Role, ct);
+        var content = await LoadContentGraphAsync(id, ct);
+        var pinyins = await LoadPinyinsAsync(id, ct);
+        return await BuildDetailAsync(entry, content, pinyins, actor.Role, ct);
     }
 
     public async Task<EntryDetail> SaveContentAsync(int id, SaveEntryContentRequest request, int currentEditorId, CancellationToken ct = default)
@@ -79,27 +106,14 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             entry.SearchNormalizedTitle = TitleNormalizer.Normalize(entry.Lemma);
         }
 
-        if (request.Pinyin is not null)
-        {
-            entry.Pinyin = NormalizePinyin(request.Pinyin);
-        }
-
         entry.LastEditorEditorId = currentEditorId;
         entry.UpdatedAtUtc = DateTime.UtcNow;
 
-        // Delete-then-recreate needs to share a transaction with the
-        // concurrency-checked entry update: ExecuteDeleteAsync runs
-        // immediately (not deferred to SaveChanges), so without an explicit
-        // transaction a concurrency conflict on the entry row would still
-        // leave the old segments deleted.
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         try
         {
-            await db.Segments.Where(s => s.EntryId == id).ExecuteDeleteAsync(ct);
-
-            var newSegments = new List<Segment>();
-            BuildSegments(newSegments, id, request.Homonyms, entry.UpdatedAtUtc);
-            db.Segments.AddRange(newSegments);
+            await ReconcilePronunciationsAsync(entry, request.Pinyins, request.Pinyin, entry.UpdatedAtUtc, ct);
+            await ReconcileSegmentsAsync(entry.Id, request, entry.UpdatedAtUtc, ct);
 
             db.AuditLogEntries.Add(new AuditLogEntry
             {
@@ -122,7 +136,12 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             throw new EntryConcurrencyException();
         }
 
-        return await BuildDetailAsync(entry, request.Homonyms, actor.Role, ct);
+        return await BuildDetailAsync(
+            entry,
+            await LoadContentGraphAsync(id, ct),
+            await LoadPinyinsAsync(id, ct),
+            actor.Role,
+            ct);
     }
 
     public async Task<EntryDetail> ChangeStatusAsync(int id, EntryStatus targetStatus, int currentEditorId, CancellationToken ct = default)
@@ -179,8 +198,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 
         await db.SaveChangesAsync(ct);
 
-        var homonyms = await LoadHomonymsAsync(id, ct);
-        return await BuildDetailAsync(entry, homonyms, actor.Role, ct);
+        var content = await LoadContentGraphAsync(id, ct);
+        return await BuildDetailAsync(entry, content, await LoadPinyinsAsync(id, ct), actor.Role, ct);
     }
 
     public async Task<PagedResult<EntrySummary>> GetMainListAsync(int page, int pageSize, CancellationToken ct = default)
@@ -336,63 +355,337 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         return trimmed;
     }
 
-    private static string? NormalizePinyin(string? pinyin) =>
-        string.IsNullOrWhiteSpace(pinyin) ? null : pinyin.Trim();
-
-    private static void BuildSegments(List<Segment> target, int entryId, List<HomonymDto> homonyms, DateTime now)
+    private static List<string> NormalizePinyins(IEnumerable<string>? values, string? legacyValue)
     {
-        for (var h = 0; h < homonyms.Count; h++)
+        var source = values?.ToList() ?? [];
+        if (source.Count == 0 && !string.IsNullOrWhiteSpace(legacyValue))
         {
-            var homonymSegment = NewSegment(entryId, null, SegmentType.Homonym, h, now);
-            target.Add(homonymSegment);
-
-            // Stage 1 hides gramGrp/POS from the editor: every homonym gets
-            // exactly one implicit gramGrp so "sense belongs to a gramGrp"
-            // holds without exposing that UI yet (per the Stage-1 tree-shape
-            // rule in docs/backend-plan.md).
-            var gramGrpSegment = NewSegment(entryId, homonymSegment, SegmentType.GramGrp, 0, now);
-            target.Add(gramGrpSegment);
-
-            var senses = homonyms[h].Senses;
-            for (var s = 0; s < senses.Count; s++)
-            {
-                var senseSegment = NewSegment(entryId, gramGrpSegment, SegmentType.Sense, s, now);
-                senseSegment.Number = s + 1;
-                target.Add(senseSegment);
-
-                var definitionSegment = NewSegment(entryId, senseSegment, SegmentType.Definition, 0, now);
-                definitionSegment.Value = senses[s].Definition;
-                target.Add(definitionSegment);
-
-                var examples = senses[s].Examples;
-                for (var e = 0; e < examples.Count; e++)
-                {
-                    var exampleSegment = NewSegment(entryId, senseSegment, SegmentType.Example, e + 1, now);
-                    target.Add(exampleSegment);
-
-                    var zhSegment = NewSegment(entryId, exampleSegment, SegmentType.ZhSegment, 0, now);
-                    zhSegment.Value = examples[e].Zh;
-                    target.Add(zhSegment);
-
-                    var kaSegment = NewSegment(entryId, exampleSegment, SegmentType.KaSegment, 1, now);
-                    kaSegment.Value = examples[e].Ka;
-                    target.Add(kaSegment);
-                }
-            }
+            source.Add(legacyValue);
         }
+
+        if (source.Count > 50)
+        {
+            throw new EntryValidationException("An entry cannot have more than 50 Pinyin values.");
+        }
+
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in source)
+        {
+            var value = (raw ?? string.Empty).Trim().Normalize();
+            if (value.Length == 0)
+            {
+                throw new EntryValidationException("Pinyin cannot be empty.");
+            }
+
+            if (value.Length > 255)
+            {
+                throw new EntryValidationException("Pinyin must be 255 characters or fewer.");
+            }
+
+            var normalized = NormalizePinyinForComparison(value);
+            if (!seen.Add(normalized))
+            {
+                throw new EntryValidationException($"Duplicate Pinyin value '{value}'.");
+            }
+
+            result.Add(value);
+        }
+
+        return result;
     }
 
-    private static Segment NewSegment(int entryId, Segment? parent, SegmentType type, int order, DateTime now) => new()
-    {
-        EntryId = entryId,
-        Parent = parent,
-        SegmentType = type,
-        OrderIndex = order,
-        CreatedAtUtc = now,
-        UpdatedAtUtc = now,
-    };
+    private static string NormalizePinyinForComparison(string value) =>
+        value.Trim().Normalize().ToUpperInvariant();
 
-    private async Task<List<HomonymDto>> LoadHomonymsAsync(int entryId, CancellationToken ct)
+    private async Task ReconcilePronunciationsAsync(
+        Entry entry,
+        List<PinyinDto> requestedItems,
+        string? legacyValue,
+        DateTime now,
+        CancellationToken ct)
+    {
+        var existing = await db.EntryPronunciations
+            .Where(item => item.EntryId == entry.Id)
+            .ToListAsync(ct);
+        var byId = existing.ToDictionary(item => item.Id);
+        var usedIds = new HashSet<int>();
+
+        var normalizedValues = NormalizePinyins(
+            requestedItems.Count > 0 ? requestedItems.Select(item => item.Value) : null,
+            legacyValue);
+
+        for (var index = 0; index < normalizedValues.Count; index++)
+        {
+            var request = requestedItems.Count > 0 ? requestedItems[index] : null;
+            EntryPronunciation entity;
+            if (request?.Id is int requestedId)
+            {
+                if (!byId.TryGetValue(requestedId, out entity!) || !usedIds.Add(requestedId))
+                {
+                    throw new EntryValidationException($"Invalid or duplicate Pinyin id '{requestedId}'.");
+                }
+            }
+            else
+            {
+                entity = new EntryPronunciation
+                {
+                    EntryId = entry.Id,
+                    CreatedAtUtc = now,
+                };
+                db.EntryPronunciations.Add(entity);
+            }
+
+            entity.Value = normalizedValues[index];
+            entity.NormalizedValue = NormalizePinyinForComparison(normalizedValues[index]);
+            entity.OrderIndex = index;
+            entity.UpdatedAtUtc = now;
+        }
+
+        db.EntryPronunciations.RemoveRange(existing.Where(item => !usedIds.Contains(item.Id)));
+        entry.Pinyin = normalizedValues.FirstOrDefault();
+    }
+
+    private async Task ReconcileSegmentsAsync(
+        int entryId,
+        SaveEntryContentRequest content,
+        DateTime now,
+        CancellationToken ct)
+    {
+        var existing = await db.Segments
+            .Where(segment => segment.EntryId == entryId)
+            .ToListAsync(ct);
+        var byId = existing.ToDictionary(segment => segment.Id);
+        var usedIds = new HashSet<int>();
+        var vocabularies = await db.ControlledVocabularies
+            .AsNoTracking()
+            .Where(item => item.IsActive)
+            .GroupBy(item => item.Category)
+            .ToDictionaryAsync(
+                group => group.Key,
+                group => group.Select(item => item.Code).ToHashSet(StringComparer.Ordinal),
+                ct);
+
+        Segment Upsert(int? requestedId, SegmentType type, Segment? parent, int order)
+        {
+            Segment segment;
+            if (requestedId is int id)
+            {
+                if (!byId.TryGetValue(id, out segment!) ||
+                    segment.SegmentType != type ||
+                    !usedIds.Add(id))
+                {
+                    throw new EntryValidationException($"Invalid {type} segment id '{id}'.");
+                }
+            }
+            else
+            {
+                segment = new Segment
+                {
+                    EntryId = entryId,
+                    SegmentType = type,
+                    CreatedAtUtc = now,
+                };
+                db.Segments.Add(segment);
+            }
+
+            segment.Parent = parent;
+            if (parent is null)
+            {
+                segment.ParentSegmentId = null;
+            }
+            segment.OrderIndex = order;
+            segment.UpdatedAtUtc = now;
+            segment.Number = null;
+            segment.Value = null;
+            segment.Content = null;
+            segment.Attributes = null;
+            segment.Placement = null;
+            return segment;
+        }
+
+        static SegmentType MarkerType(VocabularyCategory category) => category switch
+        {
+            VocabularyCategory.Style => SegmentType.Style,
+            VocabularyCategory.Domain => SegmentType.Domain,
+            VocabularyCategory.Abbr => SegmentType.Abbr,
+            VocabularyCategory.Lang => SegmentType.Lang,
+            _ => throw new EntryValidationException("POS is selected on a grammar group, not added as a marker."),
+        };
+
+        int AddDecorations(
+            Segment target,
+            List<MarkerDto> markers,
+            List<CrossReferenceDto> crossReferences,
+            int startingOrder)
+        {
+            var order = startingOrder;
+            foreach (var marker in markers)
+            {
+                if (!Enum.TryParse<VocabularyCategory>(marker.Category, true, out var category) ||
+                    category == VocabularyCategory.Pos ||
+                    !vocabularies.TryGetValue(category, out var allowedValues) ||
+                    !allowedValues.Contains(marker.Value))
+                {
+                    throw new EntryValidationException(
+                        $"Unknown {marker.Category} marker '{marker.Value}'.");
+                }
+
+                var segment = Upsert(marker.Id, MarkerType(category), target, order++);
+                segment.Value = marker.Value;
+                segment.Placement = Placement.Attached;
+            }
+
+            foreach (var crossReference in crossReferences)
+            {
+                var xrType = AllowedCrossReferenceTypes.FirstOrDefault(
+                    item => string.Equals(item, crossReference.Type, StringComparison.OrdinalIgnoreCase));
+                if (xrType is null)
+                {
+                    throw new EntryValidationException(
+                        $"Unknown cross-reference type '{crossReference.Type}'.");
+                }
+
+                if (string.IsNullOrWhiteSpace(crossReference.Target))
+                {
+                    throw new EntryValidationException("A cross-reference target is required.");
+                }
+
+                if (!Enum.TryParse<Placement>(crossReference.Placement, true, out var placement) ||
+                    !Enum.IsDefined(placement))
+                {
+                    throw new EntryValidationException(
+                        $"Unknown cross-reference placement '{crossReference.Placement}'.");
+                }
+
+                var segment = Upsert(crossReference.Id, SegmentType.Xr, target, order++);
+                segment.Value = string.IsNullOrWhiteSpace(crossReference.DisplayText)
+                    ? crossReference.Target.Trim()
+                    : crossReference.DisplayText.Trim();
+                segment.Placement = placement;
+                segment.Attributes = JsonSerializer.Serialize(
+                    new XrAttributes(
+                        xrType,
+                        CrossReferenceLabels[xrType],
+                        crossReference.Target.Trim(),
+                        crossReference.DisplayText?.Trim()),
+                    JsonOptions);
+            }
+
+            return order;
+        }
+
+        var rootKinds = new[]
+        {
+            content.Homonyms.Count > 0,
+            content.GramGroups.Count > 0,
+            content.DirectPoses.Count > 0,
+            content.Senses.Count > 0,
+        }.Count(hasItems => hasItems);
+        if (rootKinds > 1)
+        {
+            throw new EntryValidationException(
+                "An entry must use one root structure: Homonym, GramGrp, POS, or Sense.");
+        }
+
+        string ValidatePos(string? requestedPos)
+        {
+            var pos = requestedPos?.Trim() ?? string.Empty;
+            if (pos.Length == 0 ||
+                !vocabularies.TryGetValue(VocabularyCategory.Pos, out var allowedPos) ||
+                !allowedPos.Contains(pos))
+            {
+                throw new EntryValidationException($"Unknown POS value '{pos}'.");
+            }
+
+            return pos;
+        }
+
+        void AddSense(SenseDto senseRequest, Segment? parent, int order, int number)
+        {
+            var sense = Upsert(senseRequest.Id, SegmentType.Sense, parent, order);
+            sense.Number = number;
+
+            var definition = Upsert(senseRequest.DefinitionId, SegmentType.Definition, sense, 0);
+            definition.Value = senseRequest.Definition.Trim();
+            AddDecorations(definition, senseRequest.Markers, senseRequest.CrossReferences, 0);
+
+            for (var e = 0; e < senseRequest.Examples.Count; e++)
+            {
+                var exampleRequest = senseRequest.Examples[e];
+                var example = Upsert(exampleRequest.Id, SegmentType.Example, sense, 1000 + e);
+
+                var zh = Upsert(exampleRequest.ZhSegmentId, SegmentType.ZhSegment, example, 0);
+                zh.Value = exampleRequest.Zh.Trim();
+
+                var ka = Upsert(exampleRequest.KaSegmentId, SegmentType.KaSegment, example, 1);
+                ka.Value = exampleRequest.Ka.Trim();
+                AddDecorations(ka, exampleRequest.Markers, exampleRequest.CrossReferences, 0);
+            }
+        }
+
+        void AddGrammarGroup(GramGroupDto grammarRequest, Segment? parent, int order, int number)
+        {
+            var grammar = Upsert(grammarRequest.Id, SegmentType.GramGrp, parent, order);
+            grammar.Number = number;
+
+            if (!string.IsNullOrWhiteSpace(grammarRequest.Pos))
+            {
+                var posSegment = Upsert(grammarRequest.PosSegmentId, SegmentType.Pos, grammar, 0);
+                posSegment.Value = ValidatePos(grammarRequest.Pos);
+            }
+            else if (grammarRequest.PosSegmentId.HasValue)
+            {
+                throw new EntryValidationException("A POS segment id cannot be saved without a POS value.");
+            }
+
+            AddDecorations(grammar, grammarRequest.Markers, grammarRequest.CrossReferences, 10);
+            for (var s = 0; s < grammarRequest.Senses.Count; s++)
+            {
+                AddSense(grammarRequest.Senses[s], grammar, 1000 + s, s + 1);
+            }
+        }
+
+        for (var h = 0; h < content.Homonyms.Count; h++)
+        {
+            var homonymRequest = content.Homonyms[h];
+            var homonym = Upsert(homonymRequest.Id, SegmentType.Homonym, null, h);
+            homonym.Number = h + 1;
+            AddDecorations(homonym, homonymRequest.Markers, homonymRequest.CrossReferences, 0);
+
+            for (var g = 0; g < homonymRequest.GramGroups.Count; g++)
+            {
+                AddGrammarGroup(homonymRequest.GramGroups[g], homonym, 1000 + g, g + 1);
+            }
+        }
+
+        for (var g = 0; g < content.GramGroups.Count; g++)
+        {
+            AddGrammarGroup(content.GramGroups[g], null, g, g + 1);
+        }
+
+        for (var p = 0; p < content.DirectPoses.Count; p++)
+        {
+            var directPosRequest = content.DirectPoses[p];
+            var pos = Upsert(directPosRequest.Id, SegmentType.Pos, null, p);
+            pos.Number = p + 1;
+            pos.Value = ValidatePos(directPosRequest.Pos);
+            AddDecorations(pos, directPosRequest.Markers, directPosRequest.CrossReferences, 0);
+            for (var s = 0; s < directPosRequest.Senses.Count; s++)
+            {
+                AddSense(directPosRequest.Senses[s], pos, 1000 + s, s + 1);
+            }
+        }
+
+        for (var s = 0; s < content.Senses.Count; s++)
+        {
+            AddSense(content.Senses[s], null, s, s + 1);
+        }
+
+        db.Segments.RemoveRange(existing.Where(segment => !usedIds.Contains(segment.Id)));
+    }
+
+    private async Task<EntryContentGraph> LoadContentGraphAsync(int entryId, CancellationToken ct)
     {
         var segments = await db.Segments
             .Where(s => s.EntryId == entryId)
@@ -411,36 +704,149 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         List<Segment> Children(int? parentId, SegmentType type) =>
             ChildrenOf(parentId).Where(s => s.SegmentType == type).ToList();
 
-        var homonyms = new List<HomonymDto>();
-        foreach (var homonymSeg in Children(null, SegmentType.Homonym))
-        {
-            var gramGrp = Children(homonymSeg.Id, SegmentType.GramGrp).FirstOrDefault();
-            var senseDtos = new List<SenseDto>();
-
-            if (gramGrp is not null)
+        List<MarkerDto> Markers(int parentId) => ChildrenOf(parentId)
+            .Where(segment => segment.SegmentType is
+                SegmentType.Style or SegmentType.Domain or SegmentType.Abbr or SegmentType.Lang)
+            .Select(segment => new MarkerDto
             {
-                foreach (var senseSeg in Children(gramGrp.Id, SegmentType.Sense))
+                Id = segment.Id,
+                Category = segment.SegmentType.ToString(),
+                Value = segment.Value ?? string.Empty,
+            })
+            .ToList();
+
+        List<CrossReferenceDto> CrossReferences(int parentId) => Children(parentId, SegmentType.Xr)
+            .Select(segment =>
+            {
+                XrAttributes? attributes = null;
+                if (!string.IsNullOrWhiteSpace(segment.Attributes))
                 {
-                    var definition = Children(senseSeg.Id, SegmentType.Definition).FirstOrDefault();
-                    var exampleDtos = Children(senseSeg.Id, SegmentType.Example)
-                        .Select(exampleSeg => new ExampleDto(
-                            Children(exampleSeg.Id, SegmentType.ZhSegment).FirstOrDefault()?.Value ?? string.Empty,
-                            Children(exampleSeg.Id, SegmentType.KaSegment).FirstOrDefault()?.Value ?? string.Empty))
-                        .ToList();
-
-                    senseDtos.Add(new SenseDto(senseSeg.Number ?? 0, definition?.Value ?? string.Empty, exampleDtos));
+                    try
+                    {
+                        attributes = JsonSerializer.Deserialize<XrAttributes>(segment.Attributes, JsonOptions);
+                    }
+                    catch (JsonException)
+                    {
+                        // Preserve an older/malformed record in editable form instead of hiding it.
+                    }
                 }
-            }
 
-            homonyms.Add(new HomonymDto(senseDtos));
+                return new CrossReferenceDto
+                {
+                    Id = segment.Id,
+                    Type = attributes?.XrType ?? "see",
+                    Label = attributes?.Label is { Length: > 0 }
+                        ? attributes.Label
+                        : attributes is not null && CrossReferenceLabels.TryGetValue(attributes.XrType, out var fallbackLabel)
+                            ? fallbackLabel
+                            : CrossReferenceLabels["see"],
+                    Target = attributes?.Target ?? segment.Value ?? string.Empty,
+                    DisplayText = attributes?.DisplayText ?? segment.Value,
+                    Placement = (segment.Placement ?? Placement.Standalone).ToString(),
+                };
+            })
+            .ToList();
+
+        SenseDto MapSense(Segment senseSegment, int fallbackNumber)
+        {
+            var definition = Children(senseSegment.Id, SegmentType.Definition).FirstOrDefault();
+            var examples = Children(senseSegment.Id, SegmentType.Example)
+                .Select(exampleSegment =>
+                {
+                    var zh = Children(exampleSegment.Id, SegmentType.ZhSegment).FirstOrDefault();
+                    var ka = Children(exampleSegment.Id, SegmentType.KaSegment).FirstOrDefault();
+                    return new ExampleDto
+                    {
+                        Id = exampleSegment.Id,
+                        ZhSegmentId = zh?.Id,
+                        KaSegmentId = ka?.Id,
+                        Zh = zh?.Value ?? string.Empty,
+                        Ka = ka?.Value ?? string.Empty,
+                        Markers = ka is null ? [] : Markers(ka.Id),
+                        CrossReferences = ka is null ? [] : CrossReferences(ka.Id),
+                    };
+                })
+                .ToList();
+
+            return new SenseDto
+            {
+                Id = senseSegment.Id,
+                DefinitionId = definition?.Id,
+                Number = senseSegment.Number ?? fallbackNumber,
+                Definition = definition?.Value ?? string.Empty,
+                Markers = definition is null ? [] : Markers(definition.Id),
+                CrossReferences = definition is null ? [] : CrossReferences(definition.Id),
+                Examples = examples,
+            };
         }
 
-        return homonyms;
+        GramGroupDto MapGrammarGroup(Segment grammarSegment, int fallbackNumber)
+        {
+            var pos = Children(grammarSegment.Id, SegmentType.Pos).FirstOrDefault();
+            var senses = Children(grammarSegment.Id, SegmentType.Sense)
+                .Select((sense, index) => MapSense(sense, index + 1))
+                .ToList();
+
+            return new GramGroupDto
+            {
+                Id = grammarSegment.Id,
+                PosSegmentId = pos?.Id,
+                Number = grammarSegment.Number ?? fallbackNumber,
+                Pos = pos?.Value,
+                Markers = Markers(grammarSegment.Id),
+                CrossReferences = CrossReferences(grammarSegment.Id),
+                Senses = senses,
+            };
+        }
+
+        var homonyms = Children(null, SegmentType.Homonym)
+            .Select((homonymSegment, index) => new HomonymDto
+            {
+                Id = homonymSegment.Id,
+                Markers = Markers(homonymSegment.Id),
+                CrossReferences = CrossReferences(homonymSegment.Id),
+                GramGroups = Children(homonymSegment.Id, SegmentType.GramGrp)
+                    .Select((grammarGroup, grammarIndex) => MapGrammarGroup(grammarGroup, grammarIndex + 1))
+                    .ToList(),
+            })
+            .ToList();
+
+        var grammarGroups = Children(null, SegmentType.GramGrp)
+            .Select((grammarGroup, index) => MapGrammarGroup(grammarGroup, index + 1))
+            .ToList();
+
+        var directPoses = Children(null, SegmentType.Pos)
+            .Select((pos, index) => new DirectPosDto
+            {
+                Id = pos.Id,
+                Pos = pos.Value ?? string.Empty,
+                Markers = Markers(pos.Id),
+                CrossReferences = CrossReferences(pos.Id),
+                Senses = Children(pos.Id, SegmentType.Sense)
+                    .Select((sense, senseIndex) => MapSense(sense, senseIndex + 1))
+                    .ToList(),
+            })
+            .ToList();
+
+        var senses = Children(null, SegmentType.Sense)
+            .Select((sense, index) => MapSense(sense, index + 1))
+            .ToList();
+
+        return new EntryContentGraph(homonyms, grammarGroups, directPoses, senses);
     }
+
+    private async Task<List<PinyinDto>> LoadPinyinsAsync(int entryId, CancellationToken ct) =>
+        await db.EntryPronunciations
+            .AsNoTracking()
+            .Where(item => item.EntryId == entryId)
+            .OrderBy(item => item.OrderIndex)
+            .Select(item => new PinyinDto(item.Id, item.Value, item.OrderIndex + 1))
+            .ToListAsync(ct);
 
     private async Task<EntryDetail> BuildDetailAsync(
         Entry entry,
-        List<HomonymDto> homonyms,
+        EntryContentGraph content,
+        List<PinyinDto> pinyins,
         EditorRole actorRole,
         CancellationToken ct)
     {
@@ -464,13 +870,17 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             entry.Id,
             entry.Lemma,
             entry.Pinyin,
+            pinyins,
             entry.Status.ToString(),
             mainAuthorName,
             lastEditorName,
             entry.CreatedAtUtc,
             entry.UpdatedAtUtc,
             rowVersion,
-            homonyms,
+            content.Homonyms,
+            content.GramGroups,
+            content.DirectPoses,
+            content.Senses,
             BuildCapabilities(actorRole, entry.Status));
     }
 
@@ -491,6 +901,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         var segments = await db.Segments
             .Where(segment => segment.EntryId == entry.Id &&
                 (segment.SegmentType == SegmentType.Homonym ||
+                 segment.SegmentType == SegmentType.GramGrp ||
+                 segment.SegmentType == SegmentType.Pos ||
                  segment.SegmentType == SegmentType.Sense ||
                  segment.SegmentType == SegmentType.Definition))
             .Select(segment => new { segment.SegmentType, segment.Value })
@@ -499,6 +911,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         var errors = EntryPublicationRules.Validate(
             entry.Lemma,
             segments.Count(segment => segment.SegmentType == SegmentType.Homonym),
+            segments.Count(segment => segment.SegmentType == SegmentType.GramGrp),
+            segments.Count(segment => segment.SegmentType == SegmentType.Pos),
             segments.Count(segment => segment.SegmentType == SegmentType.Sense),
             segments
                 .Where(segment => segment.SegmentType == SegmentType.Definition)
@@ -539,4 +953,19 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 
     private static string EscapeLikePattern(string value) =>
         value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
+    private sealed record XrAttributes(
+        string XrType,
+        string Label,
+        string Target,
+        string? DisplayText);
+
+    private sealed record EntryContentGraph(
+        List<HomonymDto> Homonyms,
+        List<GramGroupDto> GramGroups,
+        List<DirectPosDto> DirectPoses,
+        List<SenseDto> Senses)
+    {
+        public static EntryContentGraph Empty { get; } = new([], [], [], []);
+    }
 }
