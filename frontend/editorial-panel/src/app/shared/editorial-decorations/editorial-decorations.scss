@@ -2,6 +2,7 @@
 .decorations > section { min-width:0; padding:10px; border:1px dashed var(--line-strong); border-radius:9px; background:#fafbf9; }
 .decorations-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .decorations-head strong { font-size:.7rem; }
+.term-note { color:var(--ink-soft); font-size:.82em; font-weight:600; }
 button { padding:4px 6px; color:var(--forest); border:0; background:transparent; font-size:.66rem; font-weight:800; }
 .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
 .chip { display:inline-flex; align-items:center; gap:3px; max-width:100%; padding:5px 7px; color:#604420; border-radius:7px; background:#f3eadc; overflow-wrap:anywhere; font-size:.68rem; }

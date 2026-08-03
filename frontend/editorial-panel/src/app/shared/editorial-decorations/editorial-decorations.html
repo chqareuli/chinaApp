@@ -1,8 +1,8 @@
 <div class="decorations">
   <section>
     <div class="decorations-head">
-      <strong>ნიშნები</strong>
-      @if (!readonly && !markerEditorOpen()) { <button type="button" (click)="openMarkerAdd()">＋ დამატება</button> }
+      <strong>style · domain · Abbr. · Lang. <span class="term-note">— ნიშნები</span></strong>
+      @if (!readonly && !markerEditorOpen()) { <button type="button" (click)="openMarkerAdd()">＋ Add</button> }
     </div>
     <div class="chips">
       @for (marker of markers.controls; track marker.get('id')?.value ?? $index; let i = $index) {
@@ -26,8 +26,8 @@
 
   <section>
     <div class="decorations-head">
-      <strong>მითითებები (XR)</strong>
-      @if (!readonly && !xrEditorOpen()) { <button type="button" (click)="openXrAdd()">＋ დამატება</button> }
+      <strong>xr <span class="term-note">— მითითება</span></strong>
+      @if (!readonly && !xrEditorOpen()) { <button type="button" (click)="openXrAdd()">＋ Add</button> }
     </div>
     <div class="chips">
       @for (xr of crossReferences.controls; track xr.get('id')?.value ?? $index; let i = $index) {
@@ -38,10 +38,10 @@
     </div>
     @if (!readonly && xrEditorOpen()) {
       <div class="mini-form xr-form" [formGroup]="xrDraft">
-        <label>ტიპი<select formControlName="type">@for (type of xrTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
-        <label>სამიზნე სიტყვა<input formControlName="target" placeholder="მაგ. 学习" /></label>
-        <label>საჩვენებელი ტექსტი<input formControlName="displayText" placeholder="არასავალდებულო" /></label>
-        <label>განთავსება<select formControlName="placement"><option value="Standalone">ცალკე</option><option value="Attached">მიბმული</option><option value="Inline">ტექსტში</option></select></label>
+        <label>type <span class="term-note">— ტიპი</span><select formControlName="type">@for (type of xrTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
+        <label>target <span class="term-note">— სამიზნე სიტყვა</span><input formControlName="target" placeholder="მაგ. 学习" /></label>
+        <label>displayText <span class="term-note">— საჩვენებელი ტექსტი</span><input formControlName="displayText" placeholder="არასავალდებულო" /></label>
+        <label>placement <span class="term-note">— განთავსება</span><select formControlName="placement"><option value="Standalone">ცალკე</option><option value="Attached">მიბმული</option><option value="Inline">ტექსტში</option></select></label>
         <div class="mini-actions"><button class="primary" type="button" (click)="saveXr()">შენახვა</button><button type="button" (click)="xrEditorOpen.set(false)">გაუქმება</button></div>
       </div>
     }

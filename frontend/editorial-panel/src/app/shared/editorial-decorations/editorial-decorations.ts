@@ -37,10 +37,10 @@ export class EditorialDecorations {
   });
 
   readonly categories: Array<{ value: MarkerCategory; label: string }> = [
-    { value: 'Style', label: 'სტილი' },
-    { value: 'Domain', label: 'დარგი' },
-    { value: 'Abbr', label: 'შემოკლება' },
-    { value: 'Lang', label: 'ენა' },
+    { value: 'Style', label: 'style' },
+    { value: 'Domain', label: 'domain' },
+    { value: 'Abbr', label: 'Abbr.' },
+    { value: 'Lang', label: 'Lang.' },
   ];
   readonly xrTypes = [
     { value: 'see', label: 'იხ.' },
