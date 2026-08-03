@@ -7,29 +7,44 @@ export interface PublicDictionarySearchItem {
   snippet: string;
 }
 
+export interface PublicDictionaryCrossReference {
+  type: string;
+  label: string;
+  target: string;
+  displayText: string | null;
+  placement: 'Inline' | 'Attached' | 'Standalone';
+  targetEntryId: number | null;
+  targetEntryLemma: string | null;
+}
+
 export interface PublicDictionaryExample {
   zh: string;
   ka: string;
+  crossReferences: PublicDictionaryCrossReference[];
 }
 
 export interface PublicDictionarySense {
   number: number;
   definition: string;
+  crossReferences: PublicDictionaryCrossReference[];
   examples: PublicDictionaryExample[];
 }
 
 export interface PublicDictionaryHomonym {
+  crossReferences: PublicDictionaryCrossReference[];
   gramGroups: PublicDictionaryGramGroup[];
 }
 
 export interface PublicDictionaryGramGroup {
   number: number;
   pos: string | null;
+  crossReferences: PublicDictionaryCrossReference[];
   senses: PublicDictionarySense[];
 }
 
 export interface PublicDictionaryDirectPos {
   pos: string;
+  crossReferences: PublicDictionaryCrossReference[];
   senses: PublicDictionarySense[];
 }
 

@@ -820,6 +820,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       items.map((item) =>
         this.fb.group({
           id: [item.id], type: [item.type], label: [item.label], target: [item.target],
+          targetEntryId: [item.targetEntryId ?? null], targetEntryLemma: [item.targetEntryLemma ?? null],
           displayText: [item.displayText ?? ''], placement: [item.placement],
         }),
       ),

@@ -167,6 +167,39 @@ article {
   color: #69766f;
   font-size: 0.7rem;
 }
+.xr-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+.xr-list a,
+.xr-unresolved {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  color: #31594d;
+  border-radius: 8px;
+  background: #e5f0eb;
+  font-size: 0.7rem;
+  text-decoration: none;
+}
+.xr-list a:hover {
+  color: #fff;
+  background: #31594d;
+}
+.xr-list span span,
+.xr-list a span {
+  font-weight: 800;
+}
+.xr-list strong {
+  font-weight: 600;
+}
+.xr-unresolved {
+  color: #746a64;
+  background: #f0ece8;
+}
 article footer {
   display: flex;
   justify-content: space-between;

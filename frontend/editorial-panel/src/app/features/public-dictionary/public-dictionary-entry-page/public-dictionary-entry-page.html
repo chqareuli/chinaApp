@@ -27,13 +27,31 @@
         </div>
 
         <div class="entry-content">
+          <ng-template #xrView let-items="items">
+            @if (items.length) {
+              <div class="xr-list">
+                @for (xr of items; track $index) {
+                  @if (xr.targetEntryId) {
+                    <a [routerLink]="['/word', xr.targetEntryId]">
+                      <span>{{ xr.label }}</span>
+                      <strong lang="zh">{{ xr.displayText || xr.targetEntryLemma || xr.target }}</strong>
+                    </a>
+                  } @else {
+                    <span class="xr-unresolved"><span>{{ xr.label }}</span><strong lang="zh">{{ xr.displayText || xr.target }}</strong></span>
+                  }
+                }
+              </div>
+            }
+          </ng-template>
+
           <ng-template #senseView let-sense="sense">
             <div class="sense">
               <span class="sense-number">{{ sense.number }}</span>
               <div>
                 <p class="definition">{{ sense.definition }}</p>
+                <ng-container [ngTemplateOutlet]="xrView" [ngTemplateOutletContext]="{items: sense.crossReferences}" />
                 @if (sense.examples.length) {
-                  <div class="examples">@for (example of sense.examples; track $index) { <div><span lang="zh">{{ example.zh }}</span><small>{{ example.ka }}</small></div> }</div>
+                  <div class="examples">@for (example of sense.examples; track $index) { <div><span lang="zh">{{ example.zh }}</span><small>{{ example.ka }}</small><ng-container [ngTemplateOutlet]="xrView" [ngTemplateOutletContext]="{items: example.crossReferences}" /></div> }</div>
                 }
               </div>
             </div>
@@ -42,6 +60,7 @@
           <ng-template #groupView let-group="group">
             <div class="grammar-group">
               @if (group.pos) { <span class="pos">{{ group.pos }}</span> }
+              <ng-container [ngTemplateOutlet]="xrView" [ngTemplateOutletContext]="{items: group.crossReferences}" />
               @for (sense of group.senses; track sense.number) { <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{sense}" /> }
             </div>
           </ng-template>
@@ -51,6 +70,7 @@
               @if (article.homonyms.length > 1) {
                 <span class="homonym-number">{{ homonymIndex + 1 }}</span>
               }
+              <ng-container [ngTemplateOutlet]="xrView" [ngTemplateOutletContext]="{items: homonym.crossReferences}" />
               @for (group of homonym.gramGroups; track group.number) {
                 <ng-container [ngTemplateOutlet]="groupView" [ngTemplateOutletContext]="{group}" />
               }
@@ -58,7 +78,7 @@
           }
           @for (group of article.gramGroups; track group.number) { <ng-container [ngTemplateOutlet]="groupView" [ngTemplateOutletContext]="{group}" /> }
           @for (directPos of article.directPoses; track $index) {
-            <div class="grammar-group"><span class="pos">{{ directPos.pos }}</span>@for (sense of directPos.senses; track sense.number) { <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{sense}" /> }</div>
+            <div class="grammar-group"><span class="pos">{{ directPos.pos }}</span><ng-container [ngTemplateOutlet]="xrView" [ngTemplateOutletContext]="{items: directPos.crossReferences}" />@for (sense of directPos.senses; track sense.number) { <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{sense}" /> }</div>
           }
           @for (sense of article.senses; track sense.number) { <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{sense}" /> }
           @if (!article.homonyms.length && !article.gramGroups.length && !article.directPoses.length && !article.senses.length) {

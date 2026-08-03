@@ -88,6 +88,8 @@ export interface CrossReference {
   type: 'see' | 'seeAlso' | 'equivalent' | 'antonym' | 'illustration';
   label: string;
   target: string;
+  targetEntryId: number | null;
+  targetEntryLemma: string | null;
   displayText: string | null;
   placement: 'Inline' | 'Attached' | 'Standalone';
 }

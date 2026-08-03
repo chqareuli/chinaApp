@@ -1,6 +1,9 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, EventEmitter, inject, Input, Output, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { EditorialMarker, VocabularyItem } from '../../core/models/entry.models';
+import { catchError, debounceTime, distinctUntilChanged, finalize, of, Subject, switchMap } from 'rxjs';
+import { EditorialMarker, EntrySummary, VocabularyItem } from '../../core/models/entry.models';
+import { EntriesService } from '../../core/services/entries.service';
 
 type MarkerCategory = EditorialMarker['category'];
 
@@ -13,6 +16,9 @@ type MarkerCategory = EditorialMarker['category'];
 })
 export class EditorialDecorations {
   private readonly fb = new FormBuilder();
+  private readonly entries = inject(EntriesService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly targetQueries = new Subject<string>();
 
   @Input({ required: true }) markers!: FormArray<FormGroup>;
   @Input({ required: true }) crossReferences!: FormArray<FormGroup>;
@@ -24,6 +30,8 @@ export class EditorialDecorations {
   readonly markerEditingIndex = signal<number | null>(null);
   readonly xrEditorOpen = signal(false);
   readonly xrEditingIndex = signal<number | null>(null);
+  readonly xrSuggestions = signal<EntrySummary[]>([]);
+  readonly xrSearching = signal(false);
 
   readonly markerDraft = this.fb.group({
     category: ['Style' as MarkerCategory, Validators.required],
@@ -32,6 +40,8 @@ export class EditorialDecorations {
   readonly xrDraft = this.fb.group({
     type: ['see', Validators.required],
     target: ['', [Validators.required, Validators.maxLength(500)]],
+    targetEntryId: [null as number | null],
+    targetEntryLemma: [null as string | null],
     displayText: ['', Validators.maxLength(500)],
     placement: ['Standalone', Validators.required],
   });
@@ -49,6 +59,35 @@ export class EditorialDecorations {
     { value: 'antonym', label: 'იხ. ანტ.' },
     { value: 'illustration', label: 'იხ. სურ.' },
   ];
+
+  constructor() {
+    this.targetQueries
+      .pipe(
+        debounceTime(250),
+        distinctUntilChanged(),
+        switchMap((query) => {
+          const term = query.trim();
+          if (!term) {
+            this.xrSearching.set(false);
+            return of([] as EntrySummary[]);
+          }
+          this.xrSearching.set(true);
+          return this.entries.search(term, 6).pipe(
+            catchError(() => of([] as EntrySummary[])),
+            finalize(() => this.xrSearching.set(false)),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((suggestions) => {
+        this.xrSuggestions.set(suggestions);
+        const target = this.normalizeTarget(this.xrDraft.controls.target.value ?? '');
+        const exact = suggestions.find((item) => this.normalizeTarget(item.lemma) === target);
+        if (exact) {
+          this.xrDraft.patchValue({ targetEntryId: exact.id, targetEntryLemma: exact.lemma }, { emitEvent: false });
+        }
+      });
+  }
 
   valuesFor(category: MarkerCategory = this.markerDraft.controls.category.value ?? 'Style'): VocabularyItem[] {
     return this.vocabularies.filter((item) => item.category === category.toLocaleLowerCase());
@@ -91,7 +130,11 @@ export class EditorialDecorations {
 
   openXrAdd(): void {
     this.xrEditingIndex.set(null);
-    this.xrDraft.setValue({ type: 'see', target: '', displayText: '', placement: 'Standalone' });
+    this.xrDraft.setValue({
+      type: 'see', target: '', targetEntryId: null, targetEntryLemma: null,
+      displayText: '', placement: 'Standalone',
+    });
+    this.xrSuggestions.set([]);
     this.xrEditorOpen.set(true);
   }
 
@@ -99,9 +142,28 @@ export class EditorialDecorations {
     const item = this.crossReferences.at(index).getRawValue();
     this.xrEditingIndex.set(index);
     this.xrDraft.setValue({
-      type: item.type ?? 'see', target: item.target ?? '', displayText: item.displayText ?? '', placement: item.placement ?? 'Standalone',
+      type: item.type ?? 'see', target: item.target ?? '',
+      targetEntryId: item.targetEntryId ?? null, targetEntryLemma: item.targetEntryLemma ?? null,
+      displayText: item.displayText ?? '', placement: item.placement ?? 'Standalone',
     });
+    this.xrSuggestions.set([]);
+    this.targetQueries.next(item.target ?? '');
     this.xrEditorOpen.set(true);
+  }
+
+  targetChanged(): void {
+    const target = this.xrDraft.controls.target.value ?? '';
+    this.xrDraft.patchValue({ targetEntryId: null, targetEntryLemma: null }, { emitEvent: false });
+    this.targetQueries.next(target);
+  }
+
+  selectTarget(entry: EntrySummary): void {
+    this.xrDraft.patchValue({
+      target: entry.lemma,
+      targetEntryId: entry.id,
+      targetEntryLemma: entry.lemma,
+    });
+    this.xrSuggestions.set([]);
   }
 
   saveXr(): void {
@@ -135,5 +197,21 @@ export class EditorialDecorations {
   xrText(index: number): string {
     const item = this.crossReferences.at(index).getRawValue();
     return `${item.label} ${item.displayText || item.target}`;
+  }
+
+  xrLinkState(index: number): 'linked' | 'unresolved' | 'pending' {
+    const item = this.crossReferences.at(index);
+    if (item.get('targetEntryId')?.value) return 'linked';
+    return item.get('id')?.value ? 'unresolved' : 'pending';
+  }
+
+  xrLinkText(index: number): string {
+    const item = this.crossReferences.at(index).getRawValue();
+    if (item.targetEntryId) return `დალინკებულია: ${item.targetEntryLemma || item.target}`;
+    return item.id ? 'ვერ დალინკდა' : 'შენახვისას შემოწმდება';
+  }
+
+  private normalizeTarget(value: string): string {
+    return value.trim().replace(/，/g, ',');
   }
 }
