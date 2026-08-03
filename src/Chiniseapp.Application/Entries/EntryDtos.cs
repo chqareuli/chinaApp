@@ -34,6 +34,8 @@ public sealed record CrossReferenceDto
     public string Type { get; init; } = string.Empty;
     public string Label { get; init; } = string.Empty;
     public string Target { get; init; } = string.Empty;
+    public int? TargetEntryId { get; init; }
+    public string? TargetEntryLemma { get; init; }
     public string? DisplayText { get; init; }
     public string Placement { get; init; } = "Standalone";
 }

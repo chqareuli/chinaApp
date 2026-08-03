@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Chiniseapp.Application.PublicDictionary;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
@@ -9,6 +10,17 @@ namespace Chiniseapp.Infrastructure.PublicDictionary;
 
 public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionaryService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly IReadOnlyDictionary<string, string> CrossReferenceLabels =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["see"] = "იხ.",
+            ["seeAlso"] = "ასევე.",
+            ["equivalent"] = "იგივეა,რაც",
+            ["antonym"] = "იხ. ანტ.",
+            ["illustration"] = "იხ. სურ.",
+        };
+
     public async Task<IReadOnlyList<PublicDictionarySearchItem>> SearchAsync(
         string query,
         PublicSearchMode mode,
@@ -132,6 +144,35 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
             .Where(segment => segment.EntryId == entryId)
             .OrderBy(segment => segment.OrderIndex)
             .ToListAsync(ct);
+        var crossReferenceAttributes = segments
+            .Where(segment => segment.SegmentType == SegmentType.Xr)
+            .ToDictionary(segment => segment.Id, ParseXrAttributes);
+        var linkedTargetIds = crossReferenceAttributes.Values
+            .Where(attributes => attributes?.TargetEntryId is not null)
+            .Select(attributes => attributes!.TargetEntryId!.Value)
+            .Distinct()
+            .ToList();
+        var normalizedTargets = crossReferenceAttributes.Values
+            .Where(attributes => attributes is not null)
+            .Select(attributes => TitleNormalizer.Normalize(attributes!.Target.Trim()))
+            .Where(target => target.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var targetEntries = await db.Entries
+            .AsNoTracking()
+            .Where(item =>
+                item.Id != entryId &&
+                item.Status == EntryStatus.Published &&
+                (linkedTargetIds.Contains(item.Id) || normalizedTargets.Contains(item.SearchNormalizedTitle)))
+            .Select(item => new CrossReferenceTarget(item.Id, item.Lemma, item.SearchNormalizedTitle))
+            .ToListAsync(ct);
+        var targetEntriesById = targetEntries.ToDictionary(item => item.Id);
+        var targetEntriesByNormalized = targetEntries
+            .GroupBy(item => item.NormalizedLemma, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.OrderBy(item => item.Id).First(),
+                StringComparer.Ordinal);
 
         var byParent = segments
             .Where(segment => segment.ParentSegmentId.HasValue)
@@ -145,17 +186,64 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
         List<Segment> Children(int? parentId, SegmentType type) =>
             ChildrenOf(parentId).Where(segment => segment.SegmentType == type).ToList();
 
+        List<PublicDictionaryCrossReference> CrossReferences(int? parentId)
+        {
+            if (parentId is null)
+            {
+                return [];
+            }
+
+            return Children(parentId, SegmentType.Xr)
+                .Select(segment =>
+                {
+                    var attributes = crossReferenceAttributes.GetValueOrDefault(segment.Id);
+                    CrossReferenceTarget? targetEntry = null;
+                    if (attributes?.TargetEntryId is int targetEntryId)
+                    {
+                        targetEntriesById.TryGetValue(targetEntryId, out targetEntry);
+                    }
+                    if (targetEntry is null && attributes is not null)
+                    {
+                        targetEntriesByNormalized.TryGetValue(
+                            TitleNormalizer.Normalize(attributes.Target.Trim()),
+                            out targetEntry);
+                    }
+
+                    var type = attributes?.XrType ?? "see";
+                    var label = attributes?.Label is { Length: > 0 }
+                        ? attributes.Label
+                        : CrossReferenceLabels.GetValueOrDefault(type, CrossReferenceLabels["see"]);
+                    var target = attributes?.Target ?? segment.Value ?? string.Empty;
+                    return new PublicDictionaryCrossReference(
+                        type,
+                        label,
+                        target,
+                        attributes?.DisplayText,
+                        (segment.Placement ?? Placement.Standalone).ToString(),
+                        targetEntry?.Id,
+                        targetEntry?.Lemma);
+                })
+                .ToList();
+        }
+
         PublicDictionarySense MapSense(Segment sense, int fallbackNumber)
         {
             var definition = Children(sense.Id, SegmentType.Definition).FirstOrDefault();
             var examples = Children(sense.Id, SegmentType.Example)
-                .Select(example => new PublicDictionaryExample(
-                    Children(example.Id, SegmentType.ZhSegment).FirstOrDefault()?.Value ?? string.Empty,
-                    Children(example.Id, SegmentType.KaSegment).FirstOrDefault()?.Value ?? string.Empty))
+                .Select(example =>
+                {
+                    var zh = Children(example.Id, SegmentType.ZhSegment).FirstOrDefault();
+                    var ka = Children(example.Id, SegmentType.KaSegment).FirstOrDefault();
+                    return new PublicDictionaryExample(
+                        zh?.Value ?? string.Empty,
+                        ka?.Value ?? string.Empty,
+                        CrossReferences(ka?.Id));
+                })
                 .ToList();
             return new PublicDictionarySense(
                 sense.Number ?? fallbackNumber,
                 definition?.Value ?? string.Empty,
+                CrossReferences(definition?.Id),
                 examples);
         }
 
@@ -163,12 +251,14 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
             new(
                 gramGrp.Number ?? fallbackNumber,
                 Children(gramGrp.Id, SegmentType.Pos).FirstOrDefault()?.Value,
+                CrossReferences(gramGrp.Id),
                 Children(gramGrp.Id, SegmentType.Sense)
                     .Select((sense, index) => MapSense(sense, index + 1))
                     .ToList());
 
         var homonyms = Children(null, SegmentType.Homonym)
             .Select(homonym => new PublicDictionaryHomonym(
+                CrossReferences(homonym.Id),
                 Children(homonym.Id, SegmentType.GramGrp)
                     .Select((grammarGroup, index) => MapGrammarGroup(grammarGroup, index + 1))
                     .ToList()))
@@ -181,6 +271,7 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
         var directPoses = Children(null, SegmentType.Pos)
             .Select(pos => new PublicDictionaryDirectPos(
                 pos.Value ?? string.Empty,
+                CrossReferences(pos.Id),
                 Children(pos.Id, SegmentType.Sense)
                     .Select((sense, index) => MapSense(sense, index + 1))
                     .ToList()))
@@ -210,6 +301,32 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
 
     private static string EscapeLikePattern(string value) =>
         value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
+    private static XrAttributes? ParseXrAttributes(Segment segment)
+    {
+        if (string.IsNullOrWhiteSpace(segment.Attributes))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<XrAttributes>(segment.Attributes, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private sealed record XrAttributes(
+        string XrType,
+        string Label,
+        string Target,
+        string? DisplayText,
+        int? TargetEntryId = null);
+
+    private sealed record CrossReferenceTarget(int Id, string Lemma, string NormalizedLemma);
 
     private sealed record PublicContentGraph(
         List<PublicDictionaryHomonym> Homonyms,

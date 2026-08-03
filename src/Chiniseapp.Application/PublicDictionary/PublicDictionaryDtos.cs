@@ -12,15 +12,40 @@ public record PublicDictionarySearchItem(
     string? Pinyin,
     string Snippet);
 
-public record PublicDictionaryExample(string Zh, string Ka);
+public record PublicDictionaryCrossReference(
+    string Type,
+    string Label,
+    string Target,
+    string? DisplayText,
+    string Placement,
+    int? TargetEntryId,
+    string? TargetEntryLemma);
 
-public record PublicDictionarySense(int Number, string Definition, List<PublicDictionaryExample> Examples);
+public record PublicDictionaryExample(
+    string Zh,
+    string Ka,
+    List<PublicDictionaryCrossReference> CrossReferences);
 
-public record PublicDictionaryGramGroup(int Number, string? Pos, List<PublicDictionarySense> Senses);
+public record PublicDictionarySense(
+    int Number,
+    string Definition,
+    List<PublicDictionaryCrossReference> CrossReferences,
+    List<PublicDictionaryExample> Examples);
 
-public record PublicDictionaryHomonym(List<PublicDictionaryGramGroup> GramGroups);
+public record PublicDictionaryGramGroup(
+    int Number,
+    string? Pos,
+    List<PublicDictionaryCrossReference> CrossReferences,
+    List<PublicDictionarySense> Senses);
 
-public record PublicDictionaryDirectPos(string Pos, List<PublicDictionarySense> Senses);
+public record PublicDictionaryHomonym(
+    List<PublicDictionaryCrossReference> CrossReferences,
+    List<PublicDictionaryGramGroup> GramGroups);
+
+public record PublicDictionaryDirectPos(
+    string Pos,
+    List<PublicDictionaryCrossReference> CrossReferences,
+    List<PublicDictionarySense> Senses);
 
 public record PublicDictionaryEntry(
     int Id,

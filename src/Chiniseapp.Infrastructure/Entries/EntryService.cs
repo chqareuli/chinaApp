@@ -465,6 +465,29 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
                 group => group.Key,
                 group => group.Select(item => item.Code).ToHashSet(StringComparer.Ordinal),
                 ct);
+        var normalizedCrossReferenceTargets = EnumerateCrossReferences(content)
+            .Select(item => TitleNormalizer.Normalize(item.Target.Trim()))
+            .Where(target => target.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var crossReferenceTargetCandidates = normalizedCrossReferenceTargets.Count == 0
+            ? []
+            : await db.Entries
+                .AsNoTracking()
+                .Where(item =>
+                    item.Id != entryId &&
+                    normalizedCrossReferenceTargets.Contains(item.SearchNormalizedTitle))
+                .Select(item => new CrossReferenceTarget(item.Id, item.Lemma, item.SearchNormalizedTitle, item.Status))
+                .ToListAsync(ct);
+        var crossReferenceTargets = crossReferenceTargetCandidates
+            .GroupBy(item => item.NormalizedLemma, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(item => item.Status == EntryStatus.Published)
+                    .ThenBy(item => item.Id)
+                    .First(),
+                StringComparer.Ordinal);
 
         Segment Upsert(int? requestedId, SegmentType type, Segment? parent, int order)
         {
@@ -559,6 +582,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
                 }
 
                 var segment = Upsert(crossReference.Id, SegmentType.Xr, target, order++);
+                var normalizedTarget = TitleNormalizer.Normalize(crossReference.Target.Trim());
+                crossReferenceTargets.TryGetValue(normalizedTarget, out var targetEntry);
                 segment.Value = string.IsNullOrWhiteSpace(crossReference.DisplayText)
                     ? crossReference.Target.Trim()
                     : crossReference.DisplayText.Trim();
@@ -568,7 +593,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
                         xrType,
                         CrossReferenceLabels[xrType],
                         crossReference.Target.Trim(),
-                        crossReference.DisplayText?.Trim()),
+                        crossReference.DisplayText?.Trim(),
+                        targetEntry?.Id),
                     JsonOptions);
             }
 
@@ -691,6 +717,37 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             .Where(s => s.EntryId == entryId)
             .OrderBy(s => s.OrderIndex)
             .ToListAsync(ct);
+        var crossReferenceAttributes = segments
+            .Where(segment => segment.SegmentType == SegmentType.Xr)
+            .ToDictionary(segment => segment.Id, ParseXrAttributes);
+        var linkedTargetIds = crossReferenceAttributes.Values
+            .Where(attributes => attributes?.TargetEntryId is not null)
+            .Select(attributes => attributes!.TargetEntryId!.Value)
+            .Distinct()
+            .ToList();
+        var normalizedTargets = crossReferenceAttributes.Values
+            .Where(attributes => attributes is not null)
+            .Select(attributes => TitleNormalizer.Normalize(attributes!.Target.Trim()))
+            .Where(target => target.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var targetEntries = await db.Entries
+            .AsNoTracking()
+            .Where(item =>
+                item.Id != entryId &&
+                (linkedTargetIds.Contains(item.Id) || normalizedTargets.Contains(item.SearchNormalizedTitle)))
+            .Select(item => new CrossReferenceTarget(item.Id, item.Lemma, item.SearchNormalizedTitle, item.Status))
+            .ToListAsync(ct);
+        var targetEntriesById = targetEntries.ToDictionary(item => item.Id);
+        var targetEntriesByNormalized = targetEntries
+            .GroupBy(item => item.NormalizedLemma, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(item => item.Status == EntryStatus.Published)
+                    .ThenBy(item => item.Id)
+                    .First(),
+                StringComparer.Ordinal);
 
         var byParent = segments
             .Where(s => s.ParentSegmentId.HasValue)
@@ -718,17 +775,17 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         List<CrossReferenceDto> CrossReferences(int parentId) => Children(parentId, SegmentType.Xr)
             .Select(segment =>
             {
-                XrAttributes? attributes = null;
-                if (!string.IsNullOrWhiteSpace(segment.Attributes))
+                var attributes = crossReferenceAttributes.GetValueOrDefault(segment.Id);
+                CrossReferenceTarget? targetEntry = null;
+                if (attributes?.TargetEntryId is int targetEntryId)
                 {
-                    try
-                    {
-                        attributes = JsonSerializer.Deserialize<XrAttributes>(segment.Attributes, JsonOptions);
-                    }
-                    catch (JsonException)
-                    {
-                        // Preserve an older/malformed record in editable form instead of hiding it.
-                    }
+                    targetEntriesById.TryGetValue(targetEntryId, out targetEntry);
+                }
+                if (targetEntry is null && attributes is not null)
+                {
+                    targetEntriesByNormalized.TryGetValue(
+                        TitleNormalizer.Normalize(attributes.Target.Trim()),
+                        out targetEntry);
                 }
 
                 return new CrossReferenceDto
@@ -741,6 +798,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
                             ? fallbackLabel
                             : CrossReferenceLabels["see"],
                     Target = attributes?.Target ?? segment.Value ?? string.Empty,
+                    TargetEntryId = targetEntry?.Id,
+                    TargetEntryLemma = targetEntry?.Lemma,
                     DisplayText = attributes?.DisplayText ?? segment.Value,
                     Placement = (segment.Placement ?? Placement.Standalone).ToString(),
                 };
@@ -954,11 +1013,112 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
     private static string EscapeLikePattern(string value) =>
         value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 
+    private static IEnumerable<CrossReferenceDto> EnumerateCrossReferences(SaveEntryContentRequest content)
+    {
+        static IEnumerable<CrossReferenceDto> SenseReferences(SenseDto sense)
+        {
+            foreach (var crossReference in sense.CrossReferences)
+            {
+                yield return crossReference;
+            }
+            foreach (var example in sense.Examples)
+            {
+                foreach (var crossReference in example.CrossReferences)
+                {
+                    yield return crossReference;
+                }
+            }
+        }
+
+        static IEnumerable<CrossReferenceDto> GrammarReferences(GramGroupDto grammarGroup)
+        {
+            foreach (var crossReference in grammarGroup.CrossReferences)
+            {
+                yield return crossReference;
+            }
+            foreach (var sense in grammarGroup.Senses)
+            {
+                foreach (var crossReference in SenseReferences(sense))
+                {
+                    yield return crossReference;
+                }
+            }
+        }
+
+        foreach (var homonym in content.Homonyms)
+        {
+            foreach (var crossReference in homonym.CrossReferences)
+            {
+                yield return crossReference;
+            }
+            foreach (var grammarGroup in homonym.GramGroups)
+            {
+                foreach (var crossReference in GrammarReferences(grammarGroup))
+                {
+                    yield return crossReference;
+                }
+            }
+        }
+        foreach (var grammarGroup in content.GramGroups)
+        {
+            foreach (var crossReference in GrammarReferences(grammarGroup))
+            {
+                yield return crossReference;
+            }
+        }
+        foreach (var directPos in content.DirectPoses)
+        {
+            foreach (var crossReference in directPos.CrossReferences)
+            {
+                yield return crossReference;
+            }
+            foreach (var sense in directPos.Senses)
+            {
+                foreach (var crossReference in SenseReferences(sense))
+                {
+                    yield return crossReference;
+                }
+            }
+        }
+        foreach (var sense in content.Senses)
+        {
+            foreach (var crossReference in SenseReferences(sense))
+            {
+                yield return crossReference;
+            }
+        }
+    }
+
+    private static XrAttributes? ParseXrAttributes(Segment segment)
+    {
+        if (string.IsNullOrWhiteSpace(segment.Attributes))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<XrAttributes>(segment.Attributes, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            // Preserve an older/malformed record in editable form instead of hiding it.
+            return null;
+        }
+    }
+
     private sealed record XrAttributes(
         string XrType,
         string Label,
         string Target,
-        string? DisplayText);
+        string? DisplayText,
+        int? TargetEntryId = null);
+
+    private sealed record CrossReferenceTarget(
+        int Id,
+        string Lemma,
+        string NormalizedLemma,
+        EntryStatus Status);
 
     private sealed record EntryContentGraph(
         List<HomonymDto> Homonyms,
