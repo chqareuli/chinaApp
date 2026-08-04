@@ -21,6 +21,8 @@ public sealed record CreateEntryRequest
 
 public sealed record PinyinDto(int? Id, string Value, int Order);
 
+public sealed record ComplexFormDto(int? Id, string Value, int Order);
+
 public sealed record MarkerDto
 {
     public int? Id { get; init; }
@@ -94,6 +96,7 @@ public sealed record SaveEntryContentRequest
 {
     public string? Lemma { get; init; }
     public List<PinyinDto> Pinyins { get; init; } = [];
+    public List<ComplexFormDto> ComplexForms { get; init; } = [];
     public List<HomonymDto> Homonyms { get; init; } = [];
     public List<GramGroupDto> GramGroups { get; init; } = [];
     public List<DirectPosDto> DirectPoses { get; init; } = [];
@@ -111,6 +114,7 @@ public record EntryDetail(
     string Lemma,
     string? Pinyin,
     List<PinyinDto> Pinyins,
+    List<ComplexFormDto> ComplexForms,
     string Status,
     string? MainAuthorDisplayName,
     string LastEditorDisplayName,

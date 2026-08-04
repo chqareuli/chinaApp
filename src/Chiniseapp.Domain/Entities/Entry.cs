@@ -60,4 +60,6 @@ public class Entry
     public ICollection<Segment> Segments { get; } = new List<Segment>();
 
     public ICollection<EntryPronunciation> Pronunciations { get; } = new List<EntryPronunciation>();
+
+    public ICollection<EntryComplexForm> ComplexForms { get; } = new List<EntryComplexForm>();
 }

@@ -390,6 +390,56 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.ToTable("entries", (string)null);
                 });
 
+            modelBuilder.Entity("Chiniseapp.Domain.Entities.EntryComplexForm", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<int>("EntryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("entry_id");
+
+                    b.Property<string>("NormalizedValue")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("normalized_value");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_index");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("pk_entry_complex_forms");
+
+                    b.HasIndex("EntryId", "NormalizedValue")
+                        .IsUnique()
+                        .HasDatabaseName("ix_entry_complex_forms_entry_id_normalized_value");
+
+                    b.HasIndex("EntryId", "OrderIndex")
+                        .HasDatabaseName("ix_entry_complex_forms_entry_id_order_index");
+
+                    b.ToTable("entry_complex_forms", (string)null);
+                });
+
             modelBuilder.Entity("Chiniseapp.Domain.Entities.EntryPronunciation", b =>
                 {
                     b.Property<int>("Id")
@@ -808,6 +858,18 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_entries_editors_main_author_editor_id");
                 });
 
+            modelBuilder.Entity("Chiniseapp.Domain.Entities.EntryComplexForm", b =>
+                {
+                    b.HasOne("Chiniseapp.Domain.Entities.Entry", "Entry")
+                        .WithMany("ComplexForms")
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_entry_complex_forms_entries_entry_id");
+
+                    b.Navigation("Entry");
+                });
+
             modelBuilder.Entity("Chiniseapp.Domain.Entities.EntryPronunciation", b =>
                 {
                     b.HasOne("Chiniseapp.Domain.Entities.Entry", "Entry")
@@ -913,6 +975,8 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Chiniseapp.Domain.Entities.Entry", b =>
                 {
+                    b.Navigation("ComplexForms");
+
                     b.Navigation("Pronunciations");
 
                     b.Navigation("Segments");

@@ -52,6 +52,7 @@ public record PublicDictionaryEntry(
     string Lemma,
     string? Pinyin,
     List<string> Pinyins,
+    List<string> ComplexForms,
     DateTime UpdatedAtUtc,
     List<PublicDictionaryHomonym> Homonyms,
     List<PublicDictionaryGramGroup> GramGroups,

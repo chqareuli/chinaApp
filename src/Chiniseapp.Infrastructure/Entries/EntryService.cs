@@ -65,7 +65,13 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         db.Entries.Add(entry);
         await db.SaveChangesAsync(ct);
 
-        return await BuildDetailAsync(entry, EntryContentGraph.Empty, await LoadPinyinsAsync(entry.Id, ct), actor.Role, ct);
+        return await BuildDetailAsync(
+            entry,
+            EntryContentGraph.Empty,
+            await LoadPinyinsAsync(entry.Id, ct),
+            await LoadComplexFormsAsync(entry.Id, ct),
+            actor.Role,
+            ct);
     }
 
     public async Task<EntryDetail?> GetAsync(int id, int currentEditorId, CancellationToken ct = default)
@@ -79,7 +85,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         var actor = await GetCurrentEditorAsync(currentEditorId, ct);
         var content = await LoadContentGraphAsync(id, ct);
         var pinyins = await LoadPinyinsAsync(id, ct);
-        return await BuildDetailAsync(entry, content, pinyins, actor.Role, ct);
+        var complexForms = await LoadComplexFormsAsync(id, ct);
+        return await BuildDetailAsync(entry, content, pinyins, complexForms, actor.Role, ct);
     }
 
     public async Task<EntryDetail> SaveContentAsync(int id, SaveEntryContentRequest request, int currentEditorId, CancellationToken ct = default)
@@ -113,6 +120,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         try
         {
             await ReconcilePronunciationsAsync(entry, request.Pinyins, request.Pinyin, entry.UpdatedAtUtc, ct);
+            await ReconcileComplexFormsAsync(entry.Id, request.ComplexForms, entry.UpdatedAtUtc, ct);
             await ReconcileSegmentsAsync(entry.Id, request, entry.UpdatedAtUtc, ct);
 
             db.AuditLogEntries.Add(new AuditLogEntry
@@ -140,6 +148,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             entry,
             await LoadContentGraphAsync(id, ct),
             await LoadPinyinsAsync(id, ct),
+            await LoadComplexFormsAsync(id, ct),
             actor.Role,
             ct);
     }
@@ -199,7 +208,13 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         await db.SaveChangesAsync(ct);
 
         var content = await LoadContentGraphAsync(id, ct);
-        return await BuildDetailAsync(entry, content, await LoadPinyinsAsync(id, ct), actor.Role, ct);
+        return await BuildDetailAsync(
+            entry,
+            content,
+            await LoadPinyinsAsync(id, ct),
+            await LoadComplexFormsAsync(id, ct),
+            actor.Role,
+            ct);
     }
 
     public async Task<PagedResult<EntrySummary>> GetMainListAsync(int page, int pageSize, CancellationToken ct = default)
@@ -255,7 +270,11 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             var pattern = $"%{EscapeLikePattern(query.Trim())}%";
             entries = entries.Where(entry =>
                 EF.Functions.ILike(entry.Lemma, pattern, "\\") ||
-                (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pattern, "\\")));
+                (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pattern, "\\")) ||
+                db.EntryPronunciations.Any(item =>
+                    item.EntryId == entry.Id && EF.Functions.ILike(item.Value, pattern, "\\")) ||
+                db.EntryComplexForms.Any(item =>
+                    item.EntryId == entry.Id && EF.Functions.ILike(item.Value, pattern, "\\")));
         }
 
         var totalCount = await entries.CountAsync(ct);
@@ -398,6 +417,44 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
     private static string NormalizePinyinForComparison(string value) =>
         value.Trim().Normalize().ToUpperInvariant();
 
+    private static List<string> NormalizeComplexForms(IEnumerable<string>? values)
+    {
+        var source = values?.ToList() ?? [];
+        if (source.Count > 50)
+        {
+            throw new EntryValidationException("An entry cannot have more than 50 complex forms.");
+        }
+
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var raw in source)
+        {
+            var value = (raw ?? string.Empty).Trim().Normalize();
+            if (value.Length == 0)
+            {
+                throw new EntryValidationException("Complex form cannot be empty.");
+            }
+
+            if (value.Length > 255)
+            {
+                throw new EntryValidationException("Complex form must be 255 characters or fewer.");
+            }
+
+            var normalized = NormalizeComplexFormForComparison(value);
+            if (!seen.Add(normalized))
+            {
+                throw new EntryValidationException($"Duplicate complex form '{value}'.");
+            }
+
+            result.Add(value);
+        }
+
+        return result;
+    }
+
+    private static string NormalizeComplexFormForComparison(string value) =>
+        TitleNormalizer.Normalize(value.Trim().Normalize());
+
     private async Task ReconcilePronunciationsAsync(
         Entry entry,
         List<PinyinDto> requestedItems,
@@ -444,6 +501,49 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 
         db.EntryPronunciations.RemoveRange(existing.Where(item => !usedIds.Contains(item.Id)));
         entry.Pinyin = normalizedValues.FirstOrDefault();
+    }
+
+    private async Task ReconcileComplexFormsAsync(
+        int entryId,
+        List<ComplexFormDto> requestedItems,
+        DateTime now,
+        CancellationToken ct)
+    {
+        var existing = await db.EntryComplexForms
+            .Where(item => item.EntryId == entryId)
+            .ToListAsync(ct);
+        var byId = existing.ToDictionary(item => item.Id);
+        var usedIds = new HashSet<int>();
+        var normalizedValues = NormalizeComplexForms(requestedItems.Select(item => item.Value));
+
+        for (var index = 0; index < normalizedValues.Count; index++)
+        {
+            var request = requestedItems[index];
+            EntryComplexForm entity;
+            if (request.Id is int requestedId)
+            {
+                if (!byId.TryGetValue(requestedId, out entity!) || !usedIds.Add(requestedId))
+                {
+                    throw new EntryValidationException($"Invalid or duplicate complex form id '{requestedId}'.");
+                }
+            }
+            else
+            {
+                entity = new EntryComplexForm
+                {
+                    EntryId = entryId,
+                    CreatedAtUtc = now,
+                };
+                db.EntryComplexForms.Add(entity);
+            }
+
+            entity.Value = normalizedValues[index];
+            entity.NormalizedValue = NormalizeComplexFormForComparison(normalizedValues[index]);
+            entity.OrderIndex = index;
+            entity.UpdatedAtUtc = now;
+        }
+
+        db.EntryComplexForms.RemoveRange(existing.Where(item => !usedIds.Contains(item.Id)));
     }
 
     private async Task ReconcileSegmentsAsync(
@@ -902,10 +1002,19 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             .Select(item => new PinyinDto(item.Id, item.Value, item.OrderIndex + 1))
             .ToListAsync(ct);
 
+    private async Task<List<ComplexFormDto>> LoadComplexFormsAsync(int entryId, CancellationToken ct) =>
+        await db.EntryComplexForms
+            .AsNoTracking()
+            .Where(item => item.EntryId == entryId)
+            .OrderBy(item => item.OrderIndex)
+            .Select(item => new ComplexFormDto(item.Id, item.Value, item.OrderIndex + 1))
+            .ToListAsync(ct);
+
     private async Task<EntryDetail> BuildDetailAsync(
         Entry entry,
         EntryContentGraph content,
         List<PinyinDto> pinyins,
+        List<ComplexFormDto> complexForms,
         EditorRole actorRole,
         CancellationToken ct)
     {
@@ -930,6 +1039,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             entry.Lemma,
             entry.Pinyin,
             pinyins,
+            complexForms,
             entry.Status.ToString(),
             mainAuthorName,
             lastEditorName,

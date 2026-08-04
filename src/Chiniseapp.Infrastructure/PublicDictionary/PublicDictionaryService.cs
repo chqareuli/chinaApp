@@ -48,7 +48,9 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
                     EF.Functions.Like(entry.SearchNormalizedTitle, normalized + "%") ||
                     (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pinyinPattern, "\\")) ||
                     db.EntryPronunciations.Any(item =>
-                        item.EntryId == entry.Id && EF.Functions.ILike(item.Value, pinyinPattern, "\\")))
+                        item.EntryId == entry.Id && EF.Functions.ILike(item.Value, pinyinPattern, "\\")) ||
+                    db.EntryComplexForms.Any(item =>
+                        item.EntryId == entry.Id && EF.Functions.Like(item.NormalizedValue, normalized + "%")))
                 .OrderBy(entry => entry.Lemma.Length)
                 .ThenBy(entry => entry.Lemma)
                 .Take(limit)
@@ -62,6 +64,8 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
                     EF.Functions.ILike(entry.Lemma, pattern, "\\") ||
                     (entry.Pinyin != null && EF.Functions.ILike(entry.Pinyin, pattern, "\\")) ||
                     db.EntryPronunciations.Any(item =>
+                        item.EntryId == entry.Id && EF.Functions.ILike(item.Value, pattern, "\\")) ||
+                    db.EntryComplexForms.Any(item =>
                         item.EntryId == entry.Id && EF.Functions.ILike(item.Value, pattern, "\\")) ||
                     db.Segments.Any(segment =>
                         segment.EntryId == entry.Id &&
@@ -105,6 +109,12 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
             entry.Lemma,
             entry.Pinyin,
             await db.EntryPronunciations
+                .AsNoTracking()
+                .Where(item => item.EntryId == entry.Id)
+                .OrderBy(item => item.OrderIndex)
+                .Select(item => item.Value)
+                .ToListAsync(ct),
+            await db.EntryComplexForms
                 .AsNoTracking()
                 .Where(item => item.EntryId == entry.Id)
                 .OrderBy(item => item.OrderIndex)
