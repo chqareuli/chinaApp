@@ -66,6 +66,7 @@ export interface DirectPos {
 
 export interface Homonym {
   id: number | null;
+  text: string;
   markers: EditorialMarker[];
   crossReferences: CrossReference[];
   gramGroups: GramGroup[];

@@ -73,6 +73,9 @@
               @if (article.homonyms.length > 1) {
                 <span class="homonym-number">{{ homonymIndex + 1 }}</span>
               }
+              @if (homonym.text) {
+                <strong class="homonym-text" lang="zh">{{ homonym.text }}</strong>
+              }
               <ng-container [ngTemplateOutlet]="xrView" [ngTemplateOutletContext]="{items: homonym.crossReferences}" />
               @for (group of homonym.gramGroups; track group.number) {
                 <ng-container [ngTemplateOutlet]="groupView" [ngTemplateOutletContext]="{group}" />

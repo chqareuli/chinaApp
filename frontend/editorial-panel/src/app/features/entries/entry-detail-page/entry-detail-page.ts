@@ -861,6 +861,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   private createHomonym(homonym?: Homonym): FormGroup {
     return this.fb.group({
       id: [homonym?.id ?? null],
+      text: [homonym?.text ?? ''],
       markers: this.createMarkers(homonym?.markers),
       crossReferences: this.createCrossReferences(homonym?.crossReferences),
       gramGroups: this.fb.array<FormGroup>(
@@ -1012,6 +1013,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       rowVersion,
       homonyms: homonyms.map((homonym) => ({
         id: homonym.id ?? null,
+        text: homonym.text?.trim() ?? '',
         markers: homonym.markers ?? [],
         crossReferences: homonym.crossReferences ?? [],
         gramGroups: (homonym.gramGroups ?? []).map(mapGroup),

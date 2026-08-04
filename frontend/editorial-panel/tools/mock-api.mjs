@@ -22,6 +22,7 @@ let entry = {
   rowVersion: 12,
   homonyms: [
     {
+      text: '学习',
       senses: [
         {
           number: 1,

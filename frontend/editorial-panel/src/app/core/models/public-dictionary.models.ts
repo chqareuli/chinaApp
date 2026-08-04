@@ -31,6 +31,7 @@ export interface PublicDictionarySense {
 }
 
 export interface PublicDictionaryHomonym {
+  text: string | null;
   crossReferences: PublicDictionaryCrossReference[];
   gramGroups: PublicDictionaryGramGroup[];
 }

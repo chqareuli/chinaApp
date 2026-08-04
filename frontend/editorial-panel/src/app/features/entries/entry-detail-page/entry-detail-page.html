@@ -265,6 +265,18 @@
             @for (homonym of homonyms.controls; track homonym.get('id')?.value ?? $index; let h = $index) {
               <article class="homonym-editor" [formGroup]="homonym">
                 <header><div><span class="index-chip">{{ h + 1 }}</span><h3>hom <span class="term-note">— ჰომონიმი</span></h3></div>@if (canEdit()) { <button class="text-button danger" type="button" (click)="removeHomonym(h)">Remove hom</button> }</header>
+                <div class="field homonym-text-field">
+                  <label [for]="'homonym-text-' + h">hom <span class="term-note">— ჰომონიმის ტექსტი</span></label>
+                  <input
+                    [id]="'homonym-text-' + h"
+                    type="text"
+                    formControlName="text"
+                    lang="zh"
+                    placeholder="ჩაწერეთ ჰომონიმი"
+                    [readOnly]="!canEdit()"
+                    (input)="markContentChanged()"
+                  />
+                </div>
                 <app-editorial-decorations [markers]="formArrayAt(homonym, 'markers')" [crossReferences]="formArrayAt(homonym, 'crossReferences')" [vocabularies]="vocabularies()" [readonly]="!canEdit()" (contentChanged)="markContentChanged()" />
                 @let groups = formArrayAt(homonym, 'gramGroups');
                 <div class="grammar-list">

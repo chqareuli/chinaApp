@@ -115,10 +115,22 @@ describe('EntryDetailPage status confirmation', () => {
 
     expect(component.structureKind()).toBe('homonym');
     expect(component.homonyms.length).toBe(1);
+    expect(component.homonyms.at(0).get('text')?.value).toBe('');
     expect(component.formArrayAt(component.homonyms.at(0), 'gramGroups').length).toBe(1);
     expect(
       component.formArrayAt(component.formArrayAt(component.homonyms.at(0), 'gramGroups').at(0), 'senses').length,
     ).toBe(1);
+  });
+
+  it('includes the entered homonym text in the save request', () => {
+    component.startStructure('homonym');
+    component.homonyms.at(0).get('text')?.setValue('同形词');
+
+    const request = (
+      component as unknown as { toSaveRequest: (rowVersion: number) => { homonyms: Array<{ text: string }> } }
+    ).toSaveRequest(entry.rowVersion);
+
+    expect(request.homonyms[0].text).toBe('同形词');
   });
 
   it('opens the embedded notes panel on comments by default', () => {

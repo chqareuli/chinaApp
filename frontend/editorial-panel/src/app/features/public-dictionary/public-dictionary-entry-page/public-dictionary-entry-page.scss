@@ -130,6 +130,11 @@ article {
   background: #173f35;
   font-family: Georgia, serif;
 }
+.homonym-text {
+  color: #173f35;
+  font-family: 'Microsoft YaHei', sans-serif;
+  font-size: 1.05rem;
+}
 .grammar-group { display:grid; gap:10px; }
 .pos { justify-self:start; padding:4px 8px; color:#fff; border-radius:6px; background:#9c3439; font-family:'Microsoft YaHei',sans-serif; font-size:.72rem; font-weight:800; }
 .sense {
