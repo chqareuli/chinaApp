@@ -6,6 +6,7 @@ using Chiniseapp.Application.Notifications;
 using Chiniseapp.Application.Media;
 using Chiniseapp.Application.ReferenceMaterials;
 using Chiniseapp.Application.Scoring;
+using Chiniseapp.Application.SupportMaterials;
 using Chiniseapp.Application.PublicDictionary;
 using Chiniseapp.Application.Vocabularies;
 using Chiniseapp.Domain.Enums;
@@ -18,6 +19,7 @@ using Chiniseapp.Infrastructure.Media;
 using Chiniseapp.Infrastructure.Persistence;
 using Chiniseapp.Infrastructure.ReferenceMaterials;
 using Chiniseapp.Infrastructure.Scoring;
+using Chiniseapp.Infrastructure.SupportMaterials;
 using Chiniseapp.Infrastructure.PublicDictionary;
 using Chiniseapp.Infrastructure.Vocabularies;
 using Microsoft.EntityFrameworkCore;
@@ -70,6 +72,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountingService, AccountingService>();
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<IReferenceMaterialService, ReferenceMaterialService>();
+        services.AddScoped<ISupportMaterialService, SupportMaterialService>();
         services.AddSingleton<IMediaFileStorage, LocalMediaFileStorage>();
         services.AddScoped<IMediaService, MediaService>();
 

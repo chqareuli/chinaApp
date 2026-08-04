@@ -62,4 +62,6 @@ public class Entry
     public ICollection<EntryPronunciation> Pronunciations { get; } = new List<EntryPronunciation>();
 
     public ICollection<EntryComplexForm> ComplexForms { get; } = new List<EntryComplexForm>();
+
+    public ICollection<EntrySupportMaterial> SupportMaterials { get; } = new List<EntrySupportMaterial>();
 }

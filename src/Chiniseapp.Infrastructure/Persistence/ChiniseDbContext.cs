@@ -28,6 +28,7 @@ public class ChiniseDbContext : DbContext
     public DbSet<Entry> Entries => Set<Entry>();
     public DbSet<EntryPronunciation> EntryPronunciations => Set<EntryPronunciation>();
     public DbSet<EntryComplexForm> EntryComplexForms => Set<EntryComplexForm>();
+    public DbSet<EntrySupportMaterial> EntrySupportMaterials => Set<EntrySupportMaterial>();
     public DbSet<Segment> Segments => Set<Segment>();
     public DbSet<ControlledVocabulary> ControlledVocabularies => Set<ControlledVocabulary>();
     public DbSet<Comment> Comments => Set<Comment>();

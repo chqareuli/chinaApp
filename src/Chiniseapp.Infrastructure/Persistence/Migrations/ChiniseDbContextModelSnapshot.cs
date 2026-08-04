@@ -490,6 +490,51 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.ToTable("entry_pronunciations", (string)null);
                 });
 
+            modelBuilder.Entity("Chiniseapp.Domain.Entities.EntrySupportMaterial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AddedByEditorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("added_by_editor_id");
+
+                    b.Property<string>("CommentText")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("comment_text");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<int>("EntryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("entry_id");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("language");
+
+                    b.HasKey("Id")
+                        .HasName("pk_entry_support_materials");
+
+                    b.HasIndex("AddedByEditorId")
+                        .HasDatabaseName("ix_entry_support_materials_added_by_editor_id");
+
+                    b.HasIndex("EntryId", "CreatedAtUtc")
+                        .HasDatabaseName("ix_entry_support_materials_entry_id_created_at_utc");
+
+                    b.ToTable("entry_support_materials", (string)null);
+                });
+
             modelBuilder.Entity("Chiniseapp.Domain.Entities.MediaAsset", b =>
                 {
                     b.Property<int>("Id")
@@ -882,6 +927,27 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.Navigation("Entry");
                 });
 
+            modelBuilder.Entity("Chiniseapp.Domain.Entities.EntrySupportMaterial", b =>
+                {
+                    b.HasOne("Chiniseapp.Domain.Entities.Editor", "AddedByEditor")
+                        .WithMany()
+                        .HasForeignKey("AddedByEditorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_entry_support_materials_editors_added_by_editor_id");
+
+                    b.HasOne("Chiniseapp.Domain.Entities.Entry", "Entry")
+                        .WithMany("SupportMaterials")
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_entry_support_materials_entries_entry_id");
+
+                    b.Navigation("AddedByEditor");
+
+                    b.Navigation("Entry");
+                });
+
             modelBuilder.Entity("Chiniseapp.Domain.Entities.MediaAsset", b =>
                 {
                     b.HasOne("Chiniseapp.Domain.Entities.Entry", null)
@@ -980,6 +1046,8 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.Navigation("Pronunciations");
 
                     b.Navigation("Segments");
+
+                    b.Navigation("SupportMaterials");
                 });
 
             modelBuilder.Entity("Chiniseapp.Domain.Entities.Segment", b =>

@@ -13,8 +13,8 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
     public async Task<IReadOnlyList<CommentSummary>> GetForEntryAsync(int entryId, CancellationToken ct = default)
     {
         var comments = await db.Comments
-            .Where(c => c.EntryId == entryId)
-            .OrderBy(c => c.CreatedAtUtc)
+            .Where(c => c.EntryId == entryId && c.Status == CommentStatus.Open)
+            .OrderByDescending(c => c.CreatedAtUtc)
             .ToListAsync(ct);
 
         if (comments.Count == 0)
