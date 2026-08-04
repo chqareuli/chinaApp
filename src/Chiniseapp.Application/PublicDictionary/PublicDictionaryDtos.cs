@@ -39,6 +39,7 @@ public record PublicDictionaryGramGroup(
     List<PublicDictionarySense> Senses);
 
 public record PublicDictionaryHomonym(
+    string? Text,
     List<PublicDictionaryCrossReference> CrossReferences,
     List<PublicDictionaryGramGroup> GramGroups);
 

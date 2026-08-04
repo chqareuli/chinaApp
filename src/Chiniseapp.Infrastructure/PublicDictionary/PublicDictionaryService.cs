@@ -268,6 +268,7 @@ public class PublicDictionaryService(ChiniseDbContext db) : IPublicDictionarySer
 
         var homonyms = Children(null, SegmentType.Homonym)
             .Select(homonym => new PublicDictionaryHomonym(
+                homonym.Value,
                 CrossReferences(homonym.Id),
                 Children(homonym.Id, SegmentType.GramGrp)
                     .Select((grammarGroup, index) => MapGrammarGroup(grammarGroup, index + 1))

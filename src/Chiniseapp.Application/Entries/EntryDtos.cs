@@ -87,6 +87,7 @@ public sealed record DirectPosDto
 public sealed record HomonymDto
 {
     public int? Id { get; init; }
+    public string? Text { get; init; }
     public List<MarkerDto> Markers { get; init; } = [];
     public List<CrossReferenceDto> CrossReferences { get; init; } = [];
     public List<GramGroupDto> GramGroups { get; init; } = [];

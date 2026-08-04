@@ -777,6 +777,12 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             var homonymRequest = content.Homonyms[h];
             var homonym = Upsert(homonymRequest.Id, SegmentType.Homonym, null, h);
             homonym.Number = h + 1;
+            if (homonymRequest.Text is not null)
+            {
+                homonym.Value = string.IsNullOrWhiteSpace(homonymRequest.Text)
+                    ? null
+                    : homonymRequest.Text.Trim().Normalize();
+            }
             AddDecorations(homonym, homonymRequest.Markers, homonymRequest.CrossReferences, 0);
 
             for (var g = 0; g < homonymRequest.GramGroups.Count; g++)
@@ -962,6 +968,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             .Select((homonymSegment, index) => new HomonymDto
             {
                 Id = homonymSegment.Id,
+                Text = homonymSegment.Value,
                 Markers = Markers(homonymSegment.Id),
                 CrossReferences = CrossReferences(homonymSegment.Id),
                 GramGroups = Children(homonymSegment.Id, SegmentType.GramGrp)

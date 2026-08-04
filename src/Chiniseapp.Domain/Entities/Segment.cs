@@ -34,7 +34,7 @@ public class Segment
     public int? Number { get; set; }
 
     /// <summary>
-    /// Plain leaf value for simple segments (e.g. a Pos code, ZhSegment text).
+    /// Plain value for simple segments (e.g. Homonym text, a Pos code, ZhSegment text).
     /// Null for segments whose content is mixed (see <see cref="Content"/>) or
     /// purely structural (e.g. GramGrp, Sense containers).
     /// </summary>
