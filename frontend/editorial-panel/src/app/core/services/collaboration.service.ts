@@ -32,8 +32,8 @@ export class CollaborationService {
     return this.http.put<CommentSummary>(`${this.apiBaseUrl}/comments/${id}`, { commentText });
   }
 
-  archiveComment(id: number): Observable<void> {
-    return this.http.post<void>(`${this.apiBaseUrl}/comments/${id}/archive`, {});
+  deleteComment(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/comments/${id}`);
   }
 
   getSupportMaterials(entryId: number): Observable<SupportMaterialSummary[]> {
@@ -49,6 +49,12 @@ export class CollaborationService {
     return this.http.post<SupportMaterialSummary>(
       `${this.apiBaseUrl}/entries/${entryId}/support-materials`,
       request,
+    );
+  }
+
+  deleteSupportMaterial(entryId: number, id: number): Observable<void> {
+    return this.http.delete<void>(
+      `${this.apiBaseUrl}/entries/${entryId}/support-materials/${id}`,
     );
   }
 

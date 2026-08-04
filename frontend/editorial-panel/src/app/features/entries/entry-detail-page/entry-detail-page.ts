@@ -95,11 +95,15 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly editingCommentId = signal<number | null>(null);
   readonly editingCommentText = signal('');
   readonly commentError = signal<string | null>(null);
+  readonly pendingCommentDeleteId = signal<number | null>(null);
+  readonly deletingCommentId = signal<number | null>(null);
 
   readonly supportMaterials = signal<SupportMaterialSummary[]>([]);
   readonly supportMaterialsLoading = signal(false);
   readonly supportMaterialSaving = signal(false);
   readonly supportMaterialError = signal<string | null>(null);
+  readonly pendingSupportMaterialDeleteId = signal<number | null>(null);
+  readonly deletingSupportMaterialId = signal<number | null>(null);
 
   readonly referenceLoading = signal(false);
   readonly referenceSaving = signal(false);
@@ -476,12 +480,25 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     });
   }
 
-  archiveComment(id: number): void {
-    this.collaboration.archiveComment(id).subscribe({
-      next: () => this.comments.update((comments) => comments.filter((item) => item.id !== id)),
-      error: (error: HttpErrorResponse) =>
-        this.commentError.set(this.problemMessage(error, 'კომენტარის არქივირება ვერ მოხერხდა.')),
-    });
+  requestCommentDelete(id: number): void {
+    this.pendingCommentDeleteId.set(id);
+  }
+
+  deleteComment(id: number): void {
+    if (this.deletingCommentId()) return;
+    this.deletingCommentId.set(id);
+    this.commentError.set(null);
+    this.collaboration
+      .deleteComment(id)
+      .pipe(finalize(() => this.deletingCommentId.set(null)))
+      .subscribe({
+        next: () => {
+          this.comments.update((comments) => comments.filter((item) => item.id !== id));
+          this.pendingCommentDeleteId.set(null);
+        },
+        error: (error: HttpErrorResponse) =>
+          this.commentError.set(this.problemMessage(error, 'კომენტარის წაშლა ვერ მოხერხდა.')),
+      });
   }
 
   canEditComment(comment: CommentSummary): boolean {
@@ -511,6 +528,29 @@ export class EntryDetailPage implements OnInit, OnDestroy {
         error: (error: HttpErrorResponse) =>
           this.supportMaterialError.set(
             this.problemMessage(error, 'დამხმარე მასალის დამატება ვერ მოხერხდა.'),
+          ),
+      });
+  }
+
+  requestSupportMaterialDelete(id: number): void {
+    this.pendingSupportMaterialDeleteId.set(id);
+  }
+
+  deleteSupportMaterial(id: number): void {
+    if (this.deletingSupportMaterialId()) return;
+    this.deletingSupportMaterialId.set(id);
+    this.supportMaterialError.set(null);
+    this.collaboration
+      .deleteSupportMaterial(this.entryId, id)
+      .pipe(finalize(() => this.deletingSupportMaterialId.set(null)))
+      .subscribe({
+        next: () => {
+          this.supportMaterials.update((items) => items.filter((item) => item.id !== id));
+          this.pendingSupportMaterialDeleteId.set(null);
+        },
+        error: (error: HttpErrorResponse) =>
+          this.supportMaterialError.set(
+            this.problemMessage(error, 'დამხმარე მასალის წაშლა ვერ მოხერხდა.'),
           ),
       });
   }

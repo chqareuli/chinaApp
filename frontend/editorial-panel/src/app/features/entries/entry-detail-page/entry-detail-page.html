@@ -357,7 +357,32 @@
                         @if (canEditComment(comment)) {
                           <div class="inline-actions">
                             <button class="text-button" type="button" (click)="startCommentEdit(comment)">შეცვლა</button>
-                            <button class="text-button danger" type="button" (click)="archiveComment(comment.id)">არქივი</button>
+                            @if (pendingCommentDeleteId() === comment.id) {
+                              <span>ნამდვილად წავშალოთ კომენტარი?</span>
+                              <button
+                                class="text-button danger"
+                                type="button"
+                                (click)="deleteComment(comment.id)"
+                                [disabled]="deletingCommentId() === comment.id"
+                              >
+                                {{ deletingCommentId() === comment.id ? 'იშლება…' : 'დიახ' }}
+                              </button>
+                              <button
+                                class="text-button"
+                                type="button"
+                                (click)="pendingCommentDeleteId.set(null)"
+                              >
+                                არა
+                              </button>
+                            } @else {
+                              <button
+                                class="text-button danger"
+                                type="button"
+                                (click)="requestCommentDelete(comment.id)"
+                              >
+                                წაშლა
+                              </button>
+                            }
                           </div>
                         }
                       }
@@ -402,6 +427,36 @@
                         <time>{{ material.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
                       </div>
                       <p [attr.lang]="material.language === 'Chinese' ? 'zh' : null">{{ material.commentText }}</p>
+                      @if (material.canDelete) {
+                        <div class="inline-actions">
+                          @if (pendingSupportMaterialDeleteId() === material.id) {
+                            <span>ნამდვილად წავშალოთ დამხმარე მასალა?</span>
+                            <button
+                              class="text-button danger"
+                              type="button"
+                              (click)="deleteSupportMaterial(material.id)"
+                              [disabled]="deletingSupportMaterialId() === material.id"
+                            >
+                              {{ deletingSupportMaterialId() === material.id ? 'იშლება…' : 'დიახ' }}
+                            </button>
+                            <button
+                              class="text-button"
+                              type="button"
+                              (click)="pendingSupportMaterialDeleteId.set(null)"
+                            >
+                              არა
+                            </button>
+                          } @else {
+                            <button
+                              class="text-button danger"
+                              type="button"
+                              (click)="requestSupportMaterialDelete(material.id)"
+                            >
+                              წაშლა
+                            </button>
+                          }
+                        </div>
+                      }
                     </li>
                   } @empty {
                     <li class="entry-note-empty">დამხმარე მასალა ჯერ არ არის.</li>

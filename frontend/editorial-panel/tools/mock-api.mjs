@@ -55,6 +55,7 @@ let supportMaterials = [
     language: 'Chinese',
     commentText: '现代汉语词典 — 学习',
     createdAtUtc: '2026-07-20T05:20:00Z',
+    canDelete: true,
   },
 ];
 let reference = {
@@ -361,8 +362,8 @@ createServer(async (request, response) => {
       comments.find((item) => item.id === id),
     );
   }
-  if (/^\/comments\/\d+\/archive$/.test(path)) {
-    const id = Number(path.split('/')[2]);
+  if (/^\/comments\/\d+$/.test(path) && request.method === 'DELETE') {
+    const id = Number(path.split('/').pop());
     comments = comments.filter((item) => item.id !== id);
     return json(response, 204);
   }
@@ -464,9 +465,15 @@ createServer(async (request, response) => {
       language: body.language,
       commentText: body.commentText,
       createdAtUtc: new Date().toISOString(),
+      canDelete: true,
     };
     supportMaterials = [item, ...supportMaterials];
     return json(response, 201, item);
+  }
+  if (/^\/entries\/17\/support-materials\/\d+$/.test(path) && request.method === 'DELETE') {
+    const id = Number(path.split('/').pop());
+    supportMaterials = supportMaterials.filter((item) => item.id !== id);
+    return json(response, 204);
   }
   if (/^\/editors\/\d+\/role$/.test(path)) {
     const id = Number(path.split('/')[2]);

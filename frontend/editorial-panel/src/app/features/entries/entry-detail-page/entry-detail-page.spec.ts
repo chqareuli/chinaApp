@@ -44,17 +44,34 @@ class EntriesServiceStub {
   }
 }
 
+class CollaborationServiceStub {
+  readonly deletedComments: number[] = [];
+  readonly deletedSupportMaterials: Array<{ entryId: number; id: number }> = [];
+
+  deleteComment(id: number) {
+    this.deletedComments.push(id);
+    return of(undefined);
+  }
+
+  deleteSupportMaterial(entryId: number, id: number) {
+    this.deletedSupportMaterials.push({ entryId, id });
+    return of(undefined);
+  }
+}
+
 describe('EntryDetailPage status confirmation', () => {
   let component: EntryDetailPage;
   let entriesService: EntriesServiceStub;
+  let collaborationService: CollaborationServiceStub;
 
   beforeEach(() => {
     entriesService = new EntriesServiceStub();
+    collaborationService = new CollaborationServiceStub();
     TestBed.configureTestingModule({
       providers: [
         FormBuilder,
         { provide: EntriesService, useValue: entriesService },
-        { provide: CollaborationService, useValue: {} },
+        { provide: CollaborationService, useValue: collaborationService },
         { provide: MediaService, useValue: {} },
         { provide: AuthService, useValue: { editor: () => ({ role: 'SuperAdmin' }) } },
         {
@@ -65,6 +82,7 @@ describe('EntryDetailPage status confirmation', () => {
     });
 
     component = TestBed.runInInjectionContext(() => new EntryDetailPage());
+    Object.assign(component, { entryId: entry.id });
     component.entry.set(entry);
   });
 
@@ -110,6 +128,30 @@ describe('EntryDetailPage status confirmation', () => {
 
     expect(component.notesTab()).toBe('support');
     expect(component.supportLanguageLabel('Chinese')).toBe('ჩინური');
+  });
+
+  it('does not delete a comment until deletion is confirmed', () => {
+    component.requestCommentDelete(31);
+
+    expect(component.pendingCommentDeleteId()).toBe(31);
+    expect(collaborationService.deletedComments).toEqual([]);
+
+    component.deleteComment(31);
+
+    expect(collaborationService.deletedComments).toEqual([31]);
+    expect(component.pendingCommentDeleteId()).toBeNull();
+  });
+
+  it('does not delete support material until deletion is confirmed', () => {
+    component.requestSupportMaterialDelete(42);
+
+    expect(component.pendingSupportMaterialDeleteId()).toBe(42);
+    expect(collaborationService.deletedSupportMaterials).toEqual([]);
+
+    component.deleteSupportMaterial(42);
+
+    expect(collaborationService.deletedSupportMaterials).toEqual([{ entryId: entry.id, id: 42 }]);
+    expect(component.pendingSupportMaterialDeleteId()).toBeNull();
   });
 
   it('starts a direct grammar group structure', () => {

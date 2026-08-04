@@ -33,6 +33,7 @@ export interface SupportMaterialSummary {
   language: SupportMaterialLanguage;
   commentText: string;
   createdAtUtc: string;
+  canDelete: boolean;
 }
 
 export interface CreateSupportMaterialRequest {
