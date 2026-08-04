@@ -48,6 +48,15 @@ let comments = [
     updatedAtUtc: '2026-07-20T05:00:00Z',
   },
 ];
+let supportMaterials = [
+  {
+    id: 1,
+    entryId: 17,
+    language: 'Chinese',
+    commentText: '现代汉语词典 — 学习',
+    createdAtUtc: '2026-07-20T05:20:00Z',
+  },
+];
 let reference = {
   entryId: 17,
   g1: '现代汉语词典 — 学习',
@@ -443,6 +452,20 @@ createServer(async (request, response) => {
       createdAtUtc: new Date().toISOString(),
     };
     editors = [...editors, item];
+    return json(response, 201, item);
+  }
+  if (path === '/entries/17/support-materials' && request.method === 'GET')
+    return json(response, 200, supportMaterials);
+  if (path === '/entries/17/support-materials' && request.method === 'POST') {
+    const body = await readBody(request);
+    const item = {
+      id: Date.now(),
+      entryId: 17,
+      language: body.language,
+      commentText: body.commentText,
+      createdAtUtc: new Date().toISOString(),
+    };
+    supportMaterials = [item, ...supportMaterials];
     return json(response, 201, item);
   }
   if (/^\/editors\/\d+\/role$/.test(path)) {

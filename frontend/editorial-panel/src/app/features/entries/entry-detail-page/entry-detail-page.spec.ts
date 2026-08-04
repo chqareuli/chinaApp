@@ -103,6 +103,15 @@ describe('EntryDetailPage status confirmation', () => {
     ).toBe(1);
   });
 
+  it('opens the embedded notes panel on comments by default', () => {
+    expect(component.notesTab()).toBe('comments');
+
+    component.setNotesTab('support');
+
+    expect(component.notesTab()).toBe('support');
+    expect(component.supportLanguageLabel('Chinese')).toBe('ჩინური');
+  });
+
   it('starts a direct grammar group structure', () => {
     component.startStructure('grammar');
 

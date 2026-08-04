@@ -4,10 +4,12 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import {
   CommentSummary,
+  CreateSupportMaterialRequest,
   DirectMessageSummary,
   NotificationSummary,
   ReferenceMaterialDetail,
   SaveReferenceMaterialRequest,
+  SupportMaterialSummary,
   UnreadActivitySummary,
 } from '../models/collaboration.models';
 
@@ -32,6 +34,22 @@ export class CollaborationService {
 
   archiveComment(id: number): Observable<void> {
     return this.http.post<void>(`${this.apiBaseUrl}/comments/${id}/archive`, {});
+  }
+
+  getSupportMaterials(entryId: number): Observable<SupportMaterialSummary[]> {
+    return this.http.get<SupportMaterialSummary[]>(
+      `${this.apiBaseUrl}/entries/${entryId}/support-materials`,
+    );
+  }
+
+  addSupportMaterial(
+    entryId: number,
+    request: CreateSupportMaterialRequest,
+  ): Observable<SupportMaterialSummary> {
+    return this.http.post<SupportMaterialSummary>(
+      `${this.apiBaseUrl}/entries/${entryId}/support-materials`,
+      request,
+    );
   }
 
   getReferenceMaterial(entryId: number): Observable<ReferenceMaterialDetail> {

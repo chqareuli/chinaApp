@@ -14,7 +14,12 @@ import {
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
-import { CommentSummary, ReferenceMaterialDetail } from '../../../core/models/collaboration.models';
+import {
+  CommentSummary,
+  ReferenceMaterialDetail,
+  SupportMaterialLanguage,
+  SupportMaterialSummary,
+} from '../../../core/models/collaboration.models';
 import {
   ApiProblem,
   ComplexFormItem,
@@ -40,7 +45,8 @@ import { StatusBadge } from '../../../shared/status-badge/status-badge';
 import { EditorialDecorations } from '../../../shared/editorial-decorations/editorial-decorations';
 import { RepeatableTextList } from '../../../shared/repeatable-text-list/repeatable-text-list';
 
-type EntryTab = 'content' | 'comments' | 'reference' | 'media' | 'history';
+type EntryTab = 'content' | 'reference' | 'media' | 'history';
+type EntryNotesTab = 'comments' | 'support';
 
 @Component({
   selector: 'app-entry-detail-page',
@@ -73,6 +79,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly activeTab = signal<EntryTab>('content');
+  readonly notesTab = signal<EntryNotesTab>('comments');
   readonly saving = signal(false);
   readonly saveSuccess = signal(false);
   readonly saveError = signal<string | null>(null);
@@ -88,6 +95,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly editingCommentId = signal<number | null>(null);
   readonly editingCommentText = signal('');
   readonly commentError = signal<string | null>(null);
+
+  readonly supportMaterials = signal<SupportMaterialSummary[]>([]);
+  readonly supportMaterialsLoading = signal(false);
+  readonly supportMaterialSaving = signal(false);
+  readonly supportMaterialError = signal<string | null>(null);
 
   readonly referenceLoading = signal(false);
   readonly referenceSaving = signal(false);
@@ -126,6 +138,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     g3: [''],
     g4: [''],
     g5: [''],
+  });
+
+  readonly supportMaterialForm = this.fb.nonNullable.group({
+    language: ['English' as SupportMaterialLanguage, Validators.required],
+    commentText: ['', [Validators.required, Validators.maxLength(4000)]],
   });
 
   readonly canEdit = computed(() => {
@@ -179,6 +196,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
     this.loadEntry();
     this.loadComments();
+    this.loadSupportMaterials();
     this.loadReferenceMaterial();
     this.loadHistory();
     this.loadMedia();
@@ -193,6 +211,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   setTab(tab: EntryTab): void {
     this.activeTab.set(tab);
+  }
+
+  setNotesTab(tab: EntryNotesTab): void {
+    this.notesTab.set(tab);
   }
 
   gramGroupsAt(homonymIndex: number): FormArray<FormGroup> {
@@ -466,6 +488,41 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     return comment.authorEditorId === this.auth.editor()?.id || this.canManageComments();
   }
 
+  addSupportMaterial(): void {
+    if (this.supportMaterialForm.invalid || this.supportMaterialSaving()) {
+      this.supportMaterialForm.markAllAsTouched();
+      return;
+    }
+
+    const value = this.supportMaterialForm.getRawValue();
+    this.supportMaterialSaving.set(true);
+    this.supportMaterialError.set(null);
+    this.collaboration
+      .addSupportMaterial(this.entryId, {
+        language: value.language,
+        commentText: value.commentText.trim(),
+      })
+      .pipe(finalize(() => this.supportMaterialSaving.set(false)))
+      .subscribe({
+        next: (item) => {
+          this.supportMaterials.update((items) => [item, ...items]);
+          this.supportMaterialForm.reset({ language: 'English', commentText: '' });
+        },
+        error: (error: HttpErrorResponse) =>
+          this.supportMaterialError.set(
+            this.problemMessage(error, 'დამხმარე მასალის დამატება ვერ მოხერხდა.'),
+          ),
+      });
+  }
+
+  supportLanguageLabel(language: SupportMaterialLanguage): string {
+    return {
+      English: 'ინგლისური',
+      Chinese: 'ჩინური',
+      Russian: 'რუსული',
+    }[language];
+  }
+
   saveReferenceMaterial(): void {
     if (!this.canEdit() || this.referenceSaving()) return;
     this.referenceSaving.set(true);
@@ -651,6 +708,19 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       .subscribe({
         next: (comments) => this.comments.set(comments),
         error: () => this.commentError.set('კომენტარების ჩატვირთვა ვერ მოხერხდა.'),
+      });
+  }
+
+  private loadSupportMaterials(): void {
+    this.supportMaterialsLoading.set(true);
+    this.supportMaterialError.set(null);
+    this.collaboration
+      .getSupportMaterials(this.entryId)
+      .pipe(finalize(() => this.supportMaterialsLoading.set(false)))
+      .subscribe({
+        next: (items) => this.supportMaterials.set(items),
+        error: () =>
+          this.supportMaterialError.set('დამხმარე მასალის ჩატვირთვა ვერ მოხერხდა.'),
       });
   }
 

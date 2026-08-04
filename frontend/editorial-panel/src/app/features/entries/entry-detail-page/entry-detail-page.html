@@ -101,13 +101,6 @@
       </button>
       <button
         type="button"
-        [class.active]="activeTab() === 'comments'"
-        (click)="setTab('comments')"
-      >
-        კომენტარები <span>{{ comments().length }}</span>
-      </button>
-      <button
-        type="button"
         [class.active]="activeTab() === 'reference'"
         (click)="setTab('reference')"
       >
@@ -322,6 +315,134 @@
           </section>
         }
 
+        <section class="entry-notes-panel">
+          <nav class="entry-notes-tabs" aria-label="სტატიის ჩანაწერები">
+            <button
+              type="button"
+              [class.active]="notesTab() === 'comments'"
+              (click)="setNotesTab('comments')"
+            >
+              კომენტარები <span>{{ comments().length }}</span>
+            </button>
+            <button
+              type="button"
+              [class.active]="notesTab() === 'support'"
+              (click)="setNotesTab('support')"
+            >
+              დამხმარე მასალა <span>{{ supportMaterials().length }}</span>
+            </button>
+          </nav>
+
+          @if (notesTab() === 'comments') {
+            <div class="entry-notes-body">
+              <div class="comment-compose">
+                <textarea
+                  rows="3"
+                  maxlength="4000"
+                  placeholder="დაწერეთ კომენტარი…"
+                  aria-label="კომენტარი"
+                  [value]="commentText()"
+                  (input)="updateCommentText($event)"
+                ></textarea>
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  (click)="addComment()"
+                  [disabled]="!commentText().trim() || commentSaving()"
+                >
+                  {{ commentSaving() ? 'ემატება…' : 'კომენტარის დამატება' }}
+                </button>
+              </div>
+              @if (commentError()) {
+                <div class="error-banner">{{ commentError() }}</div>
+              }
+              @if (commentsLoading()) {
+                <div class="empty-state compact">კომენტარები იტვირთება…</div>
+              } @else {
+                <ul class="entry-note-list">
+                  @for (comment of comments(); track comment.id) {
+                    <li>
+                      <time>{{ comment.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
+                      @if (editingCommentId() === comment.id) {
+                        <textarea
+                          rows="3"
+                          [value]="editingCommentText()"
+                          (input)="updateEditingCommentText($event)"
+                        ></textarea>
+                        <div class="inline-actions">
+                          <button class="btn btn-primary" type="button" (click)="saveCommentEdit()">შენახვა</button>
+                          <button class="btn btn-secondary" type="button" (click)="editingCommentId.set(null)">გაუქმება</button>
+                        </div>
+                      } @else {
+                        <p>{{ comment.commentText }}</p>
+                        @if (canEditComment(comment)) {
+                          <div class="inline-actions">
+                            <button class="text-button" type="button" (click)="startCommentEdit(comment)">შეცვლა</button>
+                            <button class="text-button danger" type="button" (click)="archiveComment(comment.id)">არქივი</button>
+                          </div>
+                        }
+                      }
+                    </li>
+                  } @empty {
+                    <li class="entry-note-empty">კომენტარები ჯერ არ არის.</li>
+                  }
+                </ul>
+              }
+            </div>
+          } @else {
+            <div class="entry-notes-body">
+              <div class="support-compose" [formGroup]="supportMaterialForm">
+                <div class="field">
+                  <label for="support-material-language">ენა</label>
+                  <select id="support-material-language" formControlName="language">
+                    <option value="English">ინგლისური</option>
+                    <option value="Chinese">ჩინური</option>
+                    <option value="Russian">რუსული</option>
+                  </select>
+                </div>
+                <div class="field support-comment-field">
+                  <label for="support-material-comment">კომენტარი</label>
+                  <textarea
+                    id="support-material-comment"
+                    formControlName="commentText"
+                    rows="3"
+                    maxlength="4000"
+                    placeholder="ჩაწერეთ დამხმარე მასალა…"
+                  ></textarea>
+                </div>
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  (click)="addSupportMaterial()"
+                  [disabled]="supportMaterialForm.invalid || supportMaterialSaving()"
+                >
+                  {{ supportMaterialSaving() ? 'ემატება…' : 'მასალის დამატება' }}
+                </button>
+              </div>
+              @if (supportMaterialError()) {
+                <div class="error-banner">{{ supportMaterialError() }}</div>
+              }
+              @if (supportMaterialsLoading()) {
+                <div class="empty-state compact">დამხმარე მასალა იტვირთება…</div>
+              } @else {
+                <ul class="entry-note-list support-material-list">
+                  @for (material of supportMaterials(); track material.id) {
+                    <li>
+                      <div class="support-material-meta">
+                        <strong>{{ supportLanguageLabel(material.language) }}</strong>
+                        <time>{{ material.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
+                      </div>
+                      <p [attr.lang]="material.language === 'Chinese' ? 'zh' : null">{{ material.commentText }}</p>
+                    </li>
+                  } @empty {
+                    <li class="entry-note-empty">დამხმარე მასალა ჯერ არ არის.</li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+        </section>
+
         @if (canEdit()) {
           <footer class="save-bar">
             <div>
@@ -352,91 +473,6 @@
           </div>
         }
       </form>
-    }
-
-    @if (activeTab() === 'comments') {
-      <section class="panel-card comments-panel">
-        <div class="section-head">
-          <div>
-            <p class="page-kicker">Editorial notes</p>
-            <h2>კომენტარები</h2>
-          </div>
-        </div>
-        <div class="comment-compose">
-          <textarea
-            rows="3"
-            placeholder="დაწერეთ კომენტარი…"
-            [value]="commentText()"
-            (input)="updateCommentText($event)"
-          ></textarea>
-          <button
-            class="btn btn-primary"
-            type="button"
-            (click)="addComment()"
-            [disabled]="!commentText().trim() || commentSaving()"
-          >
-            {{ commentSaving() ? 'იგზავნება…' : 'კომენტარის დამატება' }}
-          </button>
-        </div>
-        @if (commentError()) {
-          <div class="error-banner">{{ commentError() }}</div>
-        }
-        @if (commentsLoading()) {
-          <div class="empty-state">კომენტარები იტვირთება…</div>
-        } @else {
-          <div class="comment-list">
-            @for (comment of comments(); track comment.id) {
-              <article class="comment-card">
-                <header>
-                  <div class="comment-avatar">{{ comment.authorDisplayName.charAt(0) }}</div>
-                  <div>
-                    <strong>{{ comment.authorDisplayName }}</strong
-                    ><span>{{ comment.createdAtUtc | date: 'dd MMM, HH:mm' : '+0400' }}</span>
-                  </div>
-                </header>
-                @if (editingCommentId() === comment.id) {
-                  <textarea
-                    rows="3"
-                    [value]="editingCommentText()"
-                    (input)="updateEditingCommentText($event)"
-                  ></textarea>
-                  <div class="inline-actions">
-                    <button class="btn btn-primary" type="button" (click)="saveCommentEdit()">
-                      შენახვა</button
-                    ><button
-                      class="btn btn-secondary"
-                      type="button"
-                      (click)="editingCommentId.set(null)"
-                    >
-                      გაუქმება
-                    </button>
-                  </div>
-                } @else {
-                  <p>{{ comment.commentText }}</p>
-                  @if (canEditComment(comment)) {
-                    <div class="inline-actions">
-                      <button class="text-button" type="button" (click)="startCommentEdit(comment)">
-                        შეცვლა</button
-                      ><button
-                        class="text-button danger"
-                        type="button"
-                        (click)="archiveComment(comment.id)"
-                      >
-                        არქივი
-                      </button>
-                    </div>
-                  }
-                }
-              </article>
-            } @empty {
-              <div class="empty-state">
-                <strong>კომენტარები ჯერ არ არის</strong
-                ><span>დატოვეთ პირველი სარედაქციო შენიშვნა.</span>
-              </div>
-            }
-          </div>
-        }
-      </section>
     }
 
     @if (activeTab() === 'reference') {

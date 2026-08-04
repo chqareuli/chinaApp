@@ -312,10 +312,10 @@
 .comment-compose {
   display: grid;
   gap: 10px;
-  margin: 20px 0;
+  margin: 0 0 18px;
 }
 .comment-compose textarea,
-.comment-card textarea {
+.entry-note-list textarea {
   padding: 12px;
   border: 1px solid var(--line-strong);
   border-radius: 10px;
@@ -323,39 +323,6 @@
 }
 .comment-compose .btn {
   justify-self: end;
-}
-.comment-list {
-  display: grid;
-  gap: 10px;
-}
-.comment-card {
-  padding: 15px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-.comment-card header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.comment-card header div:last-child {
-  display: grid;
-  gap: 2px;
-}
-.comment-avatar {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  color: #fff;
-  border-radius: 50%;
-  background: var(--forest);
-  font-weight: 800;
-}
-.comment-card p {
-  margin: 12px 0 0;
-  white-space: pre-wrap;
-  line-height: 1.65;
 }
 .inline-actions {
   display: flex;
