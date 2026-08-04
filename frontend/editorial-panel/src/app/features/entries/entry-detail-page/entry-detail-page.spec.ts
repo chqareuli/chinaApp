@@ -14,6 +14,7 @@ const entry: EntryDetail = {
   lemma: '中国',
   pinyin: 'Zhōngguó',
   pinyins: [{ id: 1, value: 'Zhōngguó', order: 0 }],
+  complexForms: [{ id: 2, value: '中國', order: 0 }],
   status: 'NewEntry',
   mainAuthorDisplayName: 'რედაქტორი',
   lastEditorDisplayName: 'რედაქტორი',

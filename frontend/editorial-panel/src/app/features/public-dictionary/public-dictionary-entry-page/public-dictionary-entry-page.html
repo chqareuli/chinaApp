@@ -23,6 +23,9 @@
             @if (article.pinyins.length) {
               <strong>{{ article.pinyins.join(' · ') }}</strong>
             }
+            @if (article.complexForms?.length) {
+              <small class="complex-forms" lang="zh">რთული დაწერილობა: {{ article.complexForms.join(' · ') }}</small>
+            }
           </div>
         </div>
 

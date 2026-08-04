@@ -13,6 +13,8 @@ export class RepeatableTextList {
   @Input() label = 'მნიშვნელობა';
   @Input() addLabel = 'დამატება';
   @Input() placeholder = '';
+  @Input() dialogTitle = '';
+  @Input() inputLang = '';
   @Input() readonly = false;
   @Input() maxLength = 255;
   @Output() readonly contentChanged = new EventEmitter<void>();
@@ -40,6 +42,10 @@ export class RepeatableTextList {
     this.editorOpen.set(false);
     this.editingIndex.set(null);
     this.duplicateError.set(false);
+  }
+
+  stopModalClick(event: Event): void {
+    event.stopPropagation();
   }
 
   save(): void {

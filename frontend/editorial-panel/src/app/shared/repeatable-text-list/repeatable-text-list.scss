@@ -1,17 +1,25 @@
-.repeatable-list { display:grid; gap:10px; }
-.repeatable-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.repeatable-head strong { color:var(--ink-soft); font-size:.84rem; }
-.compact-add, .item-actions button, .editor-actions button { padding:5px 7px; color:var(--forest); border:0; background:transparent; font-size:.7rem; font-weight:800; }
-.saved-items { display:grid; gap:7px; }
-.saved-item { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:40px; padding:8px 11px; border:1px solid var(--line); border-radius:9px; background:#f8faf8; }
-.saved-item > span:first-child { overflow-wrap:anywhere; font-size:.86rem; }
-.item-actions { display:flex; flex-shrink:0; gap:3px; }
+.repeatable-list { display:flex; min-width:0; flex-wrap:wrap; align-items:center; gap:8px; }
+.repeatable-head { display:flex; align-items:center; gap:7px; }
+.repeatable-head strong { color:var(--ink-soft); font-size:.72rem; }
+.compact-add { padding:6px 9px; color:var(--forest); border:1px solid #b9c9c2; border-radius:7px; background:#fff; font-size:.68rem; font-weight:800; }
+.compact-add:hover { border-color:var(--forest); background:#f4f8f6; }
+.saved-items { display:flex; min-width:0; flex-wrap:wrap; gap:6px; }
+.saved-item { display:inline-flex; min-width:0; min-height:30px; align-items:center; gap:4px; padding:4px 5px 4px 10px; border:1px solid #cedbd5; border-radius:999px; background:#f3f7f5; }
+.saved-item > span:first-child { overflow-wrap:anywhere; font-size:.78rem; }
+.item-actions { display:flex; flex-shrink:0; gap:1px; }
+.item-actions button { display:grid; width:22px; height:22px; padding:0; place-items:center; color:var(--forest); border:0; border-radius:50%; background:transparent; font-size:.75rem; line-height:1; }
+.item-actions button:hover { background:#dfeae5; }
 .item-actions .danger { color:var(--danger); }
-.empty-copy { color:#8b948f; font-size:.72rem; }
-.inline-editor { display:grid; gap:8px; padding:12px; border:1px solid var(--line-strong); border-radius:10px; background:#fbfcfa; }
-.inline-editor label { color:var(--ink-soft); font-size:.74rem; font-weight:700; }
-.inline-editor input { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--line-strong); border-radius:9px; }
-.editor-actions { display:flex; justify-content:flex-end; gap:5px; }
-.editor-actions .save { color:#fff; border-radius:7px; background:var(--forest); }
+.modal-backdrop { position:fixed; z-index:1000; inset:0; display:grid; padding:20px; place-items:center; background:rgb(12 25 20 / 48%); backdrop-filter:blur(2px); }
+.modal-card { display:grid; width:min(100%,430px); gap:12px; padding:22px; border:1px solid var(--line); border-radius:16px; background:#fff; box-shadow:0 24px 80px rgb(10 28 20 / 28%); }
+.modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.modal-head small { color:var(--ink-soft); font-size:.65rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; }
+.modal-head h2 { margin:3px 0 0; font-size:1.05rem; }
+.modal-close { display:grid; width:30px; height:30px; padding:0; place-items:center; color:var(--ink-soft); border:0; border-radius:50%; background:#f2f4f2; font-size:1.1rem; }
+.modal-card > label { color:var(--ink-soft); font-size:.74rem; font-weight:700; }
+.modal-card > input { width:100%; min-height:46px; padding:10px 12px; border:1px solid var(--line-strong); border-radius:9px; font-size:.95rem; }
+.editor-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:3px; }
+.editor-actions button { padding:8px 12px; color:var(--forest); border:1px solid var(--line); border-radius:8px; background:#fff; font-size:.72rem; font-weight:800; }
+.editor-actions .save { color:#fff; border-color:var(--forest); background:var(--forest); }
 .error { color:var(--danger); }
-@media (max-width:560px) { .saved-item { align-items:flex-start; flex-direction:column; } }
+@media (max-width:560px) { .repeatable-list { align-items:flex-start; flex-direction:column; } .modal-card { padding:18px; } }

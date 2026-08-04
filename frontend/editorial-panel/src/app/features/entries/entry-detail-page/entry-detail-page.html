@@ -10,7 +10,14 @@
       <div class="word-block">
         <p class="page-kicker">სტატია #{{ item.id }}</p>
         <h1 lang="zh">{{ item.lemma }}</h1>
-        <p>{{ item.pinyin || 'Pinyin მითითებული არ არის' }}</p>
+        @if (item.pinyins.length) {
+          <p>{{ item.pinyins[0].value }}</p>
+        } @else {
+          <p>Pinyin მითითებული არ არის</p>
+        }
+        @if (item.complexForms?.length) {
+          <small class="complex-form-preview" lang="zh">რთული დაწერილობა: {{ item.complexForms[0].value }}</small>
+        }
       </div>
       <app-status-badge [status]="item.status" />
     </header>
@@ -133,12 +140,23 @@
           </div>
         </div>
 
-        <div class="pinyin-block">
+        <div class="entry-written-forms">
           <app-repeatable-text-list
             [items]="pinyins"
             label="Pinyin"
-            addLabel="Pinyin-ის დამატება"
+            addLabel="Pinyin"
+            dialogTitle="Pinyin-ის დამატება"
             placeholder="მაგ. wèi"
+            [readonly]="!canEdit()"
+            (contentChanged)="markContentChanged()"
+          />
+          <app-repeatable-text-list
+            [items]="complexForms"
+            label="რთული დაწერილობა"
+            addLabel="რთული დაწერილობა"
+            dialogTitle="რთული დაწერილობის დამატება"
+            placeholder="მაგ. 爲"
+            inputLang="zh"
             [readonly]="!canEdit()"
             (contentChanged)="markContentChanged()"
           />

@@ -77,6 +77,12 @@ export interface PinyinItem {
   order: number;
 }
 
+export interface ComplexFormItem {
+  id: number | null;
+  value: string;
+  order: number;
+}
+
 export interface EditorialMarker {
   id: number | null;
   category: 'Style' | 'Domain' | 'Abbr' | 'Lang';
@@ -106,6 +112,7 @@ export interface EntryDetail extends EntrySummary {
   createdAtUtc: string;
   rowVersion: number;
   pinyins: PinyinItem[];
+  complexForms: ComplexFormItem[];
   homonyms: Homonym[];
   gramGroups: GramGroup[];
   directPoses: DirectPos[];
@@ -145,6 +152,7 @@ export interface MediaAssetItem {
 export interface SaveEntryContentRequest {
   lemma: string;
   pinyins: PinyinItem[];
+  complexForms: ComplexFormItem[];
   homonyms: Homonym[];
   gramGroups: GramGroup[];
   directPoses: DirectPos[];

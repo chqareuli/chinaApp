@@ -53,6 +53,7 @@ export interface PublicDictionaryEntry {
   lemma: string;
   pinyin: string | null;
   pinyins: string[];
+  complexForms: string[];
   updatedAtUtc: string;
   homonyms: PublicDictionaryHomonym[];
   gramGroups: PublicDictionaryGramGroup[];

@@ -1,44 +1,61 @@
 <section class="repeatable-list">
   <div class="repeatable-head">
     <strong>{{ label }}</strong>
-    @if (!readonly && !editorOpen()) {
+    @if (!readonly) {
       <button type="button" class="compact-add" (click)="openAdd()">＋ {{ addLabel }}</button>
     }
   </div>
 
-  <div class="saved-items">
+  @if (items.length) {
+  <div class="saved-items" role="list">
     @for (item of items.controls; track item.get('id')?.value ?? $index; let i = $index) {
-      <div class="saved-item">
+      <div class="saved-item" role="listitem">
         <span>{{ itemValue(i) }}</span>
         @if (!readonly) {
           <span class="item-actions">
-            <button type="button" (click)="openEdit(i)">რედაქტირება</button>
-            <button type="button" class="danger" (click)="remove(i)">წაშლა</button>
+            <button type="button" (click)="openEdit(i)" [attr.aria-label]="itemValue(i) + ' — რედაქტირება'" title="რედაქტირება">✎</button>
+            <button type="button" class="danger" (click)="remove(i)" [attr.aria-label]="itemValue(i) + ' — წაშლა'" title="წაშლა">×</button>
           </span>
         }
       </div>
-    } @empty {
-      <span class="empty-copy">ჯერ არაფერი დამატებულა.</span>
     }
   </div>
+  }
 
   @if (!readonly && editorOpen()) {
-    <div class="inline-editor">
-      <label [for]="'repeatable-value-' + label">{{ editingIndex() === null ? 'ახლის დამატება' : 'მნიშვნელობის შეცვლა' }}</label>
-      <input
-        [id]="'repeatable-value-' + label"
-        [formControl]="draft"
-        [placeholder]="placeholder"
-        [maxLength]="maxLength"
-        (keydown.enter)="$event.preventDefault(); save()"
-      />
-      @if (duplicateError()) {
-        <small class="error">ეს მნიშვნელობა უკვე დამატებულია.</small>
-      }
-      <div class="editor-actions">
-        <button type="button" class="save" (click)="save()">შენახვა</button>
-        <button type="button" (click)="cancel()">გაუქმება</button>
-      </div>
+    <div class="modal-backdrop" (click)="cancel()">
+      <section
+        class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        [attr.aria-labelledby]="'repeatable-title-' + label"
+        (click)="stopModalClick($event)"
+      >
+        <div class="modal-head">
+          <div>
+            <small>{{ editingIndex() === null ? 'ახალი მნიშვნელობა' : 'რედაქტირება' }}</small>
+            <h2 [id]="'repeatable-title-' + label">{{ dialogTitle || label }}</h2>
+          </div>
+          <button type="button" class="modal-close" (click)="cancel()" aria-label="დახურვა">×</button>
+        </div>
+        <label [for]="'repeatable-value-' + label">{{ label }}</label>
+        <input
+          [id]="'repeatable-value-' + label"
+          [formControl]="draft"
+          [placeholder]="placeholder"
+          [maxLength]="maxLength"
+          [attr.lang]="inputLang || null"
+          (keydown.enter)="$event.preventDefault(); save()"
+          (keydown.escape)="$event.preventDefault(); cancel()"
+        />
+        @if (duplicateError()) {
+          <small class="error">ეს მნიშვნელობა უკვე დამატებულია.</small>
+        }
+        <div class="editor-actions">
+          <button type="button" (click)="cancel()">გაუქმება</button>
+          <button type="button" class="save" (click)="save()">შენახვა</button>
+        </div>
+      </section>
     </div>
   }
 </section>

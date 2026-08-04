@@ -17,6 +17,7 @@ import { catchError, finalize, of } from 'rxjs';
 import { CommentSummary, ReferenceMaterialDetail } from '../../../core/models/collaboration.models';
 import {
   ApiProblem,
+  ComplexFormItem,
   CrossReference,
   DirectPos,
   EditorialMarker,
@@ -112,6 +113,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly entryForm = this.fb.group({
     lemma: ['', [Validators.required, Validators.maxLength(255)]],
     pinyins: this.fb.array<FormGroup>([]),
+    complexForms: this.fb.array<FormGroup>([]),
     homonyms: this.fb.array<FormGroup>([]),
     gramGroups: this.fb.array<FormGroup>([]),
     directPoses: this.fb.array<FormGroup>([]),
@@ -149,6 +151,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   get pinyins(): FormArray<FormGroup> {
     return this.entryForm.controls.pinyins;
+  }
+
+  get complexForms(): FormArray<FormGroup> {
+    return this.entryForm.controls.complexForms;
   }
 
   get rootGramGroups(): FormArray<FormGroup> {
@@ -709,6 +715,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.entryForm.controls.lemma.setValue(entry.lemma);
     this.pinyins.clear();
     for (const pinyin of entry.pinyins ?? []) this.pinyins.push(this.createPinyin(pinyin));
+    this.complexForms.clear();
+    for (const form of entry.complexForms ?? []) this.complexForms.push(this.createComplexForm(form));
     this.homonyms.clear();
     for (const homonym of entry.homonyms) this.homonyms.push(this.createHomonym(homonym));
     this.rootGramGroups.clear();
@@ -755,6 +763,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   private createPinyin(pinyin: PinyinItem): FormGroup {
     return this.fb.group({ id: [pinyin.id], value: [pinyin.value], order: [pinyin.order] });
+  }
+
+  private createComplexForm(form: ComplexFormItem): FormGroup {
+    return this.fb.group({ id: [form.id], value: [form.value], order: [form.order] });
   }
 
   private createGramGroup(number: number, group?: GramGroup): FormGroup {
@@ -838,6 +850,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     const directPoses = (raw.directPoses ?? []) as unknown as DirectPos[];
     const senses = (raw.senses ?? []) as unknown as Sense[];
     const pinyins = (raw.pinyins ?? []) as unknown as PinyinItem[];
+    const complexForms = (raw.complexForms ?? []) as unknown as ComplexFormItem[];
 
     const mapExample = (example: Example): Example => ({
       id: example.id ?? null,
@@ -877,6 +890,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     return {
       lemma: raw.lemma?.trim() ?? '',
       pinyins: pinyins.map((item, index) => ({
+        id: item.id ?? null,
+        value: item.value.trim(),
+        order: index,
+      })),
+      complexForms: complexForms.map((item, index) => ({
         id: item.id ?? null,
         value: item.value.trim(),
         order: index,

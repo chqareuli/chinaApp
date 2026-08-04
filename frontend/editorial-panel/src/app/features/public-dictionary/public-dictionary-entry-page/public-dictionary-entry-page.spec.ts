@@ -10,6 +10,7 @@ const article = (id: number, lemma: string): PublicDictionaryEntry => ({
   lemma,
   pinyin: null,
   pinyins: [],
+  complexForms: [],
   updatedAtUtc: '2026-08-03T00:00:00Z',
   homonyms: [],
   gramGroups: [],

@@ -125,6 +125,24 @@
   background: var(--surface);
   box-shadow: var(--shadow-sm);
 }
+
+.entry-written-forms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 16px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcfa;
+}
+
+.complex-form-preview {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
 .permission {
   padding: 6px 9px;
   color: #246347;

@@ -1,14 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { EntriesService } from '../../../core/services/entries.service';
-import { RepeatableTextList } from '../../../shared/repeatable-text-list/repeatable-text-list';
 
 @Component({
   selector: 'app-create-entry-page',
-  imports: [ReactiveFormsModule, RouterLink, RepeatableTextList],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './create-entry-page.html',
   styleUrl: './create-entry-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,16 +21,7 @@ export class CreateEntryPage {
   readonly error = signal<string | null>(null);
   readonly form = this.formBuilder.nonNullable.group({
     lemma: ['', [Validators.required, Validators.maxLength(255)]],
-    pinyins: this.formBuilder.array<FormGroup>([]),
   });
-
-  get pinyins(): FormArray<FormGroup> {
-    return this.form.controls.pinyins;
-  }
-
-  markChanged(): void {
-    this.form.markAsDirty();
-  }
 
   submit(): void {
     if (this.form.invalid) {
@@ -45,7 +35,7 @@ export class CreateEntryPage {
     this.entriesService
       .create({
         lemma: value.lemma.trim(),
-        pinyins: value.pinyins.map((item) => String(item['value'] ?? '').trim()).filter(Boolean),
+        pinyins: [],
       })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
