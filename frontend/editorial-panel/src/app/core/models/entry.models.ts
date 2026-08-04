@@ -114,6 +114,8 @@ export interface EntryDetail extends EntrySummary {
   rowVersion: number;
   pinyins: PinyinItem[];
   complexForms: ComplexFormItem[];
+  markers: EditorialMarker[];
+  crossReferences: CrossReference[];
   homonyms: Homonym[];
   gramGroups: GramGroup[];
   directPoses: DirectPos[];
@@ -154,6 +156,8 @@ export interface SaveEntryContentRequest {
   lemma: string;
   pinyins: PinyinItem[];
   complexForms: ComplexFormItem[];
+  markers: EditorialMarker[];
+  crossReferences: CrossReference[];
   homonyms: Homonym[];
   gramGroups: GramGroup[];
   directPoses: DirectPos[];

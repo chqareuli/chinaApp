@@ -40,7 +40,7 @@ export class EditorialDecorations {
   readonly xrDraft = this.fb.group({
     type: ['see', Validators.required],
     target: ['', [Validators.required, Validators.maxLength(500)]],
-    targetEntryId: [null as number | null],
+    targetEntryId: [null as number | null, Validators.required],
     targetEntryLemma: [null as string | null],
     displayText: ['', Validators.maxLength(500)],
     placement: ['Standalone', Validators.required],
@@ -97,9 +97,10 @@ export class EditorialDecorations {
     this.markerDraft.controls.value.setValue(this.valuesFor()[0]?.code ?? '');
   }
 
-  openMarkerAdd(): void {
+  openMarkerAdd(category: MarkerCategory = 'Style'): void {
+    this.xrEditorOpen.set(false);
     this.markerEditingIndex.set(null);
-    this.markerDraft.setValue({ category: 'Style', value: this.valuesFor('Style')[0]?.code ?? '' });
+    this.markerDraft.setValue({ category, value: this.valuesFor(category)[0]?.code ?? '' });
     this.markerEditorOpen.set(true);
   }
 
@@ -129,10 +130,11 @@ export class EditorialDecorations {
   }
 
   openXrAdd(): void {
+    this.markerEditorOpen.set(false);
     this.xrEditingIndex.set(null);
     this.xrDraft.setValue({
       type: 'see', target: '', targetEntryId: null, targetEntryLemma: null,
-      displayText: '', placement: 'Standalone',
+      displayText: '', placement: 'Inline',
     });
     this.xrSuggestions.set([]);
     this.xrEditorOpen.set(true);
@@ -191,7 +193,13 @@ export class EditorialDecorations {
 
   markerText(index: number): string {
     const item = this.markers.at(index).getRawValue();
-    return `${this.categories.find((category) => category.value === item.category)?.label ?? item.category}: ${item.value}`;
+    return `${this.categories.find((category) => category.value === item.category)?.label ?? item.category} · ${this.markerValueLabel(item.category, item.value)}`;
+  }
+
+  private markerValueLabel(category: MarkerCategory, value: string): string {
+    return this.vocabularies.find(
+      (item) => item.category === category.toLowerCase() && item.code === value,
+    )?.label ?? value;
   }
 
   xrText(index: number): string {

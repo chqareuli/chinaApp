@@ -130,6 +130,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     lemma: ['', [Validators.required, Validators.maxLength(255)]],
     pinyins: this.fb.array<FormGroup>([]),
     complexForms: this.fb.array<FormGroup>([]),
+    markers: this.fb.array<FormGroup>([]),
+    crossReferences: this.fb.array<FormGroup>([]),
     homonyms: this.fb.array<FormGroup>([]),
     gramGroups: this.fb.array<FormGroup>([]),
     directPoses: this.fb.array<FormGroup>([]),
@@ -180,6 +182,14 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   get rootGramGroups(): FormArray<FormGroup> {
     return this.entryForm.controls.gramGroups;
+  }
+
+  get rootMarkers(): FormArray<FormGroup> {
+    return this.entryForm.controls.markers;
+  }
+
+  get rootCrossReferences(): FormArray<FormGroup> {
+    return this.entryForm.controls.crossReferences;
   }
 
   get directPoses(): FormArray<FormGroup> {
@@ -827,6 +837,18 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     for (const pinyin of entry.pinyins ?? []) this.pinyins.push(this.createPinyin(pinyin));
     this.complexForms.clear();
     for (const form of entry.complexForms ?? []) this.complexForms.push(this.createComplexForm(form));
+    this.rootMarkers.clear();
+    for (const marker of entry.markers ?? []) {
+      this.rootMarkers.push(this.fb.group({ id: [marker.id], category: [marker.category], value: [marker.value] }));
+    }
+    this.rootCrossReferences.clear();
+    for (const reference of entry.crossReferences ?? []) {
+      this.rootCrossReferences.push(this.fb.group({
+        id: [reference.id], type: [reference.type], label: [reference.label], target: [reference.target],
+        targetEntryId: [reference.targetEntryId ?? null], targetEntryLemma: [reference.targetEntryLemma ?? null],
+        displayText: [reference.displayText ?? ''], placement: [reference.placement],
+      }));
+    }
     this.homonyms.clear();
     for (const homonym of entry.homonyms) this.homonyms.push(this.createHomonym(homonym));
     this.rootGramGroups.clear();
@@ -1010,6 +1032,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
         value: item.value.trim(),
         order: index,
       })),
+      markers: (raw.markers ?? []) as unknown as EditorialMarker[],
+      crossReferences: (raw.crossReferences ?? []) as unknown as CrossReference[],
       rowVersion,
       homonyms: homonyms.map((homonym) => ({
         id: homonym.id ?? null,

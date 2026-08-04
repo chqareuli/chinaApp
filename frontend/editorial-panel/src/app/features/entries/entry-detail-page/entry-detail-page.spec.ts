@@ -15,6 +15,8 @@ const entry: EntryDetail = {
   pinyin: 'Zhōngguó',
   pinyins: [{ id: 1, value: 'Zhōngguó', order: 0 }],
   complexForms: [{ id: 2, value: '中國', order: 0 }],
+  markers: [],
+  crossReferences: [],
   status: 'NewEntry',
   mainAuthorDisplayName: 'რედაქტორი',
   lastEditorDisplayName: 'რედაქტორი',
@@ -172,6 +174,28 @@ describe('EntryDetailPage status confirmation', () => {
     expect(component.structureKind()).toBe('grammar');
     expect(component.rootGramGroups.length).toBe(1);
     expect(component.formArrayAt(component.rootGramGroups.at(0), 'senses').length).toBe(1);
+  });
+
+  it('keeps entry-level decorations shared across direct grammar groups', () => {
+    component.startStructure('grammar');
+    component.rootMarkers.push(
+      new FormBuilder().group({ id: [null], category: ['Style'], value: ['bookish'] }),
+    );
+    component.addGroupTo(component.rootGramGroups);
+
+    const request = (
+      component as unknown as {
+        toSaveRequest: (rowVersion: number) => {
+          markers: Array<{ category: string; value: string }>;
+          gramGroups: unknown[];
+        };
+      }
+    ).toSaveRequest(entry.rowVersion);
+
+    expect(request.gramGroups).toHaveLength(2);
+    expect(request.markers).toEqual([
+      { id: null, category: 'Style', value: 'bookish' },
+    ]);
   });
 
   it('starts a direct POS structure with an implicit sense', () => {

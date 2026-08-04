@@ -160,6 +160,14 @@
   gap: 14px;
   margin-top: 22px;
 }
+.structure-chooser { display:grid; gap:18px; margin-top:20px; padding:20px; border:1px solid #d8e2db; border-radius:14px; background:linear-gradient(135deg,#f7faf7,#fff); }
+.structure-chooser h3 { margin:2px 0 5px; font-size:1rem; }
+.structure-chooser > div > span { color:var(--ink-soft); font-size:.72rem; }
+.structure-options { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.structure-options button { display:grid; min-height:92px; align-content:center; gap:7px; padding:14px; text-align:left; border:1px solid var(--line); border-radius:10px; background:#fff; }
+.structure-options button:hover { border-color:#8eaa98; background:#f1f7f3; }
+.structure-options strong { color:var(--forest); font-size:.78rem; }
+.structure-options span { color:var(--ink-soft); font-size:.62rem; line-height:1.5; }
 .field textarea {
   resize: vertical;
   line-height: 1.65;
@@ -170,11 +178,31 @@
   margin-top: 20px;
 }
 .homonym-editor {
+  position: relative;
   padding: 18px;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   background: #fbfcfa;
 }
+.structure-node { position:relative; }
+.structure-node::before { position:absolute; top:0; bottom:0; left:0; width:3px; border-radius:3px; content:''; }
+.structure-node--homonym::before { background:#e99a18; }
+.structure-node--grammar::before { background:#c43b4b; }
+.structure-node--pos::before { background:#269860; }
+.structure-node--sense::before { background:#315dc2; }
+.structure-node--example::before { background:#4b9bc1; }
+.grammar-list { display:grid; gap:12px; margin-top:14px; padding-left:22px; border-left:1px dashed #c8d7cd; }
+.grammar-editor { padding:15px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+.grammar-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:11px; }
+.grammar-head strong { font-size:.76rem; }
+.node-type { margin-right:7px; color:var(--ink); }
+.node-number { display:inline-grid; min-width:23px; height:23px; margin-right:6px; place-items:center; color:#fff; border-radius:7px; background:#315dc2; font-size:.68rem; }
+.pos-field { max-width:340px; }
+.nested-senses { margin-top:13px; padding-left:22px; border-left:1px dashed #c9d4e8; }
+.direct-structure { margin-top:20px; padding:16px; border:1px solid var(--line); border-radius:12px; background:#fafcfb; }
+.direct-structure > header h3 { margin:3px 0 0; font-size:.86rem; }
+.entry-level-decorations { margin:14px 0 4px; padding:12px; border-left:3px solid #7652a6; border-radius:0 10px 10px 0; background:#faf7fd; }
+.entry-level-decorations__label { color:#7652a6; font-size:.65rem; font-weight:800; }
 .homonym-editor > header {
   display: flex;
   align-items: center;
@@ -207,6 +235,7 @@
   gap: 12px;
 }
 .sense-editor {
+  position: relative;
   padding: 15px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -228,6 +257,7 @@
   gap: 9px;
   margin-top: 12px;
 }
+.example-editor-wrap { position:relative; padding-left:10px; }
 .example-editor {
   display: grid;
   grid-template-columns: 32px 1fr 1fr 30px;
@@ -411,9 +441,12 @@
     align-items: flex-end;
   }
   .meta-grid,
-  .title-grid {
+  .title-grid,
+  .structure-options {
     grid-template-columns: 1fr;
   }
+  .grammar-list,
+  .nested-senses { padding-left:10px; }
   .workflow-card,
   .section-head {
     align-items: flex-start;
