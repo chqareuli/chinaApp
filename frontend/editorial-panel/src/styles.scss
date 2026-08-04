@@ -69,14 +69,14 @@ body {
 .entry-notes-tabs button.active { color: var(--forest); border-bottom-color: var(--forest); }
 .entry-notes-tabs span { display: inline-grid; min-width: 19px; height: 19px; margin-left: 5px; place-items: center; border-radius: 10px; background: var(--forest-light); font-size: .62rem; }
 .entry-notes-body { padding: 16px; }
-.entry-note-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
-.entry-note-list li { padding: 13px 2px; border-bottom: 1px solid var(--line); }
-.entry-note-list li:first-child { padding-top: 2px; }
-.entry-note-list li:last-child { border-bottom: 0; }
+.entry-note-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.entry-note-list li { padding: 13px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: 0 3px 10px rgba(25, 55, 45, .04); }
+.entry-note-list .entry-note-empty { padding: 2px; border: 0; background: transparent; box-shadow: none; }
 .entry-note-list time { color: #7d8882; font-size: .64rem; }
 .entry-note-list p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .78rem; line-height: 1.6; }
 .entry-note-empty { color: #7d8882; font-size: .72rem; }
-.support-compose { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; align-items: end; gap: 10px; margin-bottom: 18px; }
+.entry-note-compose { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.support-compose { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; align-items: end; gap: 10px; }
 .support-compose .field { margin: 0; }
 .support-compose select { min-height: 44px; }
 .support-comment-field textarea { min-height: 44px; resize: vertical; }

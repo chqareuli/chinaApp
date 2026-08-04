@@ -335,27 +335,6 @@
 
           @if (notesTab() === 'comments') {
             <div class="entry-notes-body">
-              <div class="comment-compose">
-                <textarea
-                  rows="3"
-                  maxlength="4000"
-                  placeholder="დაწერეთ კომენტარი…"
-                  aria-label="კომენტარი"
-                  [value]="commentText()"
-                  (input)="updateCommentText($event)"
-                ></textarea>
-                <button
-                  class="btn btn-primary"
-                  type="button"
-                  (click)="addComment()"
-                  [disabled]="!commentText().trim() || commentSaving()"
-                >
-                  {{ commentSaving() ? 'ემატება…' : 'კომენტარის დამატება' }}
-                </button>
-              </div>
-              @if (commentError()) {
-                <div class="error-banner">{{ commentError() }}</div>
-              }
               @if (commentsLoading()) {
                 <div class="empty-state compact">კომენტარები იტვირთება…</div>
               } @else {
@@ -388,10 +367,51 @@
                   }
                 </ul>
               }
+              @if (commentError()) {
+                <div class="error-banner">{{ commentError() }}</div>
+              }
+              <div class="comment-compose entry-note-compose">
+                <textarea
+                  rows="3"
+                  maxlength="4000"
+                  placeholder="დაწერეთ კომენტარი…"
+                  aria-label="კომენტარი"
+                  [value]="commentText()"
+                  (input)="updateCommentText($event)"
+                ></textarea>
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  (click)="addComment()"
+                  [disabled]="!commentText().trim() || commentSaving()"
+                >
+                  {{ commentSaving() ? 'ემატება…' : 'კომენტარის დამატება' }}
+                </button>
+              </div>
             </div>
           } @else {
             <div class="entry-notes-body">
-              <div class="support-compose" [formGroup]="supportMaterialForm">
+              @if (supportMaterialsLoading()) {
+                <div class="empty-state compact">დამხმარე მასალა იტვირთება…</div>
+              } @else {
+                <ul class="entry-note-list support-material-list">
+                  @for (material of supportMaterials(); track material.id) {
+                    <li>
+                      <div class="support-material-meta">
+                        <strong>{{ supportLanguageLabel(material.language) }}</strong>
+                        <time>{{ material.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
+                      </div>
+                      <p [attr.lang]="material.language === 'Chinese' ? 'zh' : null">{{ material.commentText }}</p>
+                    </li>
+                  } @empty {
+                    <li class="entry-note-empty">დამხმარე მასალა ჯერ არ არის.</li>
+                  }
+                </ul>
+              }
+              @if (supportMaterialError()) {
+                <div class="error-banner">{{ supportMaterialError() }}</div>
+              }
+              <div class="support-compose entry-note-compose" [formGroup]="supportMaterialForm">
                 <div class="field">
                   <label for="support-material-language">ენა</label>
                   <select id="support-material-language" formControlName="language">
@@ -419,26 +439,6 @@
                   {{ supportMaterialSaving() ? 'ემატება…' : 'მასალის დამატება' }}
                 </button>
               </div>
-              @if (supportMaterialError()) {
-                <div class="error-banner">{{ supportMaterialError() }}</div>
-              }
-              @if (supportMaterialsLoading()) {
-                <div class="empty-state compact">დამხმარე მასალა იტვირთება…</div>
-              } @else {
-                <ul class="entry-note-list support-material-list">
-                  @for (material of supportMaterials(); track material.id) {
-                    <li>
-                      <div class="support-material-meta">
-                        <strong>{{ supportLanguageLabel(material.language) }}</strong>
-                        <time>{{ material.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
-                      </div>
-                      <p [attr.lang]="material.language === 'Chinese' ? 'zh' : null">{{ material.commentText }}</p>
-                    </li>
-                  } @empty {
-                    <li class="entry-note-empty">დამხმარე მასალა ჯერ არ არის.</li>
-                  }
-                </ul>
-              }
             </div>
           }
         </section>
