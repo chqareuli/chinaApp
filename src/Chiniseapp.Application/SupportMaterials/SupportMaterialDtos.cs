@@ -7,4 +7,5 @@ public sealed record SupportMaterialSummary(
     int EntryId,
     string Language,
     string CommentText,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    bool CanDelete);

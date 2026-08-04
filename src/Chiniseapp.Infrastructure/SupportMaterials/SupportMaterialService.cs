@@ -1,5 +1,6 @@
 using Chiniseapp.Application.SupportMaterials;
 using Chiniseapp.Domain.Entities;
+using Chiniseapp.Domain.Enums;
 using Chiniseapp.Domain.Rules;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,8 @@ public class SupportMaterialService(ChiniseDbContext db) : ISupportMaterialServi
 {
     public async Task<IReadOnlyList<SupportMaterialSummary>> GetForEntryAsync(
         int entryId,
+        int requestingEditorId,
+        EditorRole requestingRole,
         CancellationToken ct = default) =>
         await db.EntrySupportMaterials
             .AsNoTracking()
@@ -21,7 +24,10 @@ public class SupportMaterialService(ChiniseDbContext db) : ISupportMaterialServi
                 item.EntryId,
                 item.Language,
                 item.CommentText,
-                item.CreatedAtUtc))
+                item.CreatedAtUtc,
+                item.AddedByEditorId == requestingEditorId ||
+                requestingRole == EditorRole.ChiefEditor ||
+                requestingRole == EditorRole.SuperAdmin))
             .ToListAsync(ct);
 
     public async Task<SupportMaterialSummary> AddAsync(
@@ -69,6 +75,40 @@ public class SupportMaterialService(ChiniseDbContext db) : ISupportMaterialServi
             item.EntryId,
             item.Language,
             item.CommentText,
-            item.CreatedAtUtc);
+            item.CreatedAtUtc,
+            true);
+    }
+
+    public async Task<bool> DeleteAsync(
+        int entryId,
+        int materialId,
+        int requestingEditorId,
+        EditorRole requestingRole,
+        CancellationToken ct = default)
+    {
+        var item = await db.EntrySupportMaterials
+            .Include(material => material.Entry)
+            .SingleOrDefaultAsync(
+                material => material.Id == materialId && material.EntryId == entryId,
+                ct);
+        if (item is null)
+        {
+            return false;
+        }
+
+        if (!EditorialNoteDeletionRules.CanDelete(
+                item.AddedByEditorId,
+                requestingEditorId,
+                requestingRole))
+        {
+            throw new SupportMaterialAccessDeniedException();
+        }
+
+        var now = DateTime.UtcNow;
+        db.EntrySupportMaterials.Remove(item);
+        item.Entry.LastEditorEditorId = requestingEditorId;
+        item.Entry.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(ct);
+        return true;
     }
 }

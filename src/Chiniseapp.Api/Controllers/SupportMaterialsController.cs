@@ -13,7 +13,11 @@ public class SupportMaterialsController(ISupportMaterialService supportMaterialS
     public async Task<ActionResult<IReadOnlyList<SupportMaterialSummary>>> Get(
         int entryId,
         CancellationToken ct) =>
-        Ok(await supportMaterialService.GetForEntryAsync(entryId, ct));
+        Ok(await supportMaterialService.GetForEntryAsync(
+            entryId,
+            User.GetEditorId(),
+            User.GetEditorRole(),
+            ct));
 
     [HttpPost]
     public async Task<ActionResult<SupportMaterialSummary>> Add(
@@ -33,6 +37,27 @@ public class SupportMaterialsController(ISupportMaterialService supportMaterialS
         catch (SupportMaterialValidationException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int entryId, int id, CancellationToken ct)
+    {
+        try
+        {
+            var deleted = await supportMaterialService.DeleteAsync(
+                entryId,
+                id,
+                User.GetEditorId(),
+                User.GetEditorRole(),
+                ct);
+            return deleted ? NoContent() : NotFound();
+        }
+        catch (SupportMaterialAccessDeniedException)
+        {
+            return Problem(
+                detail: "You can only delete your own support materials.",
+                statusCode: StatusCodes.Status403Forbidden);
         }
     }
 }

@@ -48,18 +48,18 @@ public class CommentsController(ICommentService commentService) : ControllerBase
         }
     }
 
-    /// <summary>Only the comment's own author, or a Chief Editor/Super Admin, may archive it.</summary>
-    [HttpPost("{id:int}/archive")]
-    public async Task<IActionResult> Archive(int id, CancellationToken ct)
+    /// <summary>Only the comment's own author, or a Chief Editor/Super Admin, may delete it.</summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         try
         {
-            var archived = await commentService.ArchiveAsync(id, User.GetEditorId(), User.GetEditorRole(), ct);
-            return archived ? NoContent() : NotFound();
+            var deleted = await commentService.DeleteAsync(id, User.GetEditorId(), User.GetEditorRole(), ct);
+            return deleted ? NoContent() : NotFound();
         }
         catch (CommentAccessDeniedException)
         {
-            return Problem(detail: "You can only archive your own comments.", statusCode: StatusCodes.Status403Forbidden);
+            return Problem(detail: "You can only delete your own comments.", statusCode: StatusCodes.Status403Forbidden);
         }
     }
 }

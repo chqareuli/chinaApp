@@ -3,6 +3,7 @@ using Chiniseapp.Application.Notifications;
 using Chiniseapp.Application.Scoring;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
+using Chiniseapp.Domain.Rules;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -101,7 +102,7 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
         return ToSummary(comment, new Dictionary<int, string> { [comment.AuthorEditorId] = authorName });
     }
 
-    public async Task<bool> ArchiveAsync(int commentId, int requestingEditorId, EditorRole requestingRole, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(int commentId, int requestingEditorId, EditorRole requestingRole, CancellationToken ct = default)
     {
         var comment = await db.Comments.FindAsync([commentId], ct);
         if (comment is null)
@@ -111,9 +112,8 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
 
         EnsureCanModify(comment, requestingEditorId, requestingRole);
 
-        comment.Status = CommentStatus.Archived;
         var now = DateTime.UtcNow;
-        comment.UpdatedAtUtc = now;
+        db.Comments.Remove(comment);
         await TouchEntryAsync(comment.EntryId, requestingEditorId, now, ct);
         await db.SaveChangesAsync(ct);
         return true;
@@ -121,9 +121,7 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
 
     private static void EnsureCanModify(Comment comment, int requestingEditorId, EditorRole requestingRole)
     {
-        var isOwner = comment.AuthorEditorId == requestingEditorId;
-        var isPrivileged = requestingRole is EditorRole.SuperAdmin or EditorRole.ChiefEditor;
-        if (!isOwner && !isPrivileged)
+        if (!EditorialNoteDeletionRules.CanDelete(comment.AuthorEditorId, requestingEditorId, requestingRole))
         {
             throw new CommentAccessDeniedException();
         }

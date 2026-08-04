@@ -22,5 +22,5 @@ public interface ICommentService
         int commentId, string newText, int requestingEditorId, EditorRole requestingRole, CancellationToken ct = default);
 
     /// <summary>False if the comment doesn't exist. Throws <see cref="CommentAccessDeniedException"/> if not allowed.</summary>
-    Task<bool> ArchiveAsync(int commentId, int requestingEditorId, EditorRole requestingRole, CancellationToken ct = default);
+    Task<bool> DeleteAsync(int commentId, int requestingEditorId, EditorRole requestingRole, CancellationToken ct = default);
 }
