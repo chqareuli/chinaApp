@@ -17,7 +17,9 @@ public class AccountingController(IAccountingService accountingService) : Contro
     /// via <see cref="EditorDetail"/>.
     /// </summary>
     [HttpGet("editors")]
-    [Authorize(Roles = $"{nameof(EditorRole.SuperAdmin)},{nameof(EditorRole.ChiefEditor)},{nameof(EditorRole.ZhEditor)}")]
+    [Authorize(Roles =
+        $"{nameof(EditorRole.SuperAdmin)},{nameof(EditorRole.ChiefEditor)},{nameof(EditorRole.DeputyChiefEditor)}," +
+        $"{nameof(EditorRole.Editor)}")]
     public async Task<ActionResult<IReadOnlyList<EditorScoreSummary>>> GlobalSummary(CancellationToken ct) =>
         Ok(await accountingService.GetGlobalSummaryAsync(ct));
 

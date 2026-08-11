@@ -23,8 +23,7 @@ public class AccountingService(ChiniseDbContext db) : IAccountingService
             .Select(e => new EditorScoreSummary(
                 e.Id, e.DisplayName, e.Role.ToString(),
                 CountFor(e.Id, ScoreType.Main),
-                CountFor(e.Id, ScoreType.Additional),
-                CountFor(e.Id, ScoreType.KaEditor)))
+                CountFor(e.Id, ScoreType.Additional)))
             .ToList();
     }
 
@@ -65,8 +64,7 @@ public class AccountingService(ChiniseDbContext db) : IAccountingService
 
         var scoresByStatus = new ScoreCountsByStatus(
             CountsFor(ScoreType.Main),
-            CountsFor(ScoreType.Additional),
-            CountsFor(ScoreType.KaEditor));
+            CountsFor(ScoreType.Additional));
 
         return new EditorAccountingDetail(
             editor.Id, editor.DisplayName, editor.Email, editor.Role.ToString(), editor.CreatedAtUtc, scoresByStatus);

@@ -515,7 +515,6 @@ createServer(async (request, response) => {
         role: editor.role,
         mainScoreTotal: 24,
         additionalScoreTotal: 17,
-        kaEditorScoreTotal: 0,
       },
       {
         editorId: 2,
@@ -523,7 +522,6 @@ createServer(async (request, response) => {
         role: editors[1].role,
         mainScoreTotal: 12,
         additionalScoreTotal: 9,
-        kaEditorScoreTotal: 0,
       },
     ]);
   if (path === '/accounting/editors/1')
@@ -536,7 +534,6 @@ createServer(async (request, response) => {
       scoresByStatus: {
         main: { Published: 24 },
         additional: { Ready: 5, Published: 12 },
-        kaEditor: {},
       },
     });
   return json(response, 404, { message: `No mock route for ${request.method} ${path}` });

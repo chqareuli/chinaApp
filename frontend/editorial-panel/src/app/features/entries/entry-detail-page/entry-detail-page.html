@@ -19,7 +19,12 @@
           <small class="complex-form-preview" lang="zh">რთული დაწერილობა: {{ item.complexForms[0].value }}</small>
         }
       </div>
-      <app-status-badge [status]="item.status" />
+      <div class="entry-head-actions">
+        <button class="btn btn-secondary" type="button" (click)="openPreview()">
+          მომხმარებლის ხედით ნახვა
+        </button>
+        <app-status-badge [status]="item.status" />
+      </div>
     </header>
 
     <div class="meta-grid">
@@ -93,6 +98,10 @@
           </div>
         </section>
       </div>
+    }
+
+    @if (previewEntry(); as preview) {
+      <app-entry-preview-modal [entry]="preview" (closed)="closePreview()" />
     }
 
     <nav class="entry-tabs" aria-label="სტატიის სექციები">

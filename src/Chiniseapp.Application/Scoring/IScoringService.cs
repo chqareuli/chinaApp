@@ -14,14 +14,14 @@ public interface IScoringService
     /// Call after a content save. Awards Additional score to the acting editor
     /// once, if they aren't the entry's (provisional or locked) author.
     /// </summary>
-    Task AwardForContentEditAsync(Entry entry, int actingEditorId, CancellationToken ct = default);
+    Task AwardForContentEditAsync(
+        Entry entry, EditorRole actingEditorRole, int actingEditorId, CancellationToken ct = default);
 
     /// <summary>
     /// Call after a status change, after MainAuthorEditorId has been finalized
     /// on <paramref name="entry"/> for this transition. Awards Main score
-    /// (once, the first time an entry leaves new_entry), a KaEditor score
-    /// (once, when a ka_editor completes ka_review work), or otherwise an
-    /// Additional score to the acting editor if they aren't the author.
+    /// (once, the first time an eligible author's entry leaves new_entry),
+    /// plus an Additional score when the actor's contribution qualifies.
     /// </summary>
     Task AwardForStatusChangeAsync(
         Entry entry, EntryStatus previousStatus, EditorRole actingEditorRole, int actingEditorId, CancellationToken ct = default);

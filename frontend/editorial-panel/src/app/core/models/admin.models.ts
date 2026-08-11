@@ -30,13 +30,11 @@ export interface EditorScoreSummary {
   role: EditorRole;
   mainScoreTotal: number;
   additionalScoreTotal: number;
-  kaEditorScoreTotal: number;
 }
 
 export interface ScoreCountsByStatus {
   main: Record<string, number>;
   additional: Record<string, number>;
-  kaEditor: Record<string, number>;
 }
 
 export interface EditorAccountingDetail {

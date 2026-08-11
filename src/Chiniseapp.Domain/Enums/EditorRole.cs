@@ -8,7 +8,8 @@ public enum EditorRole
 {
     SuperAdmin,
     ChiefEditor,
-    ZhEditor,
+    DeputyChiefEditor,
+    Editor,
     KaEditor,
     AssistantEditor,
 }

@@ -26,7 +26,10 @@ public record EntryDetail(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     uint RowVersion,
-    List<HomonymDto> Homonyms);
+    List<HomonymDto> Homonyms,
+    EntryCapabilities Capabilities);
+
+public record EntryCapabilities(bool CanEditContent, IReadOnlyList<string> AllowedStatusTransitions);
 
 public record EntrySummary(
     int Id,

@@ -4,10 +4,12 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { EntriesService } from '../../../core/services/entries.service';
+import { PublicDictionaryEntry } from '../../../core/models/public-dictionary.models';
+import { EntryPreviewModal } from '../../../shared/entry-preview-modal/entry-preview-modal';
 
 @Component({
   selector: 'app-create-entry-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [EntryPreviewModal, ReactiveFormsModule, RouterLink],
   templateUrl: './create-entry-page.html',
   styleUrl: './create-entry-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -19,9 +21,29 @@ export class CreateEntryPage {
 
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly previewEntry = signal<PublicDictionaryEntry | null>(null);
   readonly form = this.formBuilder.nonNullable.group({
     lemma: ['', [Validators.required, Validators.maxLength(255)]],
   });
+
+  openPreview(): void {
+    this.previewEntry.set({
+      id: 0,
+      lemma: this.form.controls.lemma.value.trim() || '—',
+      pinyin: null,
+      pinyins: [],
+      complexForms: [],
+      updatedAtUtc: new Date().toISOString(),
+      homonyms: [],
+      gramGroups: [],
+      directPoses: [],
+      senses: [],
+    });
+  }
+
+  closePreview(): void {
+    this.previewEntry.set(null);
+  }
 
   submit(): void {
     if (this.form.invalid) {

@@ -1,7 +1,8 @@
 export type EditorRole =
   | 'SuperAdmin'
   | 'ChiefEditor'
-  | 'ZhEditor'
+  | 'DeputyChiefEditor'
+  | 'Editor'
   | 'KaEditor'
   | 'AssistantEditor';
 
@@ -21,9 +22,10 @@ export interface AuthResponse {
 export interface AuthSession extends AuthResponse {}
 
 export const editorRoleLabels: Record<EditorRole, string> = {
-  SuperAdmin: 'სუპერ ადმინი',
+  SuperAdmin: 'სუპერვიზორი',
   ChiefEditor: 'მთავარი რედაქტორი',
-  ZhEditor: 'ჩინურის რედაქტორი',
-  KaEditor: 'ქართულის რედაქტორი',
+  DeputyChiefEditor: 'მთავარი რედაქტორის მოადგილე',
+  Editor: 'რედაქტორი',
+  KaEditor: 'ქართული ენის რედაქტორი',
   AssistantEditor: 'დამხმარე რედაქტორი',
 };

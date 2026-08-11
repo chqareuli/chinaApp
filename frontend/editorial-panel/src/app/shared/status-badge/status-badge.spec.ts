@@ -14,4 +14,14 @@ describe('getStatusMeta', () => {
   it('preserves an unknown status as a safe fallback label', () => {
     expect(getStatusMeta('NeedsRepair').label).toBe('NeedsRepair');
   });
+
+  it.each([
+    ['NewEntry', 'status-new'],
+    ['ZhReview', 'status-zh'],
+    ['KaReview', 'status-ka'],
+    ['Ready', 'status-ready'],
+    ['Published', 'status-published'],
+  ])('maps %s to its document color class', (status, cssClass) => {
+    expect(getStatusMeta(status).cssClass).toBe(cssClass);
+  });
 });

@@ -70,7 +70,7 @@
 ## Backend prerequisites before UI-2 is considered complete
 
 1. Status-aware content permissions: Assistant only `NewEntry`; KA Editor only `KaReview`;
-   ZH Editor must not edit published content.
+   Editor may edit published content but cannot publish or move published entries backward.
 2. Final ZH transition scope based on the latest requirements.
 3. Publish validation that prevents title-only or structurally invalid entries from publishing.
 4. SuperAdmin-only user/role management, including an explicit role-change endpoint and audit rows.

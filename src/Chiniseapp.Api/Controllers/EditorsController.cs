@@ -14,6 +14,9 @@ public record CreateEditorRequest(string Email, string DisplayName, string Role,
 
 public record ResetPasswordRequest(string NewPassword);
 
+public record UpdateEditorRequest(
+    string Email, string DisplayName, string Role, bool IsActive, string? NewPassword);
+
 /// <summary>
 /// Bootstrap-level editor management. Only what M3 (auth) needs to be usable —
 /// full profile self-edit, richer filtering, etc. can grow later without
@@ -51,7 +54,7 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{nameof(EditorRole.SuperAdmin)},{nameof(EditorRole.ChiefEditor)}")]
+    [Authorize(Roles = nameof(EditorRole.SuperAdmin))]
     public async Task<ActionResult<EditorListItem>> Create(CreateEditorRequest request, CancellationToken ct)
     {
         if (!Enum.TryParse<EditorRole>(request.Role, out var role))
@@ -79,6 +82,78 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
         await db.SaveChangesAsync(ct);
 
         return CreatedAtAction(nameof(Get), new { id = editor.Id }, ToListItem(editor));
+    }
+
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = nameof(EditorRole.SuperAdmin))]
+    public async Task<ActionResult<EditorListItem>> Update(
+        int id, UpdateEditorRequest request, CancellationToken ct)
+    {
+        var editor = await db.Editors.FindAsync([id], ct);
+        if (editor is null)
+        {
+            return NotFound();
+        }
+
+        if (!Enum.TryParse<EditorRole>(request.Role, out var role))
+        {
+            return BadRequest(new { message = $"Unknown role '{request.Role}'." });
+        }
+
+        var email = request.Email.Trim();
+        var displayName = request.DisplayName.Trim();
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(displayName))
+        {
+            return BadRequest(new { message = "Name and email are required." });
+        }
+
+        if (request.NewPassword is { Length: > 0 and < 8 })
+        {
+            return BadRequest(new { message = "The new password must contain at least 8 characters." });
+        }
+
+        var normalizedEmail = email.ToLowerInvariant();
+        if (await db.Editors.AnyAsync(e => e.Id != id && e.Email.ToLower() == normalizedEmail, ct))
+        {
+            return Conflict(new { message = "An editor with this email already exists." });
+        }
+
+        if (editor.Role == EditorRole.SuperAdmin && (role != EditorRole.SuperAdmin || !request.IsActive))
+        {
+            var otherActiveSupervisors = await db.Editors.CountAsync(
+                e => e.Id != id && e.Role == EditorRole.SuperAdmin && e.IsActive, ct);
+            if (otherActiveSupervisors == 0)
+            {
+                return Conflict(new { message = "The last active supervisor cannot be demoted or deactivated." });
+            }
+        }
+
+        var previousRole = editor.Role;
+        editor.Email = email;
+        editor.DisplayName = displayName;
+        editor.Role = role;
+        editor.IsActive = request.IsActive;
+        if (!string.IsNullOrEmpty(request.NewPassword))
+        {
+            editor.PasswordHash = passwordHasher.HashPassword(editor, request.NewPassword);
+        }
+
+        if (previousRole != role)
+        {
+            db.AuditLogEntries.Add(new AuditLogEntry
+            {
+                EntityType = nameof(Editor),
+                EntityId = editor.Id,
+                Action = AuditAction.RoleChanged,
+                PerformedByEditorId = User.GetEditorId(),
+                PerformedAtUtc = DateTime.UtcNow,
+                OldValue = JsonSerializer.Serialize(new { role = previousRole.ToString() }),
+                NewValue = JsonSerializer.Serialize(new { role = role.ToString() }),
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Ok(ToListItem(editor));
     }
 
     [HttpPost("{id:int}/deactivate")]
@@ -131,3 +206,4 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
     private static EditorListItem ToListItem(Editor e) =>
         new(e.Id, e.Email, e.DisplayName, e.Role.ToString(), e.IsActive, e.CreatedAtUtc);
 }
+using System.Text.Json;

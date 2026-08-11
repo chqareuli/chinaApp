@@ -160,6 +160,12 @@
   gap: 14px;
   margin-top: 22px;
 }
+.entry-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
 .structure-chooser { display:grid; gap:18px; margin-top:20px; padding:20px; border:1px solid #d8e2db; border-radius:14px; background:linear-gradient(135deg,#f7faf7,#fff); }
 .structure-chooser h3 { margin:2px 0 5px; font-size:1rem; }
 .structure-chooser > div > span { color:var(--ink-soft); font-size:.72rem; }

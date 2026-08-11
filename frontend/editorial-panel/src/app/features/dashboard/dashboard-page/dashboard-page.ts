@@ -42,7 +42,13 @@ export class DashboardPage implements OnInit {
   readonly editor = this.auth.editor;
   readonly canCreateEntry = computed(() => {
     const role = this.editor()?.role;
-    return role === 'SuperAdmin' || role === 'ChiefEditor' || role === 'AssistantEditor';
+    return (
+      role === 'SuperAdmin' ||
+      role === 'ChiefEditor' ||
+      role === 'DeputyChiefEditor' ||
+      role === 'Editor' ||
+      role === 'AssistantEditor'
+    );
   });
   readonly entries = signal<EntrySummary[]>([]);
   readonly stats = signal<EntryStatusTotals | null>(null);

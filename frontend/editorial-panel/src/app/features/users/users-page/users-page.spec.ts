@@ -12,7 +12,7 @@ const existingEditor: EditorListItem = {
   id: 4,
   email: 'editor@chinese.ge',
   displayName: 'რედაქტორი',
-  role: 'ZhEditor',
+  role: 'Editor',
   isActive: true,
   createdAtUtc: '2026-07-24T00:00:00Z',
 };
@@ -121,7 +121,7 @@ describe('UsersPage', () => {
 
     const roleText = fixture.nativeElement.querySelector('.role-text') as HTMLElement;
 
-    expect(roleText.textContent?.trim()).toBe('ჩინურის რედაქტორი');
+    expect(roleText.textContent?.trim()).toBe('რედაქტორი');
     expect(fixture.nativeElement.querySelector('.users-table article > select')).toBeNull();
   });
 

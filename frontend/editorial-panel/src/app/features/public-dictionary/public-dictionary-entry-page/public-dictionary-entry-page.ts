@@ -1,14 +1,14 @@
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, distinctUntilChanged, map, of, switchMap, tap } from 'rxjs';
 import { PublicDictionaryEntry } from '../../../core/models/public-dictionary.models';
 import { PublicDictionaryService } from '../../../core/services/public-dictionary.service';
+import { PublicEntryArticle } from '../../../shared/public-entry-article/public-entry-article';
 
 @Component({
   selector: 'app-public-dictionary-entry-page',
-  imports: [DatePipe, NgTemplateOutlet, RouterLink],
+  imports: [PublicEntryArticle, RouterLink],
   templateUrl: './public-dictionary-entry-page.html',
   styleUrl: './public-dictionary-entry-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

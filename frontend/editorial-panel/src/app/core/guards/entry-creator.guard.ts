@@ -6,7 +6,11 @@ export const entryCreatorGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   const role = auth.editor()?.role;
-  return role === 'SuperAdmin' || role === 'ChiefEditor' || role === 'AssistantEditor'
+  return role === 'SuperAdmin' ||
+    role === 'ChiefEditor' ||
+    role === 'DeputyChiefEditor' ||
+    role === 'Editor' ||
+    role === 'AssistantEditor'
     ? true
     : router.createUrlTree(['/adminpanel/dashboard']);
 };

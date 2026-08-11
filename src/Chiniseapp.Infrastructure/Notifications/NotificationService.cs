@@ -1,5 +1,6 @@
 using Chiniseapp.Application.Notifications;
 using Chiniseapp.Domain.Entities;
+using Chiniseapp.Domain.Rules;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,24 +10,28 @@ public class NotificationService(ChiniseDbContext db) : INotificationService
 {
     public async Task NotifyEntryChangedAsync(Entry entry, int actingEditorId, string changeType, CancellationToken ct = default)
     {
-        // AuditLogEntry rows are the record of "who has ever touched this
-        // entry"; querying here (before this change's own audit row is
-        // added to the DbContext) reflects history up to but not including
-        // the change in progress, which is exactly what we want.
-        var pastContributorIds = await db.AuditLogEntries
-            .Where(a => a.EntityType == nameof(Entry) && a.EntityId == entry.Id)
-            .Select(a => a.PerformedByEditorId)
-            .Distinct()
+        // Notify only the two most recent distinct previous contributors.
+        // Unsaved audit rows for the change in progress are not returned by this
+        // database query, and the acting editor is explicitly excluded as well.
+        var recentContributors = await db.AuditLogEntries
+            .Where(a =>
+                a.EntityType == nameof(Entry) &&
+                a.EntityId == entry.Id)
+            .GroupBy(a => a.PerformedByEditorId)
+            .Select(group => new
+            {
+                EditorId = group.Key,
+                LastActivityAtUtc = group.Max(a => a.PerformedAtUtc),
+                LastAuditId = group.Max(a => a.Id),
+            })
             .ToListAsync(ct);
 
-        var recipientIds = new HashSet<int>(pastContributorIds) { entry.CreatedByEditorId };
-        if (entry.MainAuthorEditorId is int mainAuthorId)
-        {
-            recipientIds.Add(mainAuthorId);
-        }
-
-        // Resolved Q4: the editor who made the change doesn't notify themselves.
-        recipientIds.Remove(actingEditorId);
+        var recipientIds = NotificationRecipientRules.SelectMostRecent(
+            recentContributors.Select(contributor => new ContributorActivity(
+                contributor.EditorId,
+                contributor.LastActivityAtUtc,
+                contributor.LastAuditId)),
+            actingEditorId);
 
         var now = DateTime.UtcNow;
         foreach (var recipientId in recipientIds)

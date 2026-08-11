@@ -37,6 +37,7 @@ import {
   Sense,
   VocabularyItem,
 } from '../../../core/models/entry.models';
+import { PublicDictionaryEntry } from '../../../core/models/public-dictionary.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { CollaborationService } from '../../../core/services/collaboration.service';
 import { EntriesService } from '../../../core/services/entries.service';
@@ -44,6 +45,7 @@ import { MediaService } from '../../../core/services/media.service';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 import { EditorialDecorations } from '../../../shared/editorial-decorations/editorial-decorations';
 import { RepeatableTextList } from '../../../shared/repeatable-text-list/repeatable-text-list';
+import { EntryPreviewModal } from '../../../shared/entry-preview-modal/entry-preview-modal';
 
 type EntryTab = 'content' | 'reference' | 'media' | 'history';
 type EntryNotesTab = 'comments' | 'support';
@@ -59,6 +61,7 @@ type EntryNotesTab = 'comments' | 'support';
     StatusBadge,
     EditorialDecorations,
     RepeatableTextList,
+    EntryPreviewModal,
   ],
   templateUrl: './entry-detail-page.html',
   styleUrl: './entry-detail-page.scss',
@@ -87,6 +90,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly changingStatus = signal<string | null>(null);
   readonly statusError = signal<string | null>(null);
   readonly statusConfirmation = signal<string | null>(null);
+  readonly previewEntry = signal<PublicDictionaryEntry | null>(null);
 
   readonly comments = signal<CommentSummary[]>([]);
   readonly commentsLoading = signal(false);
@@ -165,7 +169,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   readonly canManageComments = computed(() => {
     const role = this.auth.editor()?.role;
-    return role === 'SuperAdmin' || role === 'ChiefEditor';
+    return role === 'SuperAdmin' || role === 'ChiefEditor' || role === 'DeputyChiefEditor';
   });
 
   get homonyms(): FormArray<FormGroup> {
@@ -438,6 +442,64 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   cancelStatusChange(): void {
     this.statusConfirmation.set(null);
+  }
+
+  openPreview(): void {
+    const item = this.entry();
+    if (!item) return;
+
+    const content = this.toSaveRequest(item.rowVersion);
+    const mapCrossReferences = (items: CrossReference[]) =>
+      items.map((reference) => ({
+        type: reference.type,
+        label: reference.label,
+        target: reference.target,
+        displayText: reference.displayText,
+        placement: reference.placement,
+        targetEntryId: reference.targetEntryId,
+        targetEntryLemma: reference.targetEntryLemma,
+      }));
+    const mapSense = (sense: Sense) => ({
+      number: sense.number,
+      definition: sense.definition,
+      crossReferences: mapCrossReferences(sense.crossReferences),
+      examples: sense.examples.map((example) => ({
+        zh: example.zh,
+        ka: example.ka,
+        crossReferences: mapCrossReferences(example.crossReferences),
+      })),
+    });
+    const mapGroup = (group: GramGroup) => ({
+      number: group.number,
+      pos: group.pos,
+      crossReferences: mapCrossReferences(group.crossReferences),
+      senses: group.senses.map(mapSense),
+    });
+
+    this.previewEntry.set({
+      id: item.id,
+      lemma: content.lemma || item.lemma,
+      pinyin: content.pinyins[0]?.value ?? null,
+      pinyins: content.pinyins.map((pinyin) => pinyin.value),
+      complexForms: content.complexForms.map((form) => form.value),
+      updatedAtUtc: new Date().toISOString(),
+      homonyms: content.homonyms.map((homonym) => ({
+        text: homonym.text || null,
+        crossReferences: mapCrossReferences(homonym.crossReferences),
+        gramGroups: homonym.gramGroups.map(mapGroup),
+      })),
+      gramGroups: content.gramGroups.map(mapGroup),
+      directPoses: content.directPoses.map((directPos) => ({
+        pos: directPos.pos,
+        crossReferences: mapCrossReferences(directPos.crossReferences),
+        senses: directPos.senses.map(mapSense),
+      })),
+      senses: content.senses.map(mapSense),
+    });
+  }
+
+  closePreview(): void {
+    this.previewEntry.set(null);
   }
 
   updateCommentText(event: Event): void {
@@ -1078,9 +1140,14 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   private fallbackCanEdit(status: string): boolean {
     const role = this.auth.editor()?.role;
     const normalized = this.normalizeStatus(status);
-    if (role === 'SuperAdmin' || role === 'ChiefEditor') return true;
+    if (
+      role === 'SuperAdmin' ||
+      role === 'ChiefEditor' ||
+      role === 'DeputyChiefEditor' ||
+      role === 'Editor'
+    )
+      return true;
     if (role === 'AssistantEditor') return normalized === 'NewEntry';
-    if (role === 'ZhEditor') return normalized === 'ZhReview';
     return role === 'KaEditor' && normalized === 'KaReview';
   }
 
@@ -1088,10 +1155,12 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     const role = this.auth.editor()?.role;
     const current = this.normalizeStatus(status);
     const all = ['NewEntry', 'ZhReview', 'KaReview', 'Ready', 'Published', 'Archived'];
-    if (role === 'SuperAdmin' || role === 'ChiefEditor')
+    if (role === 'SuperAdmin' || role === 'ChiefEditor' || role === 'DeputyChiefEditor')
       return all.filter((item) => item !== current);
-    if (role === 'ZhEditor' && current === 'NewEntry') return ['ZhReview'];
-    if (role === 'ZhEditor' && current === 'ZhReview') return ['KaReview'];
+    if (role === 'Editor') {
+      const working = ['NewEntry', 'ZhReview', 'KaReview', 'Ready'];
+      return working.includes(current) ? working.filter((item) => item !== current) : [];
+    }
     if (role === 'KaEditor' && current === 'KaReview') return ['ZhReview', 'Ready'];
     return [];
   }

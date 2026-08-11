@@ -21,10 +21,25 @@
   background: var(--status-color);
 }
 
-.status-new { --status-color: #727975; }
-.status-zh { --status-color: #bc3d43; }
-.status-ka { --status-color: #3370c9; }
-.status-ready { --status-color: #2e8357; }
-.status-published { --status-color: #161c19; }
+.status-new {
+  --status-color: #808080;
+}
+
+.status-zh {
+  --status-color: #c00000;
+}
+
+.status-ka {
+  --status-color: #0000ff;
+}
+
+.status-ready {
+  --status-color: #00b050;
+}
+
+.status-published {
+  --status-color: #000000;
+}
+
 .status-archived { --status-color: #7b648d; }
 .status-unknown { --status-color: #8a704e; }

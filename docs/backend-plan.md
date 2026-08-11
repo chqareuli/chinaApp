@@ -47,9 +47,10 @@ status-transition rules are complex and worth unit-testing without a DbContext.
 - **ReferenceMaterial** (1:1 Entry): OriginalRawReferenceMaterial, G1..G5 (NOT NULL, empty
   string when absent), split on legacy `**`/`***`/`****`/`*****` delimiters, `//`/`///` → bullet
   markers.
-- **Editor** (Identity-backed): Role (SuperAdmin/ChiefEditor/ZhEditor/KaEditor/AssistantEditor),
+- **Editor** (Identity-backed): Role
+  (SuperAdmin/ChiefEditor/DeputyChiefEditor/Editor/KaEditor/AssistantEditor),
   IsActive (block, never hard-delete), LegacyRoleRaw (historical metadata only).
-- **ScoreEntry**: EntryId, EditorId, ScoreType (Main/Additional/KaEditor), unique
+- **ScoreEntry**: EntryId, EditorId, ScoreType (Main/Additional), unique
   (EntryId, EditorId, ScoreType) — enforces "once per entry" at the DB level.
 - **Notification** / **DirectMessage**, **AuditLogEntry** (doubles as status history),
   **MediaAsset** (Stage 2+, entity reserved now).
@@ -97,39 +98,37 @@ for cleaner routing), `CommentsController`, `ReferenceMaterialController`, `Voca
 
 ## Status workflow (resolved role × transition rules)
 
-A second, shorter spec (from a third team member) described a narrower ZH-editor scope
+A second, shorter spec (from a third team member) described a narrower Editor scope
 (`new_entry → zh_review → ka_review` only, forward-only). Product owner decision: **the
 original detailed spec below is authoritative**; the narrower version is not implemented. Revisit
 only if explicitly requested again.
 
-| From status | To status | Super Admin | Chief Editor | ZH Editor | KA Editor | Assistant Editor |
-|---|---|---|---|---|---|---|
-| new_entry | zh_review / ka_review / ready / published | Yes | Yes | Yes | No | No |
-| new_entry | zh_review / higher, *by a supervisor promoting an assistant's entry* | Yes | Yes | Yes | No | No (may remain `main_author`) |
-| zh_review | new_entry / ka_review / ready | Yes | Yes | Yes | No | No |
-| zh_review | published | Yes | Yes | No | No | No |
-| ka_review | zh_review | Yes | Yes | Yes | Yes | No |
-| ka_review | ready | Yes | Yes | Yes | Yes | No |
-| ka_review | published | Yes | Yes | No | No | No |
-| ready | zh_review / ka_review | Yes | Yes | Yes (not from published) | No | No |
-| ready | published | Yes | Yes | No | No | No |
-| published | any lower status | Yes | Yes | No | No | No |
-| any | archived / problem flag | Yes | Yes | No | No | No |
+| From status | To status | Supervisor | Chief | Deputy Chief | Editor | KA Editor | Assistant |
+|---|---|---|---|---|---|---|---|
+| new_entry | zh_review / ka_review / ready / published | Yes | Yes | Yes | Working statuses only | No | No |
+| zh_review | new_entry / ka_review / ready | Yes | Yes | Yes | Yes | No | No |
+| zh_review | published | Yes | Yes | Yes | No | No | No |
+| ka_review | zh_review / ready | Yes | Yes | Yes | Yes | Yes | No |
+| ka_review | published | Yes | Yes | Yes | No | No | No |
+| ready | new_entry / zh_review / ka_review | Yes | Yes | Yes | Yes | No | No |
+| ready | published | Yes | Yes | Yes | No | No | No |
+| published | any lower status | Yes | Yes | Yes | No | No | No |
+| any | archived / problem flag | Yes | Yes | Yes | No | No | No |
 
-Summary: ZH Editor may move an entry freely among `new_entry`/`zh_review`/`ka_review`/`ready` in
+Summary: Editor may move an entry freely among `new_entry`/`zh_review`/`ka_review`/`ready` in
 either direction, but never publishes and never moves a published entry backward. KA Editor may
-only move `ka_review ↔ zh_review` and `ka_review → ready`. Only Chief Editor/Super Admin publish,
-un-publish, or archive. Assistant Editor never changes status directly.
+only move `ka_review → zh_review` and `ka_review → ready`. Only Supervisor, Chief Editor, and
+Deputy Chief Editor publish, un-publish, or archive. Assistant Editor never changes status directly.
 
 ### Status colors (reference for the future Angular UI — no backend impact)
 
 | Status | Label (ka) | Color |
 |---|---|---|
-| new_entry | ახალი სტატია | gray |
-| zh_review | ჩინური შემოწმება | red |
-| ka_review | ქართული შემოწმება | blue |
-| ready | მზადაა | green |
-| published | გამოქვეყნებული | black |
+| new_entry | ახალი სტატია | gray (`#808080`) |
+| zh_review | ჩინური შემოწმება | red (`#C00000`) |
+| ka_review | ქართული შემოწმება | blue (`#0000FF`) |
+| ready | მზადაა | green (`#00B050`) |
+| published | გამოქვეყნებული | black (`#000000`) |
 | archived | არქივი | *(not specified yet)* |
 
 ## Phased roadmap
@@ -155,7 +154,7 @@ un-publish, or archive. Assistant Editor never changes status directly.
   `Seed:SuperAdminEmail`/`Seed:SuperAdminPassword` (user-secrets) on startup — no password hash
   ever committed to source. `AuthController` (login/refresh/logout) and `EditorsController`
   (me/list/get/create/deactivate/reactivate/reset-password) added; role-gated endpoints verified
-  against a live SuperAdmin + ZhEditor pair.
+  against a live Supervisor + Editor pair.
 - **M4 (done)** — Entry CRUD against the reduced Stage-1 shape (`Entry → Homonym → Sense →
   Definition/Example/ZhSegment/KaSegment`, one implicit hidden `GramGrp` per homonym, `Sense`
   auto-numbered). `POST /entries` (headword-only minimum per spec §9), `PUT /entries/{id}/content`
@@ -169,7 +168,7 @@ un-publish, or archive. Assistant Editor never changes status directly.
   `text_pattern_ops`, `title_length asc → status_priority asc → last_modified desc`, includes
   `new_entry`). Optimistic concurrency via the `xmin` shadow property, exposed to clients as
   `rowVersion`; a stale save returns 409. `POST`/`PUT` role-gated to
-  SuperAdmin/ChiefEditor/ZhEditor/AssistantEditor (= "Edit new_entry content" in the 11.1
+  Supervisor/ChiefEditor/DeputyChiefEditor/Editor/AssistantEditor (= "Edit new_entry content" in the 11.1
   permissions matrix — exact since every Stage-1 entry is perpetually `new_entry` until M5 adds
   status transitions). New pure `Domain/Rules`: `EntryStatusPriority` (status → sort priority)
   and `TitleNormalizer` (folds Chinese "，" to "," per 5.3), both unit-tested without a
@@ -185,8 +184,8 @@ un-publish, or archive. Assistant Editor never changes status directly.
   special-casing needed, since the creator never changes. Every transition writes an
   `AuditLogEntry` (`AuditAction.StatusChanged`, old/new status as jsonb). Verified live
   end-to-end through the entire lifecycle of one entry: `new_entry → zh_review` (super_admin) →
-  `ka_review` (zh_editor) → `ready` (ka_editor) → blocked publish attempt by zh_editor (403) →
-  `published` (super_admin) → blocked backward move by zh_editor (403); plus same-status and
+  `ka_review` (editor) → `ready` (ka_editor) → blocked publish attempt by editor (403) →
+  `published` (supervisor) → blocked backward move by editor (403); plus same-status and
   unknown-status rejected with 400, and the entry correctly appearing in the main list only
   once it left `new_entry`. Known gap (not built): content-edit permissions
   (`PUT .../content`) are still a fixed role list, not status-aware (e.g. ka_editor should gain
@@ -195,13 +194,11 @@ un-publish, or archive. Assistant Editor never changes status directly.
   the first time an entry leaves `new_entry`; Additional score to any other editor who edits
   content or changes status on an entry they don't author, once per entry (the `ScoreEntry`
   unique index from M2 is the real dedup guarantee, an in-request `AnyAsync` check is just the
-  fast path); a dedicated KaEditor score — instead of Additional — when a ka_editor completes
-  ka_review work (`ka_review → zh_review` or `ka_review → ready`). Hooked into
+  fast path). Georgian-language and Assistant editors always earn Additional rather than Main.
+  Hooked into
   `EntryService.SaveContentAsync` and `ChangeStatusAsync` so awards commit in the same
-  transaction as the change that earned them. **Note**: the source spec explicitly flags the
-  ka_editor score's "final score type" as unresolved ("საბოლოო ქულის ტიპი
-  დასაზუსტებელია") — this implementation keeps it as the separate `KaEditor` bucket already
-  baked into the M2 schema; tell the assistant if you'd rather fold it into Additional.
+  transaction as the change that earned them. SCORE.pdf resolves the former Georgian-editor
+  score question by folding it into Additional.
   `IAccountingService`/`AccountingService`: global per-editor score totals
   (`GET /accounting/editors`), entry counts by status (`GET /accounting/entries-status-totals`),
   and a personal accounting page with main/additional/ka-editor counts grouped by the *entry's
@@ -212,9 +209,8 @@ un-publish, or archive. Assistant Editor never changes status directly.
   edits/transitions by the same non-author editor only award Additional once, and both halves
   of the Q5 restriction (403 on someone else's page, 200 on your own).
 - **M7 (done)** — `INotificationService.NotifyEntryChangedAsync`: on every content save or status
-  change, notifies the entry's creator, its `MainAuthorEditorId` (once locked), and everyone
-  with a prior `AuditLogEntry` against that entry — i.e. "everyone who ever worked on it," per
-  spec §7 — excluding whoever just made the change (resolved Q4: no self-notifications). Reused
+  change, notifies only the two most recent distinct previous contributors, excluding whoever
+  just made the change (no self-notifications). Reused
   the M2 `AuditLogEntry` table as the "who has touched this entry" ledger rather than adding a
   new contributor-tracking concept; `SaveContentAsync` now also logs `AuditAction.ContentEdited`
   (it previously only logged nothing — `ChangeStatusAsync` was the only audited path), which

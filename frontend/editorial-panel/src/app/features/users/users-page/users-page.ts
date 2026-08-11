@@ -31,7 +31,8 @@ export class UsersPage implements OnInit {
   readonly roles: EditorRole[] = [
     'SuperAdmin',
     'ChiefEditor',
-    'ZhEditor',
+    'DeputyChiefEditor',
+    'Editor',
     'KaEditor',
     'AssistantEditor',
   ];

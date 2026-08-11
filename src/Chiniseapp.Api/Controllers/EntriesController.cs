@@ -15,7 +15,7 @@ public class EntriesController(IEntryService entryService) : ControllerBase
     public async Task<ActionResult<PagedResult<EntrySummary>>> List(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default)
     {
-        return Ok(await entryService.GetMainListAsync(page, pageSize, ct));
+        return Ok(await entryService.GetMainListAsync(page, pageSize, User.GetEditorRole(), ct));
     }
 
     /// <summary>5.2 Search dropdown: starts-with match, includes new_entry.</summary>
@@ -28,29 +28,33 @@ public class EntriesController(IEntryService entryService) : ControllerBase
             return Ok(Array.Empty<EntrySummary>());
         }
 
-        return Ok(await entryService.SearchAsync(q, limit, ct));
+        return Ok(await entryService.SearchAsync(q, limit, User.GetEditorRole(), ct));
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<EntryDetail>> Get(int id, CancellationToken ct)
     {
-        var entry = await entryService.GetAsync(id, ct);
+        var entry = await entryService.GetAsync(id, User.GetEditorRole(), ct);
         return entry is null ? NotFound() : Ok(entry);
     }
 
     /// <summary>Minimum viable create: headword only (spec 9 — title is the only required field).</summary>
     [HttpPost]
-    [Authorize(Roles = AuthorizationPolicies.ContentEditorRoles)]
+    [Authorize(Roles = AuthorizationPolicies.EntryCreatorRoles)]
     public async Task<ActionResult<EntryDetail>> Create(CreateEntryRequest request, CancellationToken ct)
     {
         try
         {
-            var entry = await entryService.CreateAsync(request, User.GetEditorId(), ct);
+            var entry = await entryService.CreateAsync(request, User.GetEditorId(), User.GetEditorRole(), ct);
             return CreatedAtAction(nameof(Get), new { id = entry.Id }, entry);
         }
         catch (EntryValidationException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (EntryAccessDeniedException ex)
+        {
+            return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden);
         }
     }
 
@@ -67,7 +71,8 @@ public class EntriesController(IEntryService entryService) : ControllerBase
     {
         try
         {
-            var entry = await entryService.SaveContentAsync(id, request, User.GetEditorId(), ct);
+            var entry = await entryService.SaveContentAsync(
+                id, request, User.GetEditorId(), User.GetEditorRole(), ct);
             return Ok(entry);
         }
         catch (EntryConcurrencyException)
@@ -77,6 +82,10 @@ public class EntriesController(IEntryService entryService) : ControllerBase
         catch (EntryValidationException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (EntryAccessDeniedException ex)
+        {
+            return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden);
         }
     }
 

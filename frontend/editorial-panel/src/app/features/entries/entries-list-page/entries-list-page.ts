@@ -44,7 +44,13 @@ export class EntriesListPage implements OnInit {
   readonly pageCount = computed(() => Math.max(1, Math.ceil(this.totalCount() / this.pageSize)));
   readonly canCreateEntry = computed(() => {
     const role = this.auth.editor()?.role;
-    return role === 'SuperAdmin' || role === 'ChiefEditor' || role === 'AssistantEditor';
+    return (
+      role === 'SuperAdmin' ||
+      role === 'ChiefEditor' ||
+      role === 'DeputyChiefEditor' ||
+      role === 'Editor' ||
+      role === 'AssistantEditor'
+    );
   });
 
   readonly queryControl = new FormControl('', { nonNullable: true });

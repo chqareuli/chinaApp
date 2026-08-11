@@ -1,6 +1,7 @@
 using Chiniseapp.Application.Scoring;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
+using Chiniseapp.Domain.Rules;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,10 +9,11 @@ namespace Chiniseapp.Infrastructure.Scoring;
 
 public class ScoringService(ChiniseDbContext db) : IScoringService
 {
-    public async Task AwardForContentEditAsync(Entry entry, int actingEditorId, CancellationToken ct = default)
+    public async Task AwardForContentEditAsync(
+        Entry entry, EditorRole actingEditorRole, int actingEditorId, CancellationToken ct = default)
     {
         var authorId = entry.MainAuthorEditorId ?? entry.CreatedByEditorId;
-        if (actingEditorId != authorId)
+        if (!EntryPermissionRules.CanEarnMainScore(actingEditorRole) || actingEditorId != authorId)
         {
             await AwardOnceAsync(entry.Id, actingEditorId, ScoreType.Additional, ct);
         }
@@ -22,22 +24,18 @@ public class ScoringService(ChiniseDbContext db) : IScoringService
     {
         if (previousStatus == EntryStatus.NewEntry && entry.MainAuthorEditorId is int mainAuthorId)
         {
-            await AwardOnceAsync(entry.Id, mainAuthorId, ScoreType.Main, ct);
-        }
-
-        // A ka_editor completing ka_review work gets the dedicated KaEditor
-        // score instead of a generic Additional score for the same action
-        // (the "final score type" note in the spec flags this bucket as not
-        // fully settled — revisit if the product owner wants it folded into
-        // Additional instead).
-        if (actingEditorRole == EditorRole.KaEditor && previousStatus == EntryStatus.KaReview)
-        {
-            await AwardOnceAsync(entry.Id, actingEditorId, ScoreType.KaEditor, ct);
-            return;
+            var mainAuthorRole = await db.Editors
+                .Where(e => e.Id == mainAuthorId)
+                .Select(e => e.Role)
+                .SingleAsync(ct);
+            if (EntryPermissionRules.CanEarnMainScore(mainAuthorRole))
+            {
+                await AwardOnceAsync(entry.Id, mainAuthorId, ScoreType.Main, ct);
+            }
         }
 
         var authorId = entry.MainAuthorEditorId ?? entry.CreatedByEditorId;
-        if (actingEditorId != authorId)
+        if (!EntryPermissionRules.CanEarnMainScore(actingEditorRole) || actingEditorId != authorId)
         {
             await AwardOnceAsync(entry.Id, actingEditorId, ScoreType.Additional, ct);
         }

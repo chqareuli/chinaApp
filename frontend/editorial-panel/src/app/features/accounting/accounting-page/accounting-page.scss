@@ -11,7 +11,7 @@
 }
 .personal-card {
   display: grid;
-  grid-template-columns: 1.6fr repeat(3, 0.5fr);
+  grid-template-columns: 1.6fr repeat(2, 0.5fr);
   align-items: center;
   gap: 12px;
   padding: 20px;
@@ -103,7 +103,7 @@
 .table-head,
 .score-table article {
   display: grid;
-  grid-template-columns: 1.5fr repeat(4, 0.6fr);
+  grid-template-columns: 1.5fr repeat(3, 0.6fr);
   align-items: center;
   gap: 10px;
   padding: 11px 12px;
@@ -130,7 +130,7 @@
     padding: 28px 14px;
   }
   .personal-card {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
   .personal-card > div:first-child {
     grid-column: 1/-1;
@@ -146,7 +146,7 @@
     display: none;
   }
   .score-table article {
-    grid-template-columns: 1fr repeat(4, 0.4fr);
+    grid-template-columns: 1fr repeat(3, 0.4fr);
     padding: 12px 2px;
     font-size: 0.66rem;
   }

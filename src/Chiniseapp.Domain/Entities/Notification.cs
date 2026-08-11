@@ -1,9 +1,8 @@
 namespace Chiniseapp.Domain.Entities;
 
 /// <summary>
-/// Entry-linked notification: sent to main_author, last_editor, and everyone
-/// who ever edited/commented on the entry, excluding whoever just made the
-/// change. Must link back to the entry (Editorial Panel spec §7).
+/// Entry-linked notification sent to the two most recent distinct previous
+/// contributors, excluding whoever just made the change.
 /// </summary>
 public class Notification
 {

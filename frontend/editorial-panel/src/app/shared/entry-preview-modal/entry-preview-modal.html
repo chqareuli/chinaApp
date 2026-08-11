@@ -1,0 +1,19 @@
+<div class="preview-backdrop" (click)="closeFromBackdrop($event)">
+  <section
+    class="preview-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="entry-preview-title"
+  >
+    <header>
+      <div>
+        <p>მომხმარებლის ხედი</p>
+        <h2 id="entry-preview-title">სტატიის წინასწარი ნახვა</h2>
+      </div>
+      <button type="button" (click)="close()" aria-label="წინასწარი ნახვის დახურვა">×</button>
+    </header>
+    <div class="preview-content">
+      <app-public-entry-article [entry]="entry()" />
+    </div>
+  </section>
+</div>

@@ -32,10 +32,17 @@
     </div>
 
     <footer>
+      <button class="btn btn-secondary" type="button" (click)="openPreview()">
+        მომხმარებლის ხედით ნახვა
+      </button>
       <a class="btn btn-secondary" routerLink="/adminpanel/dashboard">გაუქმება</a>
       <button class="btn btn-primary" type="submit" [disabled]="saving()">
         {{ saving() ? 'იქმნება…' : 'შექმნა და გაგრძელება' }}
       </button>
     </footer>
   </form>
+
+  @if (previewEntry(); as preview) {
+    <app-entry-preview-modal [entry]="preview" (closed)="closePreview()" />
+  }
 </section>

@@ -135,6 +135,20 @@ describe('EntryDetailPage status confirmation', () => {
     expect(request.homonyms[0].text).toBe('同形词');
   });
 
+  it('builds the public preview from unsaved form values', () => {
+    component.entryForm.controls.lemma.setValue('预览');
+    component.startStructure('sense');
+    component.rootSenses.at(0).get('definition')?.setValue('შეუნახავი განმარტება');
+
+    component.openPreview();
+
+    expect(component.previewEntry()?.lemma).toBe('预览');
+    expect(component.previewEntry()?.senses[0].definition).toBe('შეუნახავი განმარტება');
+
+    component.closePreview();
+    expect(component.previewEntry()).toBeNull();
+  });
+
   it('opens the embedded notes panel on comments by default', () => {
     expect(component.notesTab()).toBe('comments');
 

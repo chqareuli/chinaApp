@@ -23,11 +23,11 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "audit_action", new[] { "created", "status_changed", "content_edited", "role_changed", "deactivated", "archived", "repair_mode_toggled", "comment_added", "other" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "comment_status", new[] { "open", "archived" });
-            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "editor_role", new[] { "super_admin", "chief_editor", "zh_editor", "ka_editor", "assistant_editor" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "editor_role", new[] { "super_admin", "chief_editor", "deputy_chief_editor", "editor", "ka_editor", "assistant_editor" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "entry_status", new[] { "new_entry", "zh_review", "ka_review", "ready", "published", "archived" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "media_file_type", new[] { "image", "video" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "placement", new[] { "inline", "attached", "standalone" });
-            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "score_type", new[] { "main", "additional", "ka_editor" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "score_type", new[] { "main", "additional" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "segment_type", new[] { "homonym", "gram_grp", "pos", "sense", "definition", "example", "zh_segment", "ka_segment", "xr", "style", "domain", "abbr", "lang" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "vocabulary_category", new[] { "pos", "style", "domain", "abbr", "lang" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);

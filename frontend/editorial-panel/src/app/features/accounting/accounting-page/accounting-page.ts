@@ -34,7 +34,12 @@ export class AccountingPage implements OnInit {
   readonly statuses = ['NewEntry', 'ZhReview', 'KaReview', 'Ready', 'Published', 'Archived'];
   readonly canViewGlobal = computed(() => {
     const role = this.auth.editor()?.role;
-    return role === 'SuperAdmin' || role === 'ChiefEditor' || role === 'ZhEditor';
+    return (
+      role === 'SuperAdmin' ||
+      role === 'ChiefEditor' ||
+      role === 'DeputyChiefEditor' ||
+      role === 'Editor'
+    );
   });
   readonly personalTotals = computed(() => {
     const scores = this.personal()?.scoresByStatus;
@@ -43,7 +48,6 @@ export class AccountingPage implements OnInit {
     return {
       main: sum(scores?.main),
       additional: sum(scores?.additional),
-      ka: sum(scores?.kaEditor),
     };
   });
   ngOnInit(): void {

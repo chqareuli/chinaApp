@@ -3,6 +3,7 @@ using Chiniseapp.Application.Notifications;
 using Chiniseapp.Application.Scoring;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
+using Chiniseapp.Domain.Rules;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,6 +39,12 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
 
         var entry = await db.Entries.FindAsync([entryId], ct)
             ?? throw new CommentValidationException($"Entry {entryId} does not exist.");
+        var actor = await db.Editors.FindAsync([authorEditorId], ct)
+            ?? throw new CommentValidationException("Current editor does not exist.");
+        if (!EntryPermissionRules.CanComment(actor.Role, entry.Status))
+        {
+            throw new CommentAccessDeniedException();
+        }
 
         var now = DateTime.UtcNow;
         var comment = new Comment
@@ -62,7 +69,7 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
 
         // 10.1: commenting on another author's entry earns Additional score,
         // exactly like editing its content does.
-        await scoringService.AwardForContentEditAsync(entry, authorEditorId, ct);
+        await scoringService.AwardForContentEditAsync(entry, actor.Role, authorEditorId, ct);
         await notificationService.NotifyEntryChangedAsync(entry, authorEditorId, nameof(AuditAction.CommentAdded), ct);
 
         await db.SaveChangesAsync(ct);
@@ -115,7 +122,8 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
     private static void EnsureCanModify(Comment comment, int requestingEditorId, EditorRole requestingRole)
     {
         var isOwner = comment.AuthorEditorId == requestingEditorId;
-        var isPrivileged = requestingRole is EditorRole.SuperAdmin or EditorRole.ChiefEditor;
+        var isPrivileged = requestingRole is
+            EditorRole.SuperAdmin or EditorRole.ChiefEditor or EditorRole.DeputyChiefEditor;
         if (!isOwner && !isPrivileged)
         {
             throw new CommentAccessDeniedException();

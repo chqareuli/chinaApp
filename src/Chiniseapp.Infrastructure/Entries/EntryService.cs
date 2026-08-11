@@ -12,8 +12,14 @@ namespace Chiniseapp.Infrastructure.Entries;
 
 public class EntryService(ChiniseDbContext db, IScoringService scoringService, INotificationService notificationService) : IEntryService
 {
-    public async Task<EntryDetail> CreateAsync(CreateEntryRequest request, int currentEditorId, CancellationToken ct = default)
+    public async Task<EntryDetail> CreateAsync(
+        CreateEntryRequest request, int currentEditorId, EditorRole currentEditorRole, CancellationToken ct = default)
     {
+        if (!EntryPermissionRules.CanCreate(currentEditorRole))
+        {
+            throw new EntryAccessDeniedException("Your role cannot create entries.");
+        }
+
         var lemma = NormalizeLemma(request.Lemma);
 
         var now = DateTime.UtcNow;
@@ -33,10 +39,10 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         db.Entries.Add(entry);
         await db.SaveChangesAsync(ct);
 
-        return await BuildDetailAsync(entry, [], ct);
+        return await BuildDetailAsync(entry, [], currentEditorRole, ct);
     }
 
-    public async Task<EntryDetail?> GetAsync(int id, CancellationToken ct = default)
+    public async Task<EntryDetail?> GetAsync(int id, EditorRole currentEditorRole, CancellationToken ct = default)
     {
         var entry = await db.Entries.FindAsync([id], ct);
         if (entry is null)
@@ -44,14 +50,25 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             return null;
         }
 
+        if (!EntryPermissionRules.CanView(currentEditorRole, entry.Status))
+        {
+            return null;
+        }
+
         var homonyms = await LoadHomonymsAsync(id, ct);
-        return await BuildDetailAsync(entry, homonyms, ct);
+        return await BuildDetailAsync(entry, homonyms, currentEditorRole, ct);
     }
 
-    public async Task<EntryDetail> SaveContentAsync(int id, SaveEntryContentRequest request, int currentEditorId, CancellationToken ct = default)
+    public async Task<EntryDetail> SaveContentAsync(
+        int id, SaveEntryContentRequest request, int currentEditorId, EditorRole currentEditorRole, CancellationToken ct = default)
     {
         var entry = await db.Entries.FindAsync([id], ct)
             ?? throw new EntryValidationException($"Entry {id} does not exist.");
+
+        if (!EntryPermissionRules.CanEditContent(currentEditorRole, entry.Status))
+        {
+            throw new EntryAccessDeniedException("Your role cannot edit this entry in its current status.");
+        }
 
         // The xmin shadow property drives EF Core's optimistic-concurrency
         // check: setting OriginalValue makes the generated UPDATE include
@@ -96,7 +113,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
                 PerformedAtUtc = entry.UpdatedAtUtc,
             });
 
-            await scoringService.AwardForContentEditAsync(entry, currentEditorId, ct);
+            await scoringService.AwardForContentEditAsync(entry, currentEditorRole, currentEditorId, ct);
             await notificationService.NotifyEntryChangedAsync(entry, currentEditorId, nameof(AuditAction.ContentEdited), ct);
 
             await db.SaveChangesAsync(ct);
@@ -108,7 +125,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             throw new EntryConcurrencyException();
         }
 
-        return await BuildDetailAsync(entry, request.Homonyms, ct);
+        return await BuildDetailAsync(entry, request.Homonyms, currentEditorRole, ct);
     }
 
     public async Task<EntryDetail> ChangeStatusAsync(int id, EntryStatus targetStatus, int currentEditorId, CancellationToken ct = default)
@@ -162,16 +179,19 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         await db.SaveChangesAsync(ct);
 
         var homonyms = await LoadHomonymsAsync(id, ct);
-        return await BuildDetailAsync(entry, homonyms, ct);
+        return await BuildDetailAsync(entry, homonyms, actor.Role, ct);
     }
 
-    public async Task<PagedResult<EntrySummary>> GetMainListAsync(int page, int pageSize, CancellationToken ct = default)
+    public async Task<PagedResult<EntrySummary>> GetMainListAsync(
+        int page, int pageSize, EditorRole currentEditorRole, CancellationToken ct = default)
     {
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 200);
 
         // Matches Entries(status_priority, updated_at_utc) WHERE status <> 'new_entry'.
-        var query = db.Entries.Where(e => e.Status != EntryStatus.NewEntry);
+        var query = currentEditorRole == EditorRole.KaEditor
+            ? db.Entries.Where(e => e.Status == EntryStatus.KaReview)
+            : db.Entries.Where(e => e.Status != EntryStatus.NewEntry);
 
         var totalCount = await query.CountAsync(ct);
         var page1 = await query
@@ -186,7 +206,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         return new PagedResult<EntrySummary>(items, totalCount, page, pageSize);
     }
 
-    public async Task<IReadOnlyList<EntrySummary>> SearchAsync(string query, int limit, CancellationToken ct = default)
+    public async Task<IReadOnlyList<EntrySummary>> SearchAsync(
+        string query, int limit, EditorRole currentEditorRole, CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 100);
         var normalized = TitleNormalizer.Normalize(query.Trim());
@@ -197,7 +218,13 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 
         // Matches Entries(search_normalized_title) with text_pattern_ops.
         // Includes new_entry (unlike the main list) per the 5.2 search algorithm.
-        var matches = await db.Entries
+        var entries = db.Entries.AsQueryable();
+        if (currentEditorRole == EditorRole.KaEditor)
+        {
+            entries = entries.Where(e => e.Status == EntryStatus.KaReview);
+        }
+
+        var matches = await entries
             .Where(e => EF.Functions.Like(e.SearchNormalizedTitle, normalized + "%"))
             .OrderBy(e => e.Lemma.Length)
             .ThenBy(e => e.StatusPriority)
@@ -327,7 +354,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         return homonyms;
     }
 
-    private async Task<EntryDetail> BuildDetailAsync(Entry entry, List<HomonymDto> homonyms, CancellationToken ct)
+    private async Task<EntryDetail> BuildDetailAsync(
+        Entry entry, List<HomonymDto> homonyms, EditorRole currentEditorRole, CancellationToken ct)
     {
         string? mainAuthorName = null;
         if (entry.MainAuthorEditorId is int mainAuthorId)
@@ -355,7 +383,13 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             entry.CreatedAtUtc,
             entry.UpdatedAtUtc,
             rowVersion,
-            homonyms);
+            homonyms,
+            new EntryCapabilities(
+                EntryPermissionRules.CanEditContent(currentEditorRole, entry.Status),
+                Enum.GetValues<EntryStatus>()
+                    .Where(target => StatusTransitionRules.CanTransition(currentEditorRole, entry.Status, target))
+                    .Select(target => target.ToString())
+                    .ToList()));
     }
 
     private async Task<Dictionary<int, string>> LoadDisplayNamesAsync(List<Entry> entries, CancellationToken ct)

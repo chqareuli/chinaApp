@@ -21,7 +21,7 @@ public class StatusTransitionRulesTests
         var set = new HashSet<(EditorRole, EntryStatus, EntryStatus)>();
 
         // Super Admin / Chief Editor: every from -> to pair.
-        foreach (var role in new[] { EditorRole.SuperAdmin, EditorRole.ChiefEditor })
+        foreach (var role in new[] { EditorRole.SuperAdmin, EditorRole.ChiefEditor, EditorRole.DeputyChiefEditor })
         {
             foreach (var from in AllStatuses)
             {
@@ -35,15 +35,15 @@ public class StatusTransitionRulesTests
             }
         }
 
-        // ZH Editor: free movement among the four non-published, non-archived statuses.
-        EntryStatus[] zhReachable = [EntryStatus.NewEntry, EntryStatus.ZhReview, EntryStatus.KaReview, EntryStatus.Ready];
-        foreach (var from in zhReachable)
+        // Editor: free movement among the four non-published, non-archived statuses.
+        EntryStatus[] editorReachable = [EntryStatus.NewEntry, EntryStatus.ZhReview, EntryStatus.KaReview, EntryStatus.Ready];
+        foreach (var from in editorReachable)
         {
-            foreach (var to in zhReachable)
+            foreach (var to in editorReachable)
             {
                 if (from != to)
                 {
-                    set.Add((EditorRole.ZhEditor, from, to));
+                    set.Add((EditorRole.Editor, from, to));
                 }
             }
         }
@@ -112,9 +112,9 @@ public class StatusTransitionRulesTests
     [InlineData(EntryStatus.KaReview, EntryStatus.Published)]
     [InlineData(EntryStatus.Published, EntryStatus.Ready)]
     [InlineData(EntryStatus.NewEntry, EntryStatus.Archived)]
-    public void Zh_editor_cannot_publish_unpublish_or_archive(EntryStatus from, EntryStatus to)
+    public void Editor_cannot_publish_unpublish_or_archive(EntryStatus from, EntryStatus to)
     {
-        Assert.False(StatusTransitionRules.CanTransition(EditorRole.ZhEditor, from, to));
+        Assert.False(StatusTransitionRules.CanTransition(EditorRole.Editor, from, to));
     }
 
     [Theory]
@@ -122,9 +122,9 @@ public class StatusTransitionRulesTests
     [InlineData(EntryStatus.ZhReview, EntryStatus.KaReview)]
     [InlineData(EntryStatus.KaReview, EntryStatus.ZhReview)]
     [InlineData(EntryStatus.Ready, EntryStatus.NewEntry)]
-    public void Zh_editor_moves_freely_among_the_four_working_statuses(EntryStatus from, EntryStatus to)
+    public void Editor_moves_freely_among_the_four_working_statuses(EntryStatus from, EntryStatus to)
     {
-        Assert.True(StatusTransitionRules.CanTransition(EditorRole.ZhEditor, from, to));
+        Assert.True(StatusTransitionRules.CanTransition(EditorRole.Editor, from, to));
     }
 
     [Fact]

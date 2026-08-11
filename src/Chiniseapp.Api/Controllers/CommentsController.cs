@@ -27,6 +27,12 @@ public class CommentsController(ICommentService commentService) : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (CommentAccessDeniedException)
+        {
+            return Problem(
+                detail: "Your role cannot comment on this entry in its current status.",
+                statusCode: StatusCodes.Status403Forbidden);
+        }
     }
 
     /// <summary>Only the comment's own author, or a Chief Editor/Super Admin, may edit it.</summary>

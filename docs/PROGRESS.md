@@ -17,10 +17,10 @@ Latest work: M8a — Comments + Reference Material CRUD. See `git log --oneline`
   search, optimistic concurrency.
 - **M5** — Status workflow, `StatusTransitionRules` (exhaustively unit-tested), `MainAuthor`
   lock, `AuditLogEntry` on every status change.
-- **M6** — Scoring (Main/Additional/KaEditor) and accounting endpoints, resolved Q5 privacy
+- **M6** — Scoring (Main/Additional) and accounting endpoints, resolved Q5 privacy
   rule (KA/Assistant Editor: own accounting page only).
-- **M7** — Notifications on every content save/status change, fanned out to everyone who ever
-  worked on the entry, excluding the actor (resolved Q4). Direct messaging.
+- **M7** — Notifications on every content save/status change, sent only to the two most recent
+  distinct previous contributors, excluding the actor. Direct messaging.
 - **M8a** — `Comment` CRUD (`CommentsController`): list/add per entry, edit/archive gated to
   the comment's author or Chief Editor/Super Admin. Adding a comment awards Additional score
   and notifies past contributors, same as editing content. `ReferenceMaterial` get/save
@@ -30,24 +30,24 @@ Latest work: M8a — Comments + Reference Material CRUD. See `git log --oneline`
   override works, multi-script (EN/ZH/RU/KA) reference material round-trips correctly.
 
 ### Resolved product decisions (see `docs/backend-plan.md` for full detail)
-- ZH-editor status-transition scope: broad model, implemented and locked in by tests.
+- Editor status-transition scope: broad model, implemented and locked in by tests.
 - Status colors recorded for the future Angular UI — no backend impact.
 - Q5 (accounting privacy): KA/Assistant Editor see only their own accounting page.
 - Q4 (self-notifications): not sent.
 - M8 scope split: build Comment/ReferenceMaterial CRUD now; defer the legacy-import console
   tool until real old-database data or access is available (explicit product-owner decision).
 
-### Open item flagged, not silently decided
-- The ka_editor score's "final score type" is explicitly unresolved in the source spec.
-  Implemented as its own `ScoreType.KaEditor` bucket — tell the assistant if you want it changed.
+### SCORE.pdf alignment
+- Six roles are implemented: Supervisor, Chief Editor, Deputy Chief Editor, Editor,
+  Georgian-language Editor, and Assistant Editor.
+- Scores have exactly two types: Main and Additional. Georgian-language and Assistant editors
+  only earn Additional scores, once per entry.
 
 ### Known simplifications / gaps (intentional, revisit later — not oversights)
 - **M4**: content save is full-replace (segment ids not stable across saves); no gramGrp/POS
   UI; no IE elements yet. All Stage 2.
-- **M5**: `PUT /entries/{id}/content` authorization is still a fixed role list, not
-  status-aware.
-- Main-list/search visibility is not role-scoped yet (KA Editor should see only `ka_review`
-  entries on their main view, Assistant Editor only assigned/new ones).
+- `PUT /entries/{id}/content` is status-aware, and the Georgian-language editor's main
+  list/search is restricted to `ka_review` entries.
 - **M7**: notification "type" is just the raw `AuditAction` name, no richer summary text yet.
   Message-to-entry linkification and Super Admin notification mute/unmute are Stage 2 per spec.
 - **M8a**: `Comment.TargetSegmentId` stays null always (entry-level only) — segment-level
@@ -76,7 +76,7 @@ Once unblocked:
 ## How to resume locally
 
 1. Postgres running locally, database `ChinesDbGeo`, migrated through
-   `20260717194626_AddCommentAddedAuditAction` (run `dotnet ef database update` if unsure).
+   `20260811155000_AlignRolesAndScoreTypesWithScoreDocument` (run `dotnet ef database update` if unsure).
 2. `Chiniseapp.Api`'s user-secrets must already have (set once per machine, not committed —
    see `README.md` § Local setup):
    `ConnectionStrings:DefaultConnection`, `Jwt:*`, `Seed:SuperAdminEmail`/`SuperAdminPassword`.
@@ -92,5 +92,5 @@ percent-encode non-ASCII query params (e.g. `为` → `%E4%B8%BA`).
 
 **Local test accounts** already seeded in the dev DB from manual testing (not in any migration
 or seed script — recreate if working from a fresh database):
-`admin@chinese.ge` (super_admin, id 1), `zura@chinese.ge` (zh_editor, id 2),
+`admin@chinese.ge` (super_admin, id 1), `zura@chinese.ge` (editor, id 2),
 `nino@chinese.ge` (ka_editor, id 3), password `Passw0rd!` for zura/nino.

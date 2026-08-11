@@ -31,10 +31,6 @@
           <strong>{{ personalTotals().additional }}</strong
           ><span>დამატებითი</span>
         </div>
-        <div class="score">
-          <strong>{{ personalTotals().ka }}</strong
-          ><span>ქართული</span>
-        </div>
       </section>
     }
     <section class="status-section">
@@ -63,8 +59,7 @@
         </div>
         <div class="score-table">
           <div class="table-head">
-            <span>რედაქტორი</span><span>მთავარი</span><span>დამატებითი</span><span>ქართული</span
-            ><span>ჯამი</span>
+            <span>რედაქტორი</span><span>მთავარი</span><span>დამატებითი</span><span>ჯამი</span>
           </div>
           @for (editor of editors(); track editor.editorId) {
             <article>
@@ -74,10 +69,7 @@
               </div>
               <span>{{ editor.mainScoreTotal }}</span
               ><span>{{ editor.additionalScoreTotal }}</span
-              ><span>{{ editor.kaEditorScoreTotal }}</span
-              ><b>{{
-                editor.mainScoreTotal + editor.additionalScoreTotal + editor.kaEditorScoreTotal
-              }}</b>
+              ><b>{{ editor.mainScoreTotal + editor.additionalScoreTotal }}</b>
             </article>
           }
         </div>
