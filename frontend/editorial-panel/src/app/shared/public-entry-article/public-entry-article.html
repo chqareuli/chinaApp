@@ -92,6 +92,7 @@
       <ng-template #groupView let-group="group">
         <div class="grammar-group">
           <div class="grammar-heading">
+            <span class="grammar-number">{{ toRoman(group.number) }}</span>
             @if (group.pos) {
               <span class="pos">{{ group.pos }}</span>
             }

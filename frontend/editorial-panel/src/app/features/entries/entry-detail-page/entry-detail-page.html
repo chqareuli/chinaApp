@@ -225,7 +225,7 @@
         <ng-template #grammarEditor let-group="group" let-groups="groups" let-index="index" let-prefix="prefix" let-showDecorations="showDecorations">
           <section class="grammar-editor structure-node structure-node--grammar" [formGroup]="group">
             <div class="grammar-head">
-              <strong><span class="node-type">გრამატიკული ჯგუფი</span><span class="node-number">{{ index + 1 }}</span> <span class="term-note">gramGrp</span></strong>
+              <strong><span class="node-type">გრამატიკული ჯგუფი</span><span class="node-number">{{ toRoman(index + 1) }}</span> <span class="term-note">gramGrp</span></strong>
               @if (canEdit()) {
                 <button class="text-button danger" type="button" (click)="removeGroupFrom(groups, index)">წაშლა</button>
               }

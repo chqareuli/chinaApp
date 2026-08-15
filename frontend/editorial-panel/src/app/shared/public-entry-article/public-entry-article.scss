@@ -16,6 +16,7 @@ article { overflow:hidden; border:1px solid rgb(23 63 53 / 12%); border-radius:2
 .homonym-text { color:#173f35; font-family:'Microsoft YaHei',sans-serif; font-size:1.05rem; }
 .grammar-group { display:grid; gap:10px; }
 .grammar-heading { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.grammar-number { display:grid; min-width:28px; height:28px; padding:0 7px; place-items:center; color:#fff; border-radius:7px; background:#315dc2; font-family:Georgia,serif; font-size:.75rem; font-weight:700; }
 .pos { justify-self:start; padding:4px 8px; color:#fff; border-radius:6px; background:#9c3439; font-family:'Microsoft YaHei',sans-serif; font-size:.72rem; font-weight:800; }
 .ie-list { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
 .ie-marker { display:inline-flex; align-items:center; min-height:24px; padding:3px 8px; color:#8b3035; border:1px solid #e3c9c6; border-radius:6px; background:#f8eeec; font-family:'Microsoft YaHei',sans-serif; font-size:.7rem; font-weight:700; line-height:1.2; }
