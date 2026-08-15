@@ -8,7 +8,7 @@ const editor = {
   isActive: true,
   createdAtUtc: '2026-01-10T10:00:00Z',
 };
-let entry = {
+const entryTemplate = {
   id: 17,
   lemma: '学习',
   pinyin: 'xuéxí',
@@ -37,6 +37,8 @@ let entry = {
     allowedStatusTransitions: ['NewEntry', 'KaReview', 'Ready', 'Published', 'Archived'],
   },
 };
+let entry = null;
+let nextEntryId = 1;
 let comments = [
   {
     id: 1,
@@ -137,6 +139,13 @@ let notifications = [
     createdAtUtc: '2026-07-20T05:00:00Z',
   },
 ];
+// Start QA with no article-related data. New articles are created during the session.
+comments = [];
+supportMaterials = [];
+reference = null;
+history = [];
+media = [];
+notifications = [];
 let messages = [
   {
     id: 1,
@@ -207,15 +216,23 @@ createServer(async (request, response) => {
       editor,
     });
   if (path === '/auth/logout') return json(response, 204);
-  if (path === '/entries' && request.method === 'GET')
-    return json(response, 200, { items: [summary()], totalCount: 1, page: 1, pageSize: 20 });
+  if ((path === '/entries' || path === '/entries/all') && request.method === 'GET') {
+    const items = entry ? [summary()] : [];
+    return json(response, 200, {
+      items,
+      totalCount: items.length,
+      page: Number(url.searchParams.get('page')) || 1,
+      pageSize: Number(url.searchParams.get('pageSize')) || 20,
+    });
+  }
   if (path === '/entries/search')
-    return json(response, 200, url.searchParams.get('q') ? [summary()] : []);
+    return json(response, 200, entry && url.searchParams.get('q') ? [summary()] : []);
   if (path === '/entries' && request.method === 'POST') {
     const body = await readBody(request);
+    const now = new Date().toISOString();
     entry = {
-      ...entry,
-      id: 18,
+      ...entryTemplate,
+      id: nextEntryId++,
       lemma: body.lemma,
       pinyin: null,
       pinyins: [],
@@ -223,20 +240,55 @@ createServer(async (request, response) => {
       status: 'NewEntry',
       homonyms: [],
       rowVersion: 1,
+      mainAuthorDisplayName: editor.displayName,
+      lastEditorDisplayName: editor.displayName,
+      createdAtUtc: now,
+      updatedAtUtc: now,
+      capabilities: {
+        canEditContent: true,
+        allowedStatusTransitions: ['ZhReview', 'KaReview', 'Ready', 'Published', 'Archived'],
+      },
     };
+    comments = [];
+    supportMaterials = [];
+    reference = {
+      entryId: entry.id,
+      g1: '',
+      g2: '',
+      g3: '',
+      g4: '',
+      g5: '',
+      originalRawReferenceMaterial: '',
+      updatedAtUtc: now,
+    };
+    history = [
+      {
+        id: Date.now(),
+        action: 'Created',
+        performedByEditorId: editor.id,
+        performedByDisplayName: editor.displayName,
+        performedAtUtc: now,
+        oldValue: null,
+        newValue: null,
+        notes: null,
+      },
+    ];
+    media = [];
     return json(response, 201, entry);
   }
-  if (path === '/entries/17' && request.method === 'GET') return json(response, 200, entry);
-  if (path === '/entries/17/history' && request.method === 'GET')
+  if (entry && path === `/entries/${entry.id}` && request.method === 'GET')
+    return json(response, 200, entry);
+  if (entry && path === `/entries/${entry.id}/history` && request.method === 'GET')
     return json(response, 200, history);
-  if (path === '/entries/17/media' && request.method === 'GET') return json(response, 200, media);
-  if (path === '/entries/17/media' && request.method === 'POST') {
+  if (entry && path === `/entries/${entry.id}/media` && request.method === 'GET')
+    return json(response, 200, media);
+  if (entry && path === `/entries/${entry.id}/media` && request.method === 'POST') {
     for await (const _chunk of request) {
       // Drain the multipart request; QA only needs the response contract.
     }
     const item = {
       id: Date.now(),
-      entryId: 17,
+      entryId: entry.id,
       originalFilename: 'qa-upload.png',
       mimeType: 'image/png',
       storageUrl: '/media/files/mock-image.png',
@@ -262,7 +314,7 @@ createServer(async (request, response) => {
     ];
     return json(response, 201, item);
   }
-  if (path === '/entries/17/content' && request.method === 'PUT') {
+  if (entry && path === `/entries/${entry.id}/content` && request.method === 'PUT') {
     const body = await readBody(request);
     entry = {
       ...entry,
@@ -285,7 +337,7 @@ createServer(async (request, response) => {
     ];
     return json(response, 200, entry);
   }
-  if (path === '/entries/17/status' && request.method === 'POST') {
+  if (entry && path === `/entries/${entry.id}/status` && request.method === 'POST') {
     const body = await readBody(request);
     const previousStatus = entry.status;
     entry = {
@@ -319,13 +371,13 @@ createServer(async (request, response) => {
     ];
     return json(response, 200, entry);
   }
-  if (path === '/entries/17/comments' && request.method === 'GET')
+  if (entry && path === `/entries/${entry.id}/comments` && request.method === 'GET')
     return json(response, 200, comments);
-  if (path === '/entries/17/comments' && request.method === 'POST') {
+  if (entry && path === `/entries/${entry.id}/comments` && request.method === 'POST') {
     const body = await readBody(request);
     const item = {
       id: Date.now(),
-      entryId: 17,
+      entryId: entry.id,
       authorEditorId: 1,
       authorDisplayName: editor.displayName,
       commentText: body.commentText,
@@ -368,9 +420,9 @@ createServer(async (request, response) => {
     comments = comments.filter((item) => item.id !== id);
     return json(response, 204);
   }
-  if (path === '/entries/17/reference-material' && request.method === 'GET')
+  if (entry && path === `/entries/${entry.id}/reference-material` && request.method === 'GET')
     return json(response, 200, reference);
-  if (path === '/entries/17/reference-material' && request.method === 'PUT') {
+  if (entry && path === `/entries/${entry.id}/reference-material` && request.method === 'PUT') {
     reference = {
       ...reference,
       ...(await readBody(request)),
@@ -456,13 +508,13 @@ createServer(async (request, response) => {
     editors = [...editors, item];
     return json(response, 201, item);
   }
-  if (path === '/entries/17/support-materials' && request.method === 'GET')
+  if (entry && path === `/entries/${entry.id}/support-materials` && request.method === 'GET')
     return json(response, 200, supportMaterials);
-  if (path === '/entries/17/support-materials' && request.method === 'POST') {
+  if (entry && path === `/entries/${entry.id}/support-materials` && request.method === 'POST') {
     const body = await readBody(request);
     const item = {
       id: Date.now(),
-      entryId: 17,
+      entryId: entry.id,
       language: body.language,
       commentText: body.commentText,
       createdAtUtc: new Date().toISOString(),
@@ -471,7 +523,11 @@ createServer(async (request, response) => {
     supportMaterials = [item, ...supportMaterials];
     return json(response, 201, item);
   }
-  if (/^\/entries\/17\/support-materials\/\d+$/.test(path) && request.method === 'DELETE') {
+  if (
+    entry &&
+    path.startsWith(`/entries/${entry.id}/support-materials/`) &&
+    request.method === 'DELETE'
+  ) {
     const id = Number(path.split('/').pop());
     supportMaterials = supportMaterials.filter((item) => item.id !== id);
     return json(response, 204);
@@ -498,14 +554,14 @@ createServer(async (request, response) => {
   if (path === '/accounting/entries-status-totals')
     return json(response, 200, {
       countsByStatus: {
-        NewEntry: 4,
-        ZhReview: 8,
-        KaReview: 6,
-        Ready: 3,
-        Published: 91,
-        Archived: 2,
+        NewEntry: entry?.status === 'NewEntry' ? 1 : 0,
+        ZhReview: entry?.status === 'ZhReview' ? 1 : 0,
+        KaReview: entry?.status === 'KaReview' ? 1 : 0,
+        Ready: entry?.status === 'Ready' ? 1 : 0,
+        Published: entry?.status === 'Published' ? 1 : 0,
+        Archived: entry?.status === 'Archived' ? 1 : 0,
       },
-      total: 114,
+      total: entry ? 1 : 0,
     });
   if (path === '/accounting/editors')
     return json(response, 200, [

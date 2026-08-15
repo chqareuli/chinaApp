@@ -304,19 +304,9 @@
 
         @if (structureKind() === 'grammar') {
           <section class="direct-structure"><header><div><p class="page-kicker">Entry → gramGrp</p><h3>gramGrp <span class="term-note">— გრამატიკული ჯგუფები</span></h3></div></header>
-            <div class="entry-level-decorations">
-              <span class="entry-level-decorations__label">ყველა გრამატიკული ჯგუფისთვის საერთო</span>
-              <app-editorial-decorations
-                [markers]="rootMarkers"
-                [crossReferences]="rootCrossReferences"
-                [vocabularies]="vocabularies()"
-                [readonly]="!canEdit()"
-                (contentChanged)="markContentChanged()"
-              />
-            </div>
             <div class="grammar-list">
               @for (group of rootGramGroups.controls; track group.get('id')?.value ?? $index; let g = $index) {
-                <ng-container [ngTemplateOutlet]="grammarEditor" [ngTemplateOutletContext]="{group, groups: rootGramGroups, index: g, prefix: 'root', showDecorations: false}" />
+                <ng-container [ngTemplateOutlet]="grammarEditor" [ngTemplateOutletContext]="{group, groups: rootGramGroups, index: g, prefix: 'root', showDecorations: true}" />
               }
             </div>
             @if (canEdit()) { <button class="add-homonym" type="button" (click)="addGroupTo(rootGramGroups)">＋ გრამატიკული ჯგუფის დამატება</button> }
@@ -374,7 +364,10 @@
                 <ul class="entry-note-list">
                   @for (comment of comments(); track comment.id) {
                     <li>
-                      <time>{{ comment.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
+                      <div class="comment-author-line">
+                        <strong>{{ comment.authorDisplayName || 'უცნობი ავტორი' }}</strong>
+                        <time>{{ comment.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
+                      </div>
                       @if (editingCommentId() === comment.id) {
                         <textarea
                           rows="3"
@@ -453,7 +446,7 @@
                 <div class="empty-state compact">დამხმარე მასალა იტვირთება…</div>
               } @else {
                 <ul class="entry-note-list support-material-list">
-                  @for (material of supportMaterials(); track material.id) {
+                  @for (material of sortedSupportMaterials(); track material.id) {
                     <li>
                       <div class="support-material-meta">
                         <strong>{{ supportLanguageLabel(material.language) }}</strong>
@@ -503,9 +496,10 @@
                 <div class="field">
                   <label for="support-material-language">ენა</label>
                   <select id="support-material-language" formControlName="language">
-                    <option value="English">ინგლისური</option>
                     <option value="Chinese">ჩინური</option>
+                    <option value="English">ინგლისური</option>
                     <option value="Russian">რუსული</option>
+                    <option value="Other">სხვა</option>
                   </select>
                 </div>
                 <div class="field support-comment-field">

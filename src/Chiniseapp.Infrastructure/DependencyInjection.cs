@@ -51,7 +51,17 @@ public static class DependencyInjection
 
         services.AddSingleton(dataSource);
         services.AddDbContext<ChiniseDbContext>(options =>
-            options.UseNpgsql(dataSource).UseSnakeCaseNamingConvention());
+            options.UseNpgsql(dataSource, npgsql => npgsql
+                    .MapEnum<EntryStatus>("entry_status", nameTranslator: ChiniseDbContext.EnumNameTranslator)
+                    .MapEnum<EditorRole>("editor_role", nameTranslator: ChiniseDbContext.EnumNameTranslator)
+                    .MapEnum<SegmentType>("segment_type", nameTranslator: ChiniseDbContext.EnumNameTranslator)
+                    .MapEnum<Placement>("placement", nameTranslator: ChiniseDbContext.EnumNameTranslator)
+                    .MapEnum<ScoreType>("score_type", nameTranslator: ChiniseDbContext.EnumNameTranslator)
+                    .MapEnum<CommentStatus>("comment_status", nameTranslator: ChiniseDbContext.EnumNameTranslator)
+                    .MapEnum<AuditAction>("audit_action", nameTranslator: ChiniseDbContext.EnumNameTranslator)
+                    .MapEnum<VocabularyCategory>("vocabulary_category", nameTranslator: ChiniseDbContext.EnumNameTranslator)
+                    .MapEnum<MediaFileType>("media_file_type", nameTranslator: ChiniseDbContext.EnumNameTranslator))
+                .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IPasswordHasherService, PasswordHasherService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();

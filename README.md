@@ -13,10 +13,10 @@ Angular delivery plan: see `docs/frontend-plan.md`.
 
 ```
 chiniseapp.sln
- src/Chiniseapp.Domain/          net8.0, no external deps — entities, enums, pure rules
- src/Chiniseapp.Application/     net8.0, refs Domain — services, interfaces, DTOs
- src/Chiniseapp.Infrastructure/  net8.0, refs Domain+Application — EF Core, Npgsql, repositories
- src/Chiniseapp.Api/             net8.0 ASP.NET Core — composition root (Program.cs, controllers)
+src/Chiniseapp.Domain/          net10.0, no external deps — entities, enums, pure rules
+src/Chiniseapp.Application/     net10.0, refs Domain — services, interfaces, DTOs
+src/Chiniseapp.Infrastructure/  net10.0, refs Domain+Application — EF Core, Npgsql, repositories
+src/Chiniseapp.Api/             net10.0 ASP.NET Core — composition root (Program.cs, controllers)
  tests/Chiniseapp.Tests/         xUnit
 ```
 

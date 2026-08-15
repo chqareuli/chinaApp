@@ -15,6 +15,75 @@
       </div>
     </section>
 
+    <section class="personal-statistics" aria-labelledby="personal-statistics-title">
+      <div class="statistics-heading">
+        <div>
+          <p class="page-kicker">ჩემი სამუშაო</p>
+          <h2 id="personal-statistics-title">პირადი სტატისტიკა</h2>
+        </div>
+        <span>რაოდენობა და ბოლო აქტივობა</span>
+      </div>
+
+      @if (statisticsLoading()) {
+        <div class="statistics-state">სტატისტიკა იტვირთება…</div>
+      } @else if (statisticsError()) {
+        <div class="error-banner">{{ statisticsError() }}</div>
+      } @else if (statistics(); as stats) {
+        <div class="statistics-grid">
+          <article class="stat-card entries">
+            <span>სტატიების საერთო რაოდენობა</span>
+            <strong>{{ stats.totalEntries }}</strong>
+            <time>{{ lastActivityAtUtc() ? (lastActivityAtUtc() | date: 'dd MMM yyyy' : '+0400') : '—' }}</time>
+          </article>
+          <article class="stat-card points">
+            <span>დაგროვილი ქულები</span>
+            <strong>{{ stats.totalPoints }}</strong>
+            <time>ყველა ტიპის ჯამი</time>
+          </article>
+          <article class="stat-card main">
+            <span>მთავარი ავტორობა</span>
+            <strong>{{ stats.main.total }}</strong>
+            <time>{{ stats.main.lastAwardedAtUtc ? (stats.main.lastAwardedAtUtc | date: 'dd MMM yyyy' : '+0400') : '—' }}</time>
+          </article>
+          <article class="stat-card additional">
+            <span>დამატებითი რედაქტირება</span>
+            <strong>{{ stats.additional.total }}</strong>
+            <time>{{ stats.additional.lastAwardedAtUtc ? (stats.additional.lastAwardedAtUtc | date: 'dd MMM yyyy' : '+0400') : '—' }}</time>
+          </article>
+          <article class="stat-card ka-editor">
+            <span>ქართული რედაქტირება</span>
+            <strong>{{ stats.kaEditor.total }}</strong>
+            <time>{{ stats.kaEditor.lastAwardedAtUtc ? (stats.kaEditor.lastAwardedAtUtc | date: 'dd MMM yyyy' : '+0400') : '—' }}</time>
+          </article>
+        </div>
+
+        @if (scoreBreakdown(); as breakdown) {
+          <div class="statistics-breakdown">
+            <div class="breakdown-title">
+              <div>
+                <p class="page-kicker">დეტალური განაწილება</p>
+                <h3>ქულები სტატიის მიმდინარე სტატუსის მიხედვით</h3>
+              </div>
+            </div>
+            <div class="breakdown-table">
+              <div class="breakdown-head">
+                <span>სტატუსი</span><span>მთავარი</span><span>დამატებითი</span><span>ქართული</span><span>სულ</span>
+              </div>
+              @for (status of scoreStatuses; track status.key) {
+                <div class="breakdown-row">
+                  <strong>{{ status.label }}</strong>
+                  <span>{{ scoreCount(breakdown.main, status.key) }}</span>
+                  <span>{{ scoreCount(breakdown.additional, status.key) }}</span>
+                  <span>{{ scoreCount(breakdown.kaEditor, status.key) }}</span>
+                  <b>{{ statusScoreTotal(status.key) }}</b>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+    </section>
+
     <div class="settings-grid">
       <form class="settings-card" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
         <div>

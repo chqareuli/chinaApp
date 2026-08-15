@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Chiniseapp.Application.Auth;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
@@ -206,4 +207,3 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
     private static EditorListItem ToListItem(Editor e) =>
         new(e.Id, e.Email, e.DisplayName, e.Role.ToString(), e.IsActive, e.CreatedAtUtc);
 }
-using System.Text.Json;

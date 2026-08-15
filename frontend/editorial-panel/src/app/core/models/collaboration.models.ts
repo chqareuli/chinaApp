@@ -25,7 +25,7 @@ export type SaveReferenceMaterialRequest = Pick<
   'g1' | 'g2' | 'g3' | 'g4' | 'g5'
 >;
 
-export type SupportMaterialLanguage = 'English' | 'Chinese' | 'Russian';
+export type SupportMaterialLanguage = 'Chinese' | 'English' | 'Russian' | 'Other';
 
 export interface SupportMaterialSummary {
   id: number;

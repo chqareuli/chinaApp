@@ -15,8 +15,6 @@ const entry: EntryDetail = {
   pinyin: 'Zhōngguó',
   pinyins: [{ id: 1, value: 'Zhōngguó', order: 0 }],
   complexForms: [{ id: 2, value: '中國', order: 0 }],
-  markers: [],
-  crossReferences: [],
   status: 'NewEntry',
   mainAuthorDisplayName: 'რედაქტორი',
   lastEditorDisplayName: 'რედაქტორი',
@@ -139,11 +137,20 @@ describe('EntryDetailPage status confirmation', () => {
     component.entryForm.controls.lemma.setValue('预览');
     component.startStructure('sense');
     component.rootSenses.at(0).get('definition')?.setValue('შეუნახავი განმარტება');
+    component.vocabularies.set([
+      { id: 1, category: 'style', code: '古', label: '〈古〉', sortOrder: 1 },
+    ]);
+    component.formArrayAt(component.rootSenses.at(0), 'markers').push(
+      new FormBuilder().group({ id: [null], category: ['Style'], value: ['古'] }),
+    );
 
     component.openPreview();
 
     expect(component.previewEntry()?.lemma).toBe('预览');
     expect(component.previewEntry()?.senses[0].definition).toBe('შეუნახავი განმარტება');
+    expect(component.previewEntry()?.senses[0].markers).toEqual([
+      { category: 'Style', value: '古', label: '〈古〉' },
+    ]);
 
     component.closePreview();
     expect(component.previewEntry()).toBeNull();
@@ -190,9 +197,9 @@ describe('EntryDetailPage status confirmation', () => {
     expect(component.formArrayAt(component.rootGramGroups.at(0), 'senses').length).toBe(1);
   });
 
-  it('keeps entry-level decorations shared across direct grammar groups', () => {
+  it('keeps inline elements on the grammar group where they were added', () => {
     component.startStructure('grammar');
-    component.rootMarkers.push(
+    component.formArrayAt(component.rootGramGroups.at(0), 'markers').push(
       new FormBuilder().group({ id: [null], category: ['Style'], value: ['bookish'] }),
     );
     component.addGroupTo(component.rootGramGroups);
@@ -200,16 +207,16 @@ describe('EntryDetailPage status confirmation', () => {
     const request = (
       component as unknown as {
         toSaveRequest: (rowVersion: number) => {
-          markers: Array<{ category: string; value: string }>;
-          gramGroups: unknown[];
+          gramGroups: Array<{ markers: Array<{ category: string; value: string }> }>;
         };
       }
     ).toSaveRequest(entry.rowVersion);
 
     expect(request.gramGroups).toHaveLength(2);
-    expect(request.markers).toEqual([
+    expect(request.gramGroups[0].markers).toEqual([
       { id: null, category: 'Style', value: 'bookish' },
     ]);
+    expect(request.gramGroups[1].markers).toEqual([]);
   });
 
   it('starts a direct POS structure with an implicit sense', () => {

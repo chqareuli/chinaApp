@@ -1,22 +1,35 @@
 @if (entry(); as article) {
   <article>
     <div class="entry-head">
-      <div class="character" lang="zh">{{ article.lemma.charAt(0) }}</div>
       <div>
         <p>ჩინურ-ქართული სიტყვა-სტატია</p>
         <h1 lang="zh">{{ article.lemma }}</h1>
         @if (article.pinyins.length) {
           <strong>{{ article.pinyins.join(' · ') }}</strong>
         }
-        @if (article.complexForms?.length) {
-          <small class="complex-forms" lang="zh"
-            >რთული დაწერილობა: {{ article.complexForms.join(' · ') }}</small
-          >
+        @if (article.complexForms.length) {
+          <div class="complex-forms" aria-label="რთული დაწერილობა">
+            @for (complexForm of article.complexForms; track $index) {
+              <span lang="zh">{{ complexForm }}</span>
+            }
+          </div>
         }
       </div>
     </div>
 
     <div class="entry-content">
+      <ng-template #markerView let-items="items">
+        @if (items?.length) {
+          <div class="ie-list" aria-label="ინლაინ ნიშნები">
+            @for (marker of items; track $index) {
+              <span class="ie-marker" [attr.data-category]="marker.category.toLowerCase()">
+                {{ marker.label || marker.value }}
+              </span>
+            }
+          </div>
+        }
+      </ng-template>
+
       <ng-template #xrView let-items="items">
         @if (items.length) {
           <div class="xr-list">
@@ -43,6 +56,10 @@
         <div class="sense">
           <span class="sense-number">{{ sense.number }}</span>
           <div>
+            <ng-container
+              [ngTemplateOutlet]="markerView"
+              [ngTemplateOutletContext]="{ items: sense.markers }"
+            />
             <p class="definition">{{ sense.definition }}</p>
             <ng-container
               [ngTemplateOutlet]="xrView"
@@ -51,9 +68,15 @@
             @if (sense.examples.length) {
               <div class="examples">
                 @for (example of sense.examples; track $index) {
-                  <div>
-                    <span lang="zh">{{ example.zh }}</span>
-                    <small>{{ example.ka }}</small>
+                  <div class="example-row">
+                    <span class="example-zh" lang="zh">{{ example.zh }}</span>
+                    <div class="example-translation">
+                      <ng-container
+                        [ngTemplateOutlet]="markerView"
+                        [ngTemplateOutletContext]="{ items: example.markers }"
+                      />
+                      <small>{{ example.ka }}</small>
+                    </div>
                     <ng-container
                       [ngTemplateOutlet]="xrView"
                       [ngTemplateOutletContext]="{ items: example.crossReferences }"
@@ -68,9 +91,15 @@
 
       <ng-template #groupView let-group="group">
         <div class="grammar-group">
-          @if (group.pos) {
-            <span class="pos">{{ group.pos }}</span>
-          }
+          <div class="grammar-heading">
+            @if (group.pos) {
+              <span class="pos">{{ group.pos }}</span>
+            }
+            <ng-container
+              [ngTemplateOutlet]="markerView"
+              [ngTemplateOutletContext]="{ items: group.markers }"
+            />
+          </div>
           <ng-container
             [ngTemplateOutlet]="xrView"
             [ngTemplateOutletContext]="{ items: group.crossReferences }"
@@ -93,6 +122,10 @@
             <strong class="homonym-text" lang="zh">{{ homonym.text }}</strong>
           }
           <ng-container
+            [ngTemplateOutlet]="markerView"
+            [ngTemplateOutletContext]="{ items: homonym.markers }"
+          />
+          <ng-container
             [ngTemplateOutlet]="xrView"
             [ngTemplateOutletContext]="{ items: homonym.crossReferences }"
           />
@@ -112,7 +145,13 @@
       }
       @for (directPos of article.directPoses; track $index) {
         <div class="grammar-group">
-          <span class="pos">{{ directPos.pos }}</span>
+          <div class="grammar-heading">
+            <span class="pos">{{ directPos.pos }}</span>
+            <ng-container
+              [ngTemplateOutlet]="markerView"
+              [ngTemplateOutletContext]="{ items: directPos.markers }"
+            />
+          </div>
           <ng-container
             [ngTemplateOutlet]="xrView"
             [ngTemplateOutletContext]="{ items: directPos.crossReferences }"
