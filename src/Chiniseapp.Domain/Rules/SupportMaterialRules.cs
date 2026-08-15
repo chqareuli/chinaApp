@@ -10,6 +10,7 @@ public static class SupportMaterialRules
             ["English"] = "English",
             ["Chinese"] = "Chinese",
             ["Russian"] = "Russian",
+            ["Other"] = "Other",
         };
 
     public static string? NormalizeLanguage(string? language)

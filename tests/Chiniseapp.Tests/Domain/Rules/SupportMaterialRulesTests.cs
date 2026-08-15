@@ -8,6 +8,7 @@ public class SupportMaterialRulesTests
     [InlineData("English", "English")]
     [InlineData(" chinese ", "Chinese")]
     [InlineData("RUSSIAN", "Russian")]
+    [InlineData("other", "Other")]
     public void NormalizeLanguage_ReturnsCanonicalSupportedLanguage(string value, string expected)
     {
         Assert.Equal(expected, SupportMaterialRules.NormalizeLanguage(value));

@@ -56,7 +56,7 @@ public class AccountingService(ChiniseDbContext db) : IAccountingService
             from s in db.ScoreEntries
             join e in db.Entries on s.EntryId equals e.Id
             where s.EditorId == editorId
-            select new { s.ScoreType, e.Status }).ToListAsync(ct);
+            select new { s.EntryId, s.ScoreType, e.Status, s.AwardedAtUtc }).ToListAsync(ct);
 
         Dictionary<string, int> CountsFor(ScoreType type) => scored
             .Where(x => x.ScoreType == type)
@@ -68,7 +68,23 @@ public class AccountingService(ChiniseDbContext db) : IAccountingService
             CountsFor(ScoreType.Additional),
             CountsFor(ScoreType.KaEditor));
 
+        ScoreTypeStatistics StatisticsFor(ScoreType type)
+        {
+            var awards = scored.Where(x => x.ScoreType == type).ToList();
+            return new ScoreTypeStatistics(
+                awards.Count,
+                awards.Count == 0 ? null : awards.Max(x => x.AwardedAtUtc));
+        }
+
+        var personalStatistics = new PersonalScoreStatistics(
+            scored.Select(x => x.EntryId).Distinct().Count(),
+            scored.Count,
+            StatisticsFor(ScoreType.Main),
+            StatisticsFor(ScoreType.Additional),
+            StatisticsFor(ScoreType.KaEditor));
+
         return new EditorAccountingDetail(
-            editor.Id, editor.DisplayName, editor.Email, editor.Role.ToString(), editor.CreatedAtUtc, scoresByStatus);
+            editor.Id, editor.DisplayName, editor.Email, editor.Role.ToString(), editor.CreatedAtUtc,
+            scoresByStatus, personalStatistics);
     }
 }

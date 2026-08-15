@@ -14,6 +14,15 @@ public record ScoreCountsByStatus(
     IReadOnlyDictionary<string, int> Additional,
     IReadOnlyDictionary<string, int> KaEditor);
 
+public record ScoreTypeStatistics(int Total, DateTime? LastAwardedAtUtc);
+
+public record PersonalScoreStatistics(
+    int TotalEntries,
+    int TotalPoints,
+    ScoreTypeStatistics Main,
+    ScoreTypeStatistics Additional,
+    ScoreTypeStatistics KaEditor);
+
 public record EditorAccountingDetail(
     int EditorId, string DisplayName, string Email, string Role, DateTime CreatedAtUtc,
-    ScoreCountsByStatus ScoresByStatus);
+    ScoreCountsByStatus ScoresByStatus, PersonalScoreStatistics PersonalStatistics);

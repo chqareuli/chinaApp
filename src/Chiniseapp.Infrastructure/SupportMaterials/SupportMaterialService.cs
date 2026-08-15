@@ -38,7 +38,7 @@ public class SupportMaterialService(ChiniseDbContext db) : ISupportMaterialServi
     {
         var language = SupportMaterialRules.NormalizeLanguage(request.Language)
             ?? throw new SupportMaterialValidationException(
-                "Language must be English, Chinese, or Russian.");
+                "Language must be Chinese, English, Russian, or Other.");
         var commentText = request.CommentText?.Trim();
         if (string.IsNullOrWhiteSpace(commentText))
         {
