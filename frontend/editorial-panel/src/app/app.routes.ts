@@ -36,8 +36,11 @@ export const routes: Routes = [
     children: [
       {
         path: 'dashboard',
+        data: { home: true },
         loadComponent: () =>
-          import('./features/dashboard/dashboard-page/dashboard-page').then((m) => m.DashboardPage),
+          import('./features/entries/entries-list-page/entries-list-page').then(
+            (m) => m.EntriesListPage,
+          ),
         title: 'მთავარი — სარედაქციო პანელი',
       },
       {
@@ -51,10 +54,11 @@ export const routes: Routes = [
       },
       {
         path: 'entries/new',
+        data: { newEntry: true },
         canActivate: [entryCreatorGuard],
         loadComponent: () =>
-          import('./features/entries/create-entry-page/create-entry-page').then(
-            (m) => m.CreateEntryPage,
+          import('./features/entries/entry-detail-page/entry-detail-page').then(
+            (m) => m.EntryDetailPage,
           ),
         title: 'ახალი სტატია — სარედაქციო პანელი',
       },

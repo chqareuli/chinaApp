@@ -11,6 +11,9 @@ public class DirectMessage
 
     public string Body { get; set; } = string.Empty;
 
+    /// <summary>Shared ID for per-recipient copies of an All editors message.</summary>
+    public Guid? BroadcastId { get; set; }
+
     public DateTime SentAtUtc { get; set; }
 
     public DateTime? ReadAtUtc { get; set; }

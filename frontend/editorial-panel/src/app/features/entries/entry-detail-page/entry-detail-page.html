@@ -1,70 +1,98 @@
-<section class="entry-page">
-  <a class="back-link" routerLink="/adminpanel/dashboard">← მთავარ გვერდზე</a>
-
+<section
+  id="cx-entry-v2"
+  class="entry-page"
+  [class.frames-hidden]="!framesVisible()"
+  [class.is-readonly]="!canEditFields()"
+  [class.show-structure]="structureVisible()"
+  [class.has-homographs]="homonyms.length > 0"
+>
   @if (loading()) {
     <div class="loading-card">სტატია იტვირთება…</div>
   } @else if (error()) {
     <div class="error-banner">{{ error() }}</div>
   } @else if (entry(); as item) {
-    <header class="entry-head">
-      <div class="word-block">
-        <p class="page-kicker">სტატია #{{ item.id }}</p>
-        <h1 lang="zh">{{ item.lemma }}</h1>
-        @if (item.pinyins.length) {
-          <p>{{ item.pinyins[0].value }}</p>
-        } @else {
-          <p>Pinyin მითითებული არ არის</p>
-        }
-        @if (item.complexForms?.length) {
-          <small class="complex-form-preview" lang="zh">რთული დაწერილობა: {{ item.complexForms[0].value }}</small>
-        }
+    <div class="editor-nav">
+      <strong class="editor-title">ENTRY EDITOR · 词目编辑</strong>
+      <div class="stage-actions">
+        <select
+          #stage
+          class="form-select stage-select"
+          aria-label="Stage · 状态"
+          [value]="item.status"
+          (change)="changeStatus(stage.value); stage.value = item.status"
+          [disabled]="!canEditFields() || !!changingStatus() || !allowedTransitions().length"
+        >
+          <option [value]="item.status" [selected]="true">{{ statusLabel(item.status) }}</option>
+          @for (status of allowedTransitions(); track status) {
+            <option [value]="status">{{ statusLabel(status) }}</option>
+          }</select
+        >
+        <div class="editor-actions">
+          <button id="frame-toggle" class="btn" type="button" [attr.aria-pressed]="framesVisible()" title="Show or hide hierarchy frames · 显示或隐藏层级边框" (click)="toggleFrames()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/></svg> Frames · 边框
+          </button>
+          @if (editing()) {
+            <button class="btn" type="button" [disabled]="saving()" (click)="cancelEditing()">Cancel · 取消</button>
+          } @else {
+            <button class="btn" type="button" [disabled]="!canEdit()" (click)="startEditing()">Edit · 编辑</button>
+          }
+          <button class="btn btn-primary" type="submit" form="entry-content-form" [disabled]="!canEditFields() || saving() || activeTab() !== 'content'">{{ saving() ? 'Saving… · 保存中' : 'Save · 保存' }}</button>
+        </div>
       </div>
-      <div class="entry-head-actions">
-        <button class="btn btn-secondary" type="button" (click)="openPreview()">
-          მომხმარებლის ხედით ნახვა
-        </button>
-        <app-status-badge [status]="item.status" />
-      </div>
-    </header>
-
-    <div class="meta-grid">
-      <article>
-        <span>მთავარი ავტორი</span
-        ><strong>{{ item.mainAuthorDisplayName || 'ჯერ არ არის დაფიქსირებული' }}</strong>
-      </article>
-      <article>
-        <span>ბოლო რედაქტორი</span><strong>{{ item.lastEditorDisplayName }}</strong>
-      </article>
-      <article>
-        <span>ბოლო ცვლილება</span
-        ><strong>{{ item.updatedAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</strong>
-      </article>
     </div>
 
-    <section class="workflow-card">
-      <div>
-        <p class="page-kicker">Workflow</p>
-        <h2>შემდეგი მოქმედება</h2>
-      </div>
-      <div class="status-actions">
-        @for (status of allowedTransitions(); track status) {
-          <button
-            class="btn btn-secondary"
-            type="button"
-            (click)="changeStatus(status)"
-            [disabled]="!!changingStatus()"
-          >
-            {{ changingStatus() === status ? 'იცვლება…' : statusLabel(status) }}
-          </button>
-        } @empty {
-          <span class="muted">თქვენი როლისთვის ამ ეტაპზე სტატუსის მოქმედება არ არის.</span>
+    <ng-template #mediaIcon><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8M16 5h6M19 2v6M3 16l5-5 4 4 3-3 6 6"/><circle cx="8" cy="7" r="1"/></svg></ng-template>
+    <ng-template #nodeMediaList let-kind="kind" let-node="node">
+      <div class="node-media-list">
+        @for (asset of nodeMedia(kind, node); track asset.id) {
+          @if (mediaUrl(asset.id); as url) { <img [src]="url" [alt]="asset.originalFilename" /> }
+          <span>{{ asset.originalFilename }}</span>
         }
       </div>
-      @if (statusError()) {
-        <div class="error-banner workflow-error">{{ statusError() }}</div>
-      }
-    </section>
+    </ng-template>
+    @if (mediaTarget(); as target) {
+      <div class="status-confirm-backdrop">
+        <section class="status-confirm" role="dialog" aria-modal="true" aria-label="Add media · 添加媒体">
+          <h2>Add media · 添加媒体</h2>
+          @if (!target.node.get('id')?.value || isNew()) {
+            <p>მედიის მისაბმელად ჯერ შეინახეთ სტატია და ეს ბლოკი, შემდეგ გახსენით მედიის ღილაკი.</p>
+          } @else {
+            <p>JPEG, PNG, WebP · მაქს. 5 MB</p>
+            <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose image · 选择图片" [disabled]="mediaSaving()" (change)="selectMedia($event)" />
+            @if (selectedMediaPreview(); as url) { <img class="node-media-preview" [src]="url" alt="არჩეული სურათი" /> }
+            <ng-container [ngTemplateOutlet]="nodeMediaList" [ngTemplateOutletContext]="{kind: target.kind, node: target.node}" />
+            <p>ატვირთვა ინახება დაუყოვნებლივ.</p>
+            <button class="btn btn-primary" type="button" [disabled]="!selectedMedia() || mediaSaving()" (click)="uploadMedia()">{{ mediaSaving() ? 'Uploading… · 上传中' : 'Upload · 上传' }}</button>
+          }
+          @if (mediaError()) { <p role="alert">{{ mediaError() }}</p> }
+          <button class="btn" type="button" [disabled]="mediaSaving()" (click)="closeNodeMedia()">Close · 关闭</button>
+        </section>
+      </div>
+    }
 
+    @if (!isNew()) {
+      <div class="editor-meta">
+        <span
+          >Entry · 词目 <strong>#{{ item.id }}</strong></span
+        ><span class="meta-separator">|</span
+        ><span
+          >Author · 作者: <strong>{{ item.mainAuthorDisplayName || '—' }}</strong></span
+        ><span class="meta-separator">|</span
+        ><span
+          >Editor · 编辑: <strong>{{ item.lastEditorDisplayName }}</strong></span
+        ><span>{{ item.updatedAtUtc | date: 'yyyy-MM-dd HH:mm' : '+0400' }}</span
+        ><button
+          class="btn btn-ghost"
+          type="button"
+          (click)="setTab(activeTab() === 'history' ? 'content' : 'history')"
+        >
+          History · 历史
+        </button>
+      </div>
+    }
+    @if (statusError()) {
+      <div class="error-banner" role="alert">{{ statusError() }}</div>
+    }
     @if (statusConfirmation(); as targetStatus) {
       <div class="status-confirm-backdrop">
         <section
@@ -87,7 +115,7 @@
             <span aria-hidden="true">→</span>
             <strong>{{ statusLabel(targetStatus) }}</strong>
           </div>
-          <small>დადასტურების შემდეგ ცვლილება აისახება სტატიის ისტორიაში.</small>
+          <small>დადასტურების შემდეგ ცვლილება აისახება სტატიის History · 历史ში.</small>
           <div class="status-confirm__actions">
             <button class="btn btn-secondary" type="button" (click)="cancelStatusChange()">
               გაუქმება
@@ -100,303 +128,808 @@
       </div>
     }
 
-    @if (previewEntry(); as preview) {
-      <app-entry-preview-modal [entry]="preview" (closed)="closePreview()" />
+
+
+    @if (!isNew()) {
+      <nav class="entry-tabs" aria-label="სტატიის სექციები">
+        <button
+          type="button"
+          [class.active]="activeTab() === 'content'"
+          (click)="setTab('content')"
+        >
+          Entry · 词目
+        </button>
+        <button
+          type="button"
+          [class.active]="activeTab() === 'reference'"
+          (click)="setTab('reference')"
+        >
+          Reference material · 参考资料
+        </button>
+        <button type="button" [class.active]="activeTab() === 'media'" (click)="setTab('media')">
+          Media · 媒体 <span>{{ media().length }}</span>
+        </button>
+        <button
+          type="button"
+          [class.active]="activeTab() === 'history'"
+          (click)="setTab('history')"
+        >
+          History · 历史 <span>{{ history().length }}</span>
+        </button>
+      </nav>
     }
 
-    <nav class="entry-tabs" aria-label="სტატიის სექციები">
-      <button type="button" [class.active]="activeTab() === 'content'" (click)="setTab('content')">
-        შინაარსი
-      </button>
-      <button
-        type="button"
-        [class.active]="activeTab() === 'reference'"
-        (click)="setTab('reference')"
-      >
-        საცნობარო მასალა
-      </button>
-      <button type="button" [class.active]="activeTab() === 'media'" (click)="setTab('media')">
-        სურათები <span>{{ media().length }}</span>
-      </button>
-      <button type="button" [class.active]="activeTab() === 'history'" (click)="setTab('history')">
-        ისტორია <span>{{ history().length }}</span>
-      </button>
-    </nav>
-
     @if (activeTab() === 'content') {
-      <form class="editor-card" [formGroup]="entryForm" (ngSubmit)="saveContent()">
-        <div class="section-head">
-          <div>
-            <p class="page-kicker">სტატიის კონსტრუქტორი</p>
-            <h2>სტატიის შინაარსი და სტრუქტურა</h2>
-          </div>
-          <span class="permission" [class.readonly]="!canEdit()">{{
-            canEdit() ? 'რედაქტირების რეჟიმი' : 'მხოლოდ ნახვა'
-          }}</span>
-        </div>
-
-        <div class="title-grid single-title">
+      <form
+        id="entry-content-form"
+        class="editor-card"
+        [formGroup]="entryForm"
+        (ngSubmit)="saveContent()"
+      >
+        <div class="title-grid single-title head">
           <div class="field">
-            <label for="entry-lemma">სათაური / ჩინური სიტყვა</label>
-            <input id="entry-lemma" formControlName="lemma" lang="zh" [readOnly]="!canEdit()" />
+            <label for="entry-lemma">Headword · 词目</label>
+            <input
+              id="entry-lemma"
+              class="headword-input"
+              placeholder="Headword · 词目"
+              formControlName="lemma"
+              lang="zh"
+              [readOnly]="!canEditFields()"
+            />
           </div>
         </div>
 
         <div class="entry-written-forms">
           <app-repeatable-text-list
             [items]="pinyins"
-            label="Pinyin"
+            label="Pinyin · 拼音"
             addLabel="Pinyin"
             dialogTitle="Pinyin-ის დამატება"
-            placeholder="მაგ. wèi"
-            [readonly]="!canEdit()"
+            placeholder="Pinyin · 拼音"
+            [readonly]="!canEditFields()"
             (contentChanged)="markContentChanged()"
           />
           <app-repeatable-text-list
             [items]="complexForms"
-            label="რთული დაწერილობა"
-            addLabel="რთული დაწერილობა"
+            label="Traditional form · 繁体"
+            addLabel="Traditional form · 繁体"
             dialogTitle="რთული დაწერილობის დამატება"
-            placeholder="მაგ. 爲"
+            placeholder="Traditional form · 繁体字"
             inputLang="zh"
-            [readonly]="!canEdit()"
+            [readonly]="!canEditFields()"
             (contentChanged)="markContentChanged()"
           />
         </div>
 
+        <label class="structure-toggle"
+          ><input
+            type="checkbox"
+            [checked]="structureVisible()"
+            (change)="structureVisible.set(!structureVisible())"
+          />
+          Show structure · 显示结构</label
+        >
         @if (vocabularyError()) {
           <div class="error-banner">{{ vocabularyError() }}</div>
         }
 
-        <ng-template #senseEditor let-sense="sense" let-senses="senses" let-index="index" let-prefix="prefix" let-implicit="implicit">
-          <section class="sense-editor structure-node structure-node--sense" [formGroup]="sense">
+        <ng-template
+          #senseEditor
+          let-sense="sense"
+          let-senses="senses"
+          let-index="index"
+          let-prefix="prefix"
+          let-implicit="implicit"
+        >
+          <section
+            class="sense-editor sense structure-node structure-node--sense"
+            [formGroup]="sense"
+          >
             <div class="sense-head">
-              <strong><span class="node-type">მნიშვნელობა</span><span class="node-number">{{ index + 1 }}</span> <span class="term-note">{{ implicit ? 'პირდაპირი მნიშვნელობა' : 'sense' }}</span></strong>
-              @if (canEdit()) {
-                <button class="text-button danger" type="button" (click)="removeSenseFrom(senses, index)">წაშლა</button>
+              <strong
+                ><span class="node-type">Sense · 义项</span
+                ><span class="node-number">{{ senses.length > 1 ? index + 1 : 'S' }}</span>
+                <span class="term-note">{{
+                  implicit ? 'პირდაპირი Sense · 义项' : 'sense'
+                }}</span></strong
+              >
+              @if (canEditFields()) {
+                <button
+                  class="text-button danger"
+                  type="button"
+                  [disabled]="!!senses.parent?.get('pos') && senses.length === 1" (click)="removeSenseFrom(senses, index)"
+                >
+                  ×
+                </button>
               }
             </div>
             <input formControlName="number" type="hidden" />
-            <div class="field">
-              <label [for]="prefix + '-definition-' + index">ქართული განმარტება</label>
-              <textarea [id]="prefix + '-definition-' + index" formControlName="definition" rows="2" placeholder="ჩაწერეთ მნიშვნელობის განმარტება" [readOnly]="!canEdit()"></textarea>
+            <div class="definition-line">
+              <div class="field">
+                <label [for]="prefix + '-definition-' + index">Definition · 释义</label>
+                <textarea
+                  #definitionField [id]="prefix + '-definition-' + index"
+                  formControlName="definition"
+                  rows="2"
+                  placeholder="Enter definition · 请输入释义"
+                  [readOnly]="!canEditFields()"
+                ></textarea>
+              </div>
+              <div class="font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost font-control" type="button" title="Decrease text size · 缩小字号" (click)="resizeEditorText([definitionField], -1)">A−</button><button class="btn btn-ghost font-control" type="button" title="Increase text size · 放大字号" (click)="resizeEditorText([definitionField], 1)">A+</button></div>
+              <div class="definition-tools tools"><app-editorial-decorations layout="definition"
+                [markers]="formArrayAt(sense, 'markers')"
+                [crossReferences]="formArrayAt(sense, 'crossReferences')"
+                [vocabularies]="vocabularies()"
+                [readonly]="!canEditFields()"
+                (contentChanged)="markContentChanged()"
+              >
+              <button class="btn btn-ghost" definition-point type="button" title="Add numbered line · 添加带圈编号行" [disabled]="!canEditFields()" (click)="addDefinitionPoint(definitionField, sense)">①</button>
+              <button class="btn btn-ghost" media-tool type="button" title="Add media · 添加媒体" aria-label="Add sense media · 添加义项媒体" [disabled]="!canEditFields()" (click)="openNodeMedia('sense', sense)"><ng-container [ngTemplateOutlet]="mediaIcon" /></button>
+              </app-editorial-decorations></div>
             </div>
-            <app-editorial-decorations
-              [markers]="formArrayAt(sense, 'markers')"
-              [crossReferences]="formArrayAt(sense, 'crossReferences')"
-              [vocabularies]="vocabularies()"
-              [readonly]="!canEdit()"
-              (contentChanged)="markContentChanged()"
-            />
+            <ng-container [ngTemplateOutlet]="nodeMediaList" [ngTemplateOutletContext]="{kind: 'sense', node: sense}" />
             @let examples = formArrayAt(sense, 'examples');
             <div class="example-list">
-              @for (example of examples.controls; track example.get('id')?.value ?? $index; let e = $index) {
-                <div class="example-editor-wrap structure-node structure-node--example" [formGroup]="example">
-                  <div class="example-editor">
-                    <span class="example-number" title="მაგალითი">{{ e + 1 }}</span>
-                    <div class="field">
-                      <label [for]="prefix + '-zh-' + index + '-' + e">ჩინური მაგალითი</label>
-                      <textarea [id]="prefix + '-zh-' + index + '-' + e" formControlName="zh" rows="2" lang="zh" [readOnly]="!canEdit()"></textarea>
-                    </div>
-                    <div class="field">
-                      <label [for]="prefix + '-ka-' + index + '-' + e">ქართული თარგმანი</label>
-                      <textarea [id]="prefix + '-ka-' + index + '-' + e" formControlName="ka" rows="2" [readOnly]="!canEdit()"></textarea>
-                    </div>
-                    @if (canEdit()) {
-                      <button class="icon-button danger" type="button" (click)="removeExampleFrom(examples, e)" aria-label="მაგალითის წაშლა">×</button>
+              @for (
+                example of examples.controls;
+                track example.get('id')?.value ?? $index;
+                let e = $index
+              ) {
+                <div
+                  class="example-editor-wrap example structure-node structure-node--example"
+                  [formGroup]="example"
+                >
+                  <div class="row">
+                    <span class="example-mark">{{ examples.length > 1 ? 'E' + (e + 1) : 'E' }}</span>
+                    @if (canEditFields()) {
+                      <button
+                        class="btn btn-ghost"
+                        type="button"
+                        aria-label="Remove example · 删除例句"
+                        (click)="removeExampleFrom(examples, e)"
+                      >
+                        ×
+                      </button>
                     }
                   </div>
+                  <div class="example-grid">
+                    <div class="example-side">
+                      <textarea
+                        class="form-control" #exampleChinese
+                        formControlName="zh"
+                        rows="1"
+                        lang="zh"
+                        aria-label="Chinese example · 中文例句"
+                        placeholder="Enter Chinese example · 请输入中文例句"
+                        [readOnly]="!canEditFields()"
+                      ></textarea>
+                      <app-editorial-decorations layout="example" class="tools"
+                        [markers]="formArrayAt(example, 'markers')"
+                        [crossReferences]="formArrayAt(example, 'crossReferences')"
+                        [vocabularies]="vocabularies()"
+                        [readonly]="!canEditFields()"
+                        (contentChanged)="markContentChanged()"
+                      >
+                      <button media-tool class="btn btn-ghost" type="button" aria-label="Add example media · 添加例句媒体" title="Add media · 添加媒体" [disabled]="!canEditFields()" (click)="openNodeMedia('example', example)"><ng-container [ngTemplateOutlet]="mediaIcon" /></button></app-editorial-decorations>
+                      <ng-container [ngTemplateOutlet]="nodeMediaList" [ngTemplateOutletContext]="{kind: 'example', node: example}" />
+                    </div>
+                    <div class="example-side">
+                      <textarea
+                        class="form-control" #exampleGeorgian
+                        formControlName="ka"
+                        rows="1"
+                        aria-label="Georgian translation · 格文译文"
+                        placeholder="Enter Georgian translation · 请输入格文译文"
+                        [readOnly]="!canEditFields()"
+                      ></textarea>
+                    </div>
+                    <div class="font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost font-control" type="button" title="Decrease text size · 缩小字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], -1)">A−</button><button class="btn btn-ghost font-control" type="button" title="Increase text size · 放大字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], 1)">A+</button></div>
+                  </div>
+                </div>
+              }
+            </div>
+            @if (canEditFields()) {
+              <button class="add-row" type="button" (click)="addExampleTo(examples)">
+                + Example · 添加例句
+              </button>
+            }
+          </section>
+        </ng-template>
+
+        <ng-template
+          #grammarEditor
+          let-group="group"
+          let-groups="groups"
+          let-index="index"
+          let-prefix="prefix"
+          let-showDecorations="showDecorations"
+        >
+          <section
+            class="grammar-editor pos structure-node structure-node--grammar"
+            [formGroup]="group"
+          >
+            <div class="row grammar-row">
+              @if (groups.length > 1) { <span class="chip num grammar-mark">{{ toRoman(index + 1) }}</span> }
+              <select
+                class="form-select pos-select grow"
+                [class.has-value]="group.get('pos')?.value"
+                formControlName="pos" [attr.disabled]="!canEditFields() ? true : null"
+                aria-label="Select part of speech (POS) · 请选择词性"
+              >
+                <option value="">Select part of speech (POS) · 请选择词性</option>
+                @for (pos of posOptions(); track pos.id) {
+                  <option [value]="pos.code">{{ pos.label }}</option>
+                }
+              </select>
+              @if (showDecorations !== false) {
+                <div class="grammar-tools">
                   <app-editorial-decorations
-                    [markers]="formArrayAt(example, 'markers')"
-                    [crossReferences]="formArrayAt(example, 'crossReferences')"
+                    [scopeOnly]="true"
+                    [markers]="formArrayAt(group, 'markers')"
+                    [crossReferences]="formArrayAt(group, 'crossReferences')"
                     [vocabularies]="vocabularies()"
-                    [readonly]="!canEdit()"
+                    [readonly]="!canEditFields()"
                     (contentChanged)="markContentChanged()"
                   />
                 </div>
               }
-            </div>
-            @if (canEdit()) {
-              <button class="add-row" type="button" (click)="addExampleTo(examples)">＋ მაგალითის დამატება</button>
-            }
-          </section>
-        </ng-template>
-
-        <ng-template #grammarEditor let-group="group" let-groups="groups" let-index="index" let-prefix="prefix" let-showDecorations="showDecorations">
-          <section class="grammar-editor structure-node structure-node--grammar" [formGroup]="group">
-            <div class="grammar-head">
-              <strong><span class="node-type">გრამატიკული ჯგუფი</span><span class="node-number">{{ toRoman(index + 1) }}</span> <span class="term-note">gramGrp</span></strong>
-              @if (canEdit()) {
-                <button class="text-button danger" type="button" (click)="removeGroupFrom(groups, index)">წაშლა</button>
+              @if (canEditFields()) {
+                <button
+                  class="btn btn-ghost remove-pos"
+                  type="button"
+                  aria-label="Remove POS · 删除词性"
+                  (click)="removeGroupFrom(groups, index)"
+                >
+                  ×
+                </button>
               }
             </div>
-            <input formControlName="number" type="hidden" />
-            <div class="field pos-field">
-              <label [for]="prefix + '-pos-' + index">მეტყველების ნაწილი <span class="term-note">POS</span></label>
-              <select [id]="prefix + '-pos-' + index" formControlName="pos">
-                <option value="">აირჩიეთ</option>
-                @for (pos of posOptions(); track pos.id) { <option [value]="pos.code">{{ pos.label }}</option> }
-              </select>
-            </div>
-            @if (showDecorations !== false) {
-              <app-editorial-decorations
-                [markers]="formArrayAt(group, 'markers')"
-                [crossReferences]="formArrayAt(group, 'crossReferences')"
-                [vocabularies]="vocabularies()"
-                [readonly]="!canEdit()"
-                (contentChanged)="markContentChanged()"
-              />
-            }
             @let senses = formArrayAt(group, 'senses');
             <div class="sense-list nested-senses">
-              @for (sense of senses.controls; track sense.get('id')?.value ?? $index; let s = $index) {
-                <ng-container [ngTemplateOutlet]="senseEditor" [ngTemplateOutletContext]="{sense, senses, index: s, prefix: prefix + '-group-' + index, implicit: false}" />
+              @for (
+                sense of senses.controls;
+                track sense.get('id')?.value ?? $index;
+                let s = $index
+              ) {
+                <ng-container
+                  [ngTemplateOutlet]="senseEditor"
+                  [ngTemplateOutletContext]="{
+                    sense,
+                    senses,
+                    index: s,
+                    prefix: prefix + '-group-' + index,
+                    implicit: false,
+                  }"
+                />
               }
             </div>
-            @if (canEdit()) { <button class="add-row" type="button" (click)="addSenseTo(senses)">＋ მნიშვნელობის დამატება</button> }
+            @if (canEditFields()) {
+              <button class="add-row" type="button" (click)="addSenseTo(senses)">
+                + Sense · 添加义项
+              </button>
+            }
           </section>
         </ng-template>
 
         @if (structureKind() === null) {
-          <section class="structure-chooser">
-            <div><p class="page-kicker">სტატიის სტრუქტურა</p><h3>რითი იწყება სიტყვა?</h3><span>აირჩიეთ პირველი დონე — შიდა სტრუქტურა ავტომატურად აეწყობა.</span></div>
-            @if (canEdit()) {
-              <div class="structure-options">
-                <button type="button" (click)="startStructure('homonym')"><strong>ჰომონიმი</strong><span>ჰომონიმი → გრამატიკა → POS → მნიშვნელობა</span></button>
-                <button type="button" (click)="startStructure('grammar')"><strong>გრამატიკული ჯგუფი</strong><span>გრამატიკა → POS → მნიშვნელობა</span></button>
-                <button type="button" (click)="startStructure('pos')"><strong>მეტყველების ნაწილი</strong><span>POS → მნიშვნელობა</span></button>
-                <button type="button" (click)="startStructure('sense')"><strong>მნიშვნელობა</strong><span>პირდაპირ განმარტება და მაგალითები</span></button>
-              </div>
-            } @else { <div class="empty-state compact">სტრუქტურა ჯერ არ არის დამატებული.</div> }
+          <section class="scope initial-scope">
+            <div class="mode">
+              <span class="text-small text-muted">Start structure · 选择结构</span>
+              @if (canEditFields()) {
+                <button
+                  class="btn structure-choice add-homograph"
+                  type="button"
+                  (click)="startStructure('homonym')"
+                >
+                  +H
+                </button>
+                <button
+                  class="btn structure-choice add-pos"
+                  type="button"
+                  (click)="startStructure('grammar')"
+                >
+                  +POS
+                </button>
+                <button
+                  class="btn structure-choice add-direct-sense"
+                  type="button"
+                  (click)="startStructure('sense')"
+                >
+                  +S
+                </button>
+              }
+            </div>
           </section>
         }
-
         @if (structureKind() === 'homonym') {
           <div class="homonym-list">
-            @for (homonym of homonyms.controls; track homonym.get('id')?.value ?? $index; let h = $index) {
-              <article class="homonym-editor structure-node structure-node--homonym" [formGroup]="homonym">
-                <header><div><span class="index-chip">{{ h + 1 }}</span><h3>ჰომონიმი <span class="term-note">hom</span></h3></div>@if (canEdit()) { <button class="text-button danger" type="button" (click)="removeHomonym(h)">წაშლა</button> }</header>
-                <div class="field homonym-text-field">
-                  <label [for]="'homonym-text-' + h">ჰომონიმის ტექსტი</label>
+            @for (
+              homonym of homonyms.controls;
+              track homonym.get('id')?.value ?? $index;
+              let h = $index
+            ) {
+              <article class="scope structure-node structure-node--homonym" [formGroup]="homonym">
+                <div class="scope-head">
+                  <span class="chip hom-index">H{{ h + 1 }}</span>
                   <input
-                    [id]="'homonym-text-' + h"
-                    type="text"
+                    class="form-control hom-label grow"
                     formControlName="text"
-                    lang="zh"
-                    placeholder="ჩაწერეთ ჰომონიმი"
-                    [readOnly]="!canEdit()"
+                    aria-label="Homograph label · 同形词标识"
+                    placeholder="Homograph label · 同形词标识 — Optional · 可选"
+                    [readOnly]="!canEditFields()"
                     (input)="markContentChanged()"
                   />
-                </div>
-                <app-editorial-decorations [markers]="formArrayAt(homonym, 'markers')" [crossReferences]="formArrayAt(homonym, 'crossReferences')" [vocabularies]="vocabularies()" [readonly]="!canEdit()" (contentChanged)="markContentChanged()" />
-                @let groups = formArrayAt(homonym, 'gramGroups');
-                <div class="grammar-list">
-                  @for (group of groups.controls; track group.get('id')?.value ?? $index; let g = $index) {
-                    <ng-container [ngTemplateOutlet]="grammarEditor" [ngTemplateOutletContext]="{group, groups, index: g, prefix: 'homonym-' + h, showDecorations: true}" />
+                  <div class="scope-tools">
+                    <app-editorial-decorations
+                      [scopeOnly]="true"
+                      [markers]="formArrayAt(homonym, 'markers')"
+                      [crossReferences]="formArrayAt(homonym, 'crossReferences')"
+                      [vocabularies]="vocabularies()"
+                      [readonly]="!canEditFields()"
+                      (contentChanged)="markContentChanged()"
+                    />
+                  </div>
+                  @if (canEditFields()) {
+                    <button
+                      class="btn btn-ghost remove-scope"
+                      type="button"
+                      aria-label="Remove homograph · 删除同形词"
+                      (click)="removeHomonym(h)"
+                    >
+                      ×
+                    </button>
                   }
                 </div>
-                @if (canEdit()) { <button class="add-row" type="button" (click)="addGroupTo(groups)">＋ გრამატიკული ჯგუფის დამატება</button> }
+                @let groups = formArrayAt(homonym, 'gramGroups');
+                @let directSenses = formArrayAt(homonym, 'directSenses');
+                @if (canEditFields()) {
+                  <div class="mode">
+                    <span class="text-small text-muted">Start structure · 选择结构</span>
+                    @if (h === 0) {
+                      <button
+                        class="btn structure-choice add-homograph"
+                        type="button"
+                        [disabled]="homonyms.length >= 10" (click)="addHomonym()"
+                      >
+                        +H
+                      </button>
+                    }
+                    <button
+                      class="btn structure-choice add-pos"
+                      type="button"
+                      [disabled]="directSenses.length > 0" (click)="addGroupTo(groups)"
+                    >
+                      +POS
+                    </button>
+                    <button
+                      class="btn structure-choice add-direct-sense"
+                      type="button"
+                      [disabled]="groups.length > 0" (click)="addSenseTo(directSenses)"
+                    >
+                      +S
+                    </button>
+                  </div>
+                }
+                @for (sense of directSenses.controls; track sense; let s = $index) {
+                  <ng-container
+                    [ngTemplateOutlet]="senseEditor"
+                    [ngTemplateOutletContext]="{
+                      sense,
+                      senses: directSenses,
+                      index: s,
+                      prefix: 'homograph-' + h,
+                      implicit: false,
+                    }"
+                  />
+                }
+                <div class="grammar-list">
+                  @for (
+                    group of groups.controls;
+                    track group.get('id')?.value ?? $index;
+                    let g = $index
+                  ) {
+                    <ng-container
+                      [ngTemplateOutlet]="grammarEditor"
+                      [ngTemplateOutletContext]="{
+                        group,
+                        groups,
+                        index: g,
+                        prefix: 'homonym-' + h,
+                        showDecorations: true,
+                      }"
+                    />
+                  }
+                </div>
               </article>
             }
           </div>
-          @if (canEdit()) { <button class="add-homonym" type="button" (click)="addHomonym()">＋ ჰომონიმის დამატება</button> }
+          @if (canEditFields()) {
+            <button class="add-homonym" type="button" (click)="addHomonym()">
+              + Homograph · 添加同形词
+            </button>
+          }
         }
 
         @if (structureKind() === 'grammar') {
-          <section class="direct-structure"><header><div><p class="page-kicker">Entry → gramGrp</p><h3>gramGrp <span class="term-note">— გრამატიკული ჯგუფები</span></h3></div></header>
+          <section class="scope direct-structure">
+            <div class="mode">
+              <span class="text-small text-muted">Start structure · 选择结构</span>
+              <button class="btn structure-choice add-homograph" type="button" [disabled]="!canEditFields()" (click)="addHomonym()">+H</button>
+              <button class="btn structure-choice add-pos" type="button" [disabled]="!canEditFields() || rootSenses.length > 0" (click)="addGroupTo(rootGramGroups)">+POS</button>
+              <button class="btn structure-choice add-direct-sense" type="button" [disabled]="!canEditFields() || rootGramGroups.length > 0" (click)="addSenseTo(rootSenses)">+S</button>
+            </div>
+            <header>
+              <div>
+                <p class="page-kicker">Entry → gramGrp</p>
+                <h3>gramGrp <span class="term-note">— გრამატიკული ჯგუფები</span></h3>
+              </div>
+            </header>
             <div class="grammar-list">
-              @for (group of rootGramGroups.controls; track group.get('id')?.value ?? $index; let g = $index) {
-                <ng-container [ngTemplateOutlet]="grammarEditor" [ngTemplateOutletContext]="{group, groups: rootGramGroups, index: g, prefix: 'root', showDecorations: true}" />
+              @for (
+                group of rootGramGroups.controls;
+                track group.get('id')?.value ?? $index;
+                let g = $index
+              ) {
+                <ng-container
+                  [ngTemplateOutlet]="grammarEditor"
+                  [ngTemplateOutletContext]="{
+                    group,
+                    groups: rootGramGroups,
+                    index: g,
+                    prefix: 'root',
+                    showDecorations: true,
+                  }"
+                />
               }
             </div>
-            @if (canEdit()) { <button class="add-homonym" type="button" (click)="addGroupTo(rootGramGroups)">＋ გრამატიკული ჯგუფის დამატება</button> }
+            @if (canEditFields()) {
+              <button class="add-homonym" type="button" (click)="addGroupTo(rootGramGroups)">
+                + POS · 添加词性
+              </button>
+            }
           </section>
         }
 
         @if (structureKind() === 'pos') {
-          <section class="direct-structure"><header><div><p class="page-kicker">Entry → pos</p><h3>pos <span class="term-note">— პირდაპირი POS</span></h3></div></header>
+          <section class="scope direct-structure">
+            <header>
+              <div>
+                <p class="page-kicker">Entry → pos</p>
+                <h3>pos <span class="term-note">— პირდაპირი POS</span></h3>
+              </div>
+            </header>
             <div class="grammar-list">
-              @for (posGroup of directPoses.controls; track posGroup.get('id')?.value ?? $index; let p = $index) {
-                <section class="grammar-editor direct-pos structure-node structure-node--pos" [formGroup]="posGroup">
-                  <div class="grammar-head"><strong>POS {{ p + 1 }}</strong>@if (canEdit()) { <button class="text-button danger" type="button" (click)="removeDirectPos(p)">წაშლა</button> }</div>
-                  <div class="field pos-field"><label [for]="'direct-pos-' + p">მეტყველების ნაწილი <span class="term-note">POS</span></label><select [id]="'direct-pos-' + p" formControlName="pos"><option value="">აირჩიეთ</option>@for (pos of posOptions(); track pos.id) { <option [value]="pos.code">{{ pos.label }}</option> }</select></div>
-                  <app-editorial-decorations [markers]="formArrayAt(posGroup, 'markers')" [crossReferences]="formArrayAt(posGroup, 'crossReferences')" [vocabularies]="vocabularies()" [readonly]="!canEdit()" (contentChanged)="markContentChanged()" />
+              @for (
+                posGroup of directPoses.controls;
+                track posGroup.get('id')?.value ?? $index;
+                let p = $index
+              ) {
+                <section
+                  class="grammar-editor pos direct-pos structure-node structure-node--pos"
+                  [formGroup]="posGroup"
+                >
+                  <div class="grammar-head">
+                    <strong>POS {{ p + 1 }}</strong>
+                    @if (canEditFields()) {
+                      <button class="text-button danger" type="button" (click)="removeDirectPos(p)">
+                        ×
+                      </button>
+                    }
+                  </div>
+                  <div class="field pos-field">
+                    <label [for]="'direct-pos-' + p"
+                      >POS · 词性 <span class="term-note">POS</span></label
+                    ><select [id]="'direct-pos-' + p" formControlName="pos" [attr.disabled]="!canEditFields() ? true : null">
+                      <option value="">Select · 选择</option>
+                      @for (pos of posOptions(); track pos.id) {
+                        <option [value]="pos.code">{{ pos.label }}</option>
+                      }
+                    </select>
+                  </div>
+                  <app-editorial-decorations
+                    [markers]="formArrayAt(posGroup, 'markers')"
+                    [crossReferences]="formArrayAt(posGroup, 'crossReferences')"
+                    [vocabularies]="vocabularies()"
+                    [readonly]="!canEditFields()"
+                    (contentChanged)="markContentChanged()"
+                  />
                   @let senses = formArrayAt(posGroup, 'senses');
-                  <div class="sense-list nested-senses">@for (sense of senses.controls; track sense.get('id')?.value ?? $index; let s = $index) { <ng-container [ngTemplateOutlet]="senseEditor" [ngTemplateOutletContext]="{sense, senses, index: s, prefix: 'direct-pos-' + p, implicit: true}" /> }</div>
-                  @if (canEdit()) { <button class="add-row" type="button" (click)="addSenseTo(senses)">＋ მნიშვნელობის დამატება</button> }
+                  <div class="sense-list nested-senses">
+                    @for (
+                      sense of senses.controls;
+                      track sense.get('id')?.value ?? $index;
+                      let s = $index
+                    ) {
+                      <ng-container
+                        [ngTemplateOutlet]="senseEditor"
+                        [ngTemplateOutletContext]="{
+                          sense,
+                          senses,
+                          index: s,
+                          prefix: 'direct-pos-' + p,
+                          implicit: true,
+                        }"
+                      />
+                    }
+                  </div>
+                  @if (canEditFields()) {
+                    <button class="add-row" type="button" (click)="addSenseTo(senses)">
+                      + Sense · 添加义项
+                    </button>
+                  }
                 </section>
               }
             </div>
-            @if (canEdit()) { <button class="add-homonym" type="button" (click)="addDirectPos()">＋ მეტყველების ნაწილის დამატება</button> }
+            @if (canEditFields()) {
+              <button class="add-homonym" type="button" (click)="addDirectPos()">
+                ＋ POS · 词性
+              </button>
+            }
           </section>
         }
 
         @if (structureKind() === 'sense') {
-          <section class="direct-structure"><header><div><p class="page-kicker">Entry → sense</p><h3>sense <span class="term-note">— პირდაპირი მნიშვნელობები</span></h3></div></header>
-            <div class="sense-list">@for (sense of rootSenses.controls; track sense.get('id')?.value ?? $index; let s = $index) { <ng-container [ngTemplateOutlet]="senseEditor" [ngTemplateOutletContext]="{sense, senses: rootSenses, index: s, prefix: 'root-sense', implicit: true}" /> }</div>
-            @if (canEdit()) { <button class="add-homonym" type="button" (click)="addSenseTo(rootSenses)">＋ მნიშვნელობის დამატება</button> }
+          <section class="scope direct-structure">
+            <div class="mode">
+              <span class="text-small text-muted">Start structure · 选择结构</span>
+              <button class="btn structure-choice add-homograph" type="button" [disabled]="!canEditFields()" (click)="addHomonym()">+H</button>
+              <button class="btn structure-choice add-pos" type="button" [disabled]="!canEditFields() || rootSenses.length > 0" (click)="addGroupTo(rootGramGroups)">+POS</button>
+              <button class="btn structure-choice add-direct-sense" type="button" [disabled]="!canEditFields() || rootGramGroups.length > 0" (click)="addSenseTo(rootSenses)">+S</button>
+            </div>
+            <header>
+              <div>
+                <p class="page-kicker">Entry → sense</p>
+                <h3>sense <span class="term-note">— პირდაპირი მნიშვნელობები</span></h3>
+              </div>
+            </header>
+            <div class="sense-list">
+              @for (
+                sense of rootSenses.controls;
+                track sense.get('id')?.value ?? $index;
+                let s = $index
+              ) {
+                <ng-container
+                  [ngTemplateOutlet]="senseEditor"
+                  [ngTemplateOutletContext]="{
+                    sense,
+                    senses: rootSenses,
+                    index: s,
+                    prefix: 'root-sense',
+                    implicit: true,
+                  }"
+                />
+              }
+            </div>
+            @if (canEditFields()) {
+              <button class="add-homonym" type="button" (click)="addSenseTo(rootSenses)">
+                + Sense · 添加义项
+              </button>
+            }
           </section>
         }
 
-        <section class="entry-notes-panel">
-          <nav class="entry-notes-tabs" aria-label="სტატიის ჩანაწერები">
-            <button
-              type="button"
-              [class.active]="notesTab() === 'comments'"
-              (click)="setNotesTab('comments')"
-            >
-              კომენტარები <span>{{ comments().length }}</span>
-            </button>
-            <button
-              type="button"
-              [class.active]="notesTab() === 'support'"
-              (click)="setNotesTab('support')"
-            >
-              დამხმარე მასალა <span>{{ supportMaterials().length }}</span>
-            </button>
-          </nav>
+        <section
+          class="entry-notes-panel"
+          [class.draft-notes]="isNew()"
+          [class.notes-collapsed]="!notesExpanded()"
+        >
+          @if (isNew()) {
+            <p class="text-small">
+              Save the entry to add comments and reference materials. ·
+              保存词目后可添加评论和参考资料。
+            </p>
+          }
+          <fieldset [disabled]="isNew()">
+            <nav class="entry-notes-tabs" aria-label="სტატიის ჩანაწერები">
+              <button
+                type="button"
+                [class.active]="notesTab() === 'reference'"
+                (click)="setNotesTab('reference')"
+              >
+                Reference materials · 参考资料
+              </button>
+              <button
+                type="button"
+                [class.active]="notesTab() === 'comments'"
+                (click)="setNotesTab('comments')"
+              >
+                Comments · 评论 <span>{{ comments().length }}</span>
+              </button>
+              <button
+                type="button"
+                [class.active]="notesTab() === 'support'"
+                (click)="setNotesTab('support')"
+              >
+                Helper materials · 辅助资料 <span>{{ supportMaterials().length }}</span>
+              </button>
+            </nav>
+            <div class="reference-toolbar-actions">
+              <span class="text-small">Internal editorial material · 仅供编辑使用</span
+              ><button
+                class="btn"
+                type="button"
+                (click)="notesExpanded.set(!notesExpanded())"
+                [attr.aria-expanded]="notesExpanded()"
+              >
+                {{ notesExpanded() ? 'Collapse · 收起' : 'Expand · 展开' }}
+              </button>
+            </div>
 
-          @if (notesTab() === 'comments') {
-            <div class="entry-notes-body">
-              @if (commentsLoading()) {
-                <div class="empty-state compact">კომენტარები იტვირთება…</div>
-              } @else {
-                <ul class="entry-note-list">
-                  @for (comment of comments(); track comment.id) {
-                    <li>
-                      <div class="comment-author-line">
-                        <strong>{{ comment.authorDisplayName || 'უცნობი ავტორი' }}</strong>
-                        <time>{{ comment.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
-                      </div>
-                      @if (editingCommentId() === comment.id) {
-                        <textarea
+            @if (notesTab() === 'reference') {
+              <div class="entry-notes-body" [formGroup]="referenceForm">
+                @if (referenceLoading()) {
+                  <div class="empty-state">Loading… · 加载中</div>
+                } @else {
+                  <div class="reference-grid">
+                    @for (group of ['g1', 'g2', 'g3', 'g4', 'g5']; track group; let i = $index) {
+                      <div class="field">
+                        <label [for]="'inline-reference-' + group">G{{ i + 1 }}</label
+                        ><textarea
+                          [id]="'inline-reference-' + group"
+                          [formControlName]="group"
                           rows="3"
-                          [value]="editingCommentText()"
-                          (input)="updateEditingCommentText($event)"
+                          [readOnly]="!canEditFields()"
                         ></textarea>
-                        <div class="inline-actions">
-                          <button class="btn btn-primary" type="button" (click)="saveCommentEdit()">შენახვა</button>
-                          <button class="btn btn-secondary" type="button" (click)="editingCommentId.set(null)">გაუქმება</button>
+                      </div>
+                    }
+                  </div>
+                  @if (referenceError()) {
+                    <div class="error-banner">{{ referenceError() }}</div>
+                  }
+                  @if (canEditFields()) {
+                    <button
+                      class="btn"
+                      type="button"
+                      (click)="saveReferenceMaterial()"
+                      [disabled]="referenceSaving()"
+                    >
+                      Save reference materials · 保存参考资料
+                    </button>
+                  }
+                }
+              </div>
+            }
+
+            @if (notesTab() === 'comments') {
+              <div class="entry-notes-body">
+                @if (commentsLoading()) {
+                  <div class="empty-state compact">Comments · 评论 იტვირთება…</div>
+                } @else {
+                  <ul class="entry-note-list">
+                    @for (comment of comments(); track comment.id) {
+                      <li>
+                        <div class="comment-author-line">
+                          <strong>{{ comment.authorDisplayName || 'უცნობი ავტორი' }}</strong>
+                          <time>{{
+                            comment.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400'
+                          }}</time>
                         </div>
-                      } @else {
-                        <p>{{ comment.commentText }}</p>
-                        @if (canEditComment(comment)) {
+                        @if (editingCommentId() === comment.id) {
+                          <textarea
+                            rows="3"
+                            [value]="editingCommentText()"
+                            (input)="updateEditingCommentText($event)"
+                          ></textarea>
                           <div class="inline-actions">
-                            <button class="text-button" type="button" (click)="startCommentEdit(comment)">შეცვლა</button>
-                            @if (pendingCommentDeleteId() === comment.id) {
-                              <span>ნამდვილად წავშალოთ კომენტარი?</span>
+                            <button
+                              class="btn btn-primary"
+                              type="button"
+                              (click)="saveCommentEdit()"
+                            >
+                              შენახვა
+                            </button>
+                            <button
+                              class="btn btn-secondary"
+                              type="button"
+                              (click)="editingCommentId.set(null)"
+                            >
+                              გაუქმება
+                            </button>
+                          </div>
+                        } @else {
+                          <p>{{ comment.commentText }}</p>
+                          @if (canEditComment(comment)) {
+                            <div class="inline-actions">
+                              <button
+                                class="text-button"
+                                type="button"
+                                (click)="startCommentEdit(comment)"
+                              >
+                                შეცვლა
+                              </button>
+                              @if (pendingCommentDeleteId() === comment.id) {
+                                <span>ნამდვილად წავშალოთ კომენტარი?</span>
+                                <button
+                                  class="text-button danger"
+                                  type="button"
+                                  (click)="deleteComment(comment.id)"
+                                  [disabled]="deletingCommentId() === comment.id"
+                                >
+                                  {{ deletingCommentId() === comment.id ? 'იშლება…' : 'დიახ' }}
+                                </button>
+                                <button
+                                  class="text-button"
+                                  type="button"
+                                  (click)="pendingCommentDeleteId.set(null)"
+                                >
+                                  არა
+                                </button>
+                              } @else {
+                                <button
+                                  class="text-button danger"
+                                  type="button"
+                                  (click)="requestCommentDelete(comment.id)"
+                                >
+                                  ×
+                                </button>
+                              }
+                            </div>
+                          }
+                        }
+                      </li>
+                    } @empty {
+                      <li class="entry-note-empty">Comments · 评论 ჯერ არ არის.</li>
+                    }
+                  </ul>
+                }
+                @if (commentError()) {
+                  <div class="error-banner">{{ commentError() }}</div>
+                }
+                <div class="comment-compose entry-note-compose">
+                  <textarea
+                    rows="3"
+                    maxlength="4000"
+                    placeholder="დაწერეთ კომენტარი…"
+                    aria-label="კომენტარი"
+                    [value]="commentText()"
+                    (input)="updateCommentText($event)"
+                  ></textarea>
+                  <button
+                    class="btn btn-primary"
+                    type="button"
+                    (click)="addComment()"
+                    [disabled]="!commentText().trim() || commentSaving()"
+                  >
+                    {{ commentSaving() ? 'ემატება…' : 'კომენტარის დამატება' }}
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <div class="entry-notes-body">
+                @if (supportMaterialsLoading()) {
+                  <div class="empty-state compact">Helper materials · 辅助资料 იტვირთება…</div>
+                } @else {
+                  <ul class="entry-note-list support-material-list">
+                    @for (material of sortedSupportMaterials(); track material.id) {
+                      <li>
+                        <div class="support-material-meta">
+                          <strong>{{ supportLanguageLabel(material.language) }}</strong>
+                          <time>{{
+                            material.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400'
+                          }}</time>
+                        </div>
+                        <p [attr.lang]="material.language === 'Chinese' ? 'zh' : null">
+                          {{ material.commentText }}
+                        </p>
+                        @if (material.canDelete) {
+                          <div class="inline-actions">
+                            @if (pendingSupportMaterialDeleteId() === material.id) {
+                              <span>ნამდვილად წავშალოთ Helper materials · 辅助资料?</span>
                               <button
                                 class="text-button danger"
                                 type="button"
-                                (click)="deleteComment(comment.id)"
-                                [disabled]="deletingCommentId() === comment.id"
+                                (click)="deleteSupportMaterial(material.id)"
+                                [disabled]="deletingSupportMaterialId() === material.id"
                               >
-                                {{ deletingCommentId() === comment.id ? 'იშლება…' : 'დიახ' }}
+                                {{
+                                  deletingSupportMaterialId() === material.id ? 'იშლება…' : 'დიახ'
+                                }}
                               </button>
                               <button
                                 class="text-button"
                                 type="button"
-                                (click)="pendingCommentDeleteId.set(null)"
+                                (click)="pendingSupportMaterialDeleteId.set(null)"
                               >
                                 არა
                               </button>
@@ -404,128 +937,57 @@
                               <button
                                 class="text-button danger"
                                 type="button"
-                                (click)="requestCommentDelete(comment.id)"
+                                (click)="requestSupportMaterialDelete(material.id)"
                               >
-                                წაშლა
+                                ×
                               </button>
                             }
                           </div>
                         }
-                      }
-                    </li>
-                  } @empty {
-                    <li class="entry-note-empty">კომენტარები ჯერ არ არის.</li>
-                  }
-                </ul>
-              }
-              @if (commentError()) {
-                <div class="error-banner">{{ commentError() }}</div>
-              }
-              <div class="comment-compose entry-note-compose">
-                <textarea
-                  rows="3"
-                  maxlength="4000"
-                  placeholder="დაწერეთ კომენტარი…"
-                  aria-label="კომენტარი"
-                  [value]="commentText()"
-                  (input)="updateCommentText($event)"
-                ></textarea>
-                <button
-                  class="btn btn-primary"
-                  type="button"
-                  (click)="addComment()"
-                  [disabled]="!commentText().trim() || commentSaving()"
-                >
-                  {{ commentSaving() ? 'ემატება…' : 'კომენტარის დამატება' }}
-                </button>
-              </div>
-            </div>
-          } @else {
-            <div class="entry-notes-body">
-              @if (supportMaterialsLoading()) {
-                <div class="empty-state compact">დამხმარე მასალა იტვირთება…</div>
-              } @else {
-                <ul class="entry-note-list support-material-list">
-                  @for (material of sortedSupportMaterials(); track material.id) {
-                    <li>
-                      <div class="support-material-meta">
-                        <strong>{{ supportLanguageLabel(material.language) }}</strong>
-                        <time>{{ material.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
-                      </div>
-                      <p [attr.lang]="material.language === 'Chinese' ? 'zh' : null">{{ material.commentText }}</p>
-                      @if (material.canDelete) {
-                        <div class="inline-actions">
-                          @if (pendingSupportMaterialDeleteId() === material.id) {
-                            <span>ნამდვილად წავშალოთ დამხმარე მასალა?</span>
-                            <button
-                              class="text-button danger"
-                              type="button"
-                              (click)="deleteSupportMaterial(material.id)"
-                              [disabled]="deletingSupportMaterialId() === material.id"
-                            >
-                              {{ deletingSupportMaterialId() === material.id ? 'იშლება…' : 'დიახ' }}
-                            </button>
-                            <button
-                              class="text-button"
-                              type="button"
-                              (click)="pendingSupportMaterialDeleteId.set(null)"
-                            >
-                              არა
-                            </button>
-                          } @else {
-                            <button
-                              class="text-button danger"
-                              type="button"
-                              (click)="requestSupportMaterialDelete(material.id)"
-                            >
-                              წაშლა
-                            </button>
-                          }
-                        </div>
-                      }
-                    </li>
-                  } @empty {
-                    <li class="entry-note-empty">დამხმარე მასალა ჯერ არ არის.</li>
-                  }
-                </ul>
-              }
-              @if (supportMaterialError()) {
-                <div class="error-banner">{{ supportMaterialError() }}</div>
-              }
-              <div class="support-compose entry-note-compose" [formGroup]="supportMaterialForm">
-                <div class="field">
-                  <label for="support-material-language">ენა</label>
-                  <select id="support-material-language" formControlName="language">
-                    <option value="Chinese">ჩინური</option>
-                    <option value="English">ინგლისური</option>
-                    <option value="Russian">რუსული</option>
-                    <option value="Other">სხვა</option>
-                  </select>
+                      </li>
+                    } @empty {
+                      <li class="entry-note-empty">Helper materials · 辅助资料 ჯერ არ არის.</li>
+                    }
+                  </ul>
+                }
+                @if (supportMaterialError()) {
+                  <div class="error-banner">{{ supportMaterialError() }}</div>
+                }
+                <div class="support-compose entry-note-compose" [formGroup]="supportMaterialForm">
+                  <div class="field">
+                    <label for="support-material-language">ენა</label>
+                    <select id="support-material-language" formControlName="language">
+                      <option value="Chinese">ჩინური</option>
+                      <option value="English">ინგლისური</option>
+                      <option value="Russian">რუსული</option>
+                      <option value="Other">სხვა</option>
+                    </select>
+                  </div>
+                  <div class="field support-comment-field">
+                    <label for="support-material-comment">კომენტარი</label>
+                    <textarea
+                      id="support-material-comment"
+                      formControlName="commentText"
+                      rows="3"
+                      maxlength="4000"
+                      placeholder="ჩაწერეთ Helper materials · 辅助资料…"
+                    ></textarea>
+                  </div>
+                  <button
+                    class="btn btn-primary"
+                    type="button"
+                    (click)="addSupportMaterial()"
+                    [disabled]="supportMaterialForm.invalid || supportMaterialSaving()"
+                  >
+                    {{ supportMaterialSaving() ? 'ემატება…' : 'მასალის დამატება' }}
+                  </button>
                 </div>
-                <div class="field support-comment-field">
-                  <label for="support-material-comment">კომენტარი</label>
-                  <textarea
-                    id="support-material-comment"
-                    formControlName="commentText"
-                    rows="3"
-                    maxlength="4000"
-                    placeholder="ჩაწერეთ დამხმარე მასალა…"
-                  ></textarea>
-                </div>
-                <button
-                  class="btn btn-primary"
-                  type="button"
-                  (click)="addSupportMaterial()"
-                  [disabled]="supportMaterialForm.invalid || supportMaterialSaving()"
-                >
-                  {{ supportMaterialSaving() ? 'ემატება…' : 'მასალის დამატება' }}
-                </button>
               </div>
-            </div>
-          }
+            }
+          </fieldset>
         </section>
 
-        @if (canEdit()) {
+        @if (canEditFields()) {
           <footer class="save-bar">
             <div>
               @if (saveError()) {
@@ -541,7 +1003,7 @@
               type="submit"
               [disabled]="saving() || entryForm.pristine"
             >
-              {{ saving() ? 'ინახება…' : 'ცვლილებების შენახვა' }}
+              {{ saving() ? 'Saving… · 保存中' : 'Save · 保存' }}
             </button>
           </footer>
         }
@@ -562,10 +1024,10 @@
         <div class="section-head">
           <div>
             <p class="page-kicker">G1–G5</p>
-            <h2>საცნობარო მასალა</h2>
+            <h2>Reference material · 参考资料</h2>
           </div>
-          <span class="permission" [class.readonly]="!canEdit()">{{
-            canEdit() ? 'რედაქტირებადი' : 'მხოლოდ ნახვა'
+          <span class="permission" [class.readonly]="!canEditFields()">{{
+            canEditFields() ? 'რედაქტირებადი' : 'მხოლოდ ნახვა'
           }}</span>
         </div>
         @if (referenceLoading()) {
@@ -583,16 +1045,16 @@
                   [id]="key"
                   [formControlName]="key"
                   rows="5"
-                  [readOnly]="!canEdit()"
+                  [readOnly]="!canEditFields()"
                 ></textarea>
               </div>
             }
             @if (referenceError()) {
               <div class="error-banner">{{ referenceError() }}</div>
             }
-            @if (canEdit()) {
+            @if (canEditFields()) {
               <button class="btn btn-primary" type="submit" [disabled]="referenceSaving()">
-                {{ referenceSaving() ? 'ინახება…' : 'საცნობარო მასალის შენახვა' }}
+                {{ referenceSaving() ? 'Saving… · 保存中' : 'საცნობარო მასალის შენახვა' }}
               </button>
             }
           </form>
@@ -605,22 +1067,22 @@
         <div class="section-head">
           <div>
             <p class="page-kicker">Entry media</p>
-            <h2>სტატიის სურათები</h2>
+            <h2>სტატიის Media · 媒体</h2>
           </div>
-          <span class="permission" [class.readonly]="!canEdit()">{{
-            canEdit() ? 'ატვირთვა ნებადართულია' : 'მხოლოდ ნახვა'
+          <span class="permission" [class.readonly]="!canEditFields()">{{
+            canEditFields() ? 'ატვირთვა ნებადართულია' : 'მხოლოდ ნახვა'
           }}</span>
         </div>
 
-        @if (canEdit()) {
+        @if (canEditFields()) {
           <div class="media-uploader">
             <label class="media-picker" for="entry-media-input">
               @if (selectedMediaPreview()) {
                 <img [src]="selectedMediaPreview()" alt="არჩეული სურათის წინასწარი ნახვა" />
               } @else {
                 <span class="upload-symbol">＋</span>
-                <strong>აირჩიეთ სურათი</strong>
-                <small>JPEG, PNG, WebP ან GIF · მაქს. 10 MB</small>
+                <strong>Select · 选择 სურათი</strong>
+                <small>JPEG, PNG, WebP · მაქს. 5 MB</small>
               }
             </label>
             <input
@@ -628,7 +1090,7 @@
               id="entry-media-input"
               class="visually-hidden"
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/jpeg,image/png,image/webp"
               (change)="selectMedia($event)"
             />
             <div class="media-upload-controls">
@@ -669,7 +1131,7 @@
           <div class="error-banner media-error">{{ mediaError() }}</div>
         }
         @if (mediaLoading()) {
-          <div class="empty-state">სურათები იტვირთება…</div>
+          <div class="empty-state">Media · 媒体 იტვირთება…</div>
         } @else {
           <div class="media-grid">
             @for (item of media(); track item.id) {
@@ -689,7 +1151,7 @@
                   >
                   <small>{{ item.placement || 'განთავსება არ არის მითითებული' }}</small>
                 </div>
-                @if (canEdit()) {
+                @if (canEditFields()) {
                   <div class="media-actions">
                     @if (pendingMediaDeleteId() === item.id) {
                       <span>წავშალოთ?</span>
@@ -714,7 +1176,7 @@
                         type="button"
                         (click)="requestMediaDelete(item.id)"
                       >
-                        წაშლა
+                        ×
                       </button>
                     }
                   </div>
@@ -722,7 +1184,7 @@
               </article>
             } @empty {
               <div class="empty-state media-empty">
-                <strong>სურათები ჯერ არ არის</strong>
+                <strong>Media · 媒体 ჯერ არ არის</strong>
                 <span>სტატიას დაურთეთ პირველი ილუსტრაცია.</span>
               </div>
             }
@@ -736,14 +1198,14 @@
         <div class="section-head">
           <div>
             <p class="page-kicker">Audit trail</p>
-            <h2>ცვლილებების ისტორია</h2>
+            <h2>ცვლილებების History · 历史</h2>
           </div>
         </div>
         @if (historyError()) {
           <div class="error-banner">{{ historyError() }}</div>
         }
         @if (historyLoading()) {
-          <div class="empty-state">ისტორია იტვირთება…</div>
+          <div class="empty-state">History · 历史 იტვირთება…</div>
         } @else {
           <ol class="history-list">
             @for (item of history(); track item.id) {
@@ -761,7 +1223,7 @@
                 </article>
               </li>
             } @empty {
-              <li class="empty-state">ცვლილებების ისტორია ჯერ არ არის.</li>
+              <li class="empty-state">ცვლილებების History · 历史 ჯერ არ არის.</li>
             }
           </ol>
         }

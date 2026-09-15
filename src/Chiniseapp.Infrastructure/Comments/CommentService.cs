@@ -70,7 +70,7 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
         // 10.1: commenting on another author's entry earns Additional score,
         // exactly like editing its content does.
         await scoringService.AwardForContentEditAsync(entry, actor.Role, authorEditorId, ct);
-        await notificationService.NotifyEntryChangedAsync(entry, authorEditorId, nameof(AuditAction.CommentAdded), ct);
+        await notificationService.NotifyEntryChangedAsync(entry, authorEditorId, nameof(AuditAction.CommentAdded), ct, comment.CommentText);
 
         await db.SaveChangesAsync(ct);
 

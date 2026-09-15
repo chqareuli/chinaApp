@@ -10,10 +10,12 @@ import {
   OnInit,
   signal,
   ViewChild,
+  ViewChildren,
+  QueryList,
 } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { catchError, finalize, of } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { catchError, finalize, of, switchMap, tap } from 'rxjs';
 import {
   CommentSummary,
   ReferenceMaterialDetail,
@@ -37,18 +39,16 @@ import {
   Sense,
   VocabularyItem,
 } from '../../../core/models/entry.models';
-import { PublicDictionaryEntry } from '../../../core/models/public-dictionary.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { CollaborationService } from '../../../core/services/collaboration.service';
 import { EntriesService } from '../../../core/services/entries.service';
 import { MediaService } from '../../../core/services/media.service';
-import { StatusBadge } from '../../../shared/status-badge/status-badge';
+import { getStatusMeta } from '../../../shared/status-badge/status-badge';
 import { EditorialDecorations } from '../../../shared/editorial-decorations/editorial-decorations';
 import { RepeatableTextList } from '../../../shared/repeatable-text-list/repeatable-text-list';
-import { EntryPreviewModal } from '../../../shared/entry-preview-modal/entry-preview-modal';
 
 type EntryTab = 'content' | 'reference' | 'media' | 'history';
-type EntryNotesTab = 'comments' | 'support';
+type EntryNotesTab = 'reference' | 'comments' | 'support';
 
 @Component({
   selector: 'app-entry-detail-page',
@@ -57,11 +57,8 @@ type EntryNotesTab = 'comments' | 'support';
     DecimalPipe,
     NgTemplateOutlet,
     ReactiveFormsModule,
-    RouterLink,
-    StatusBadge,
     EditorialDecorations,
     RepeatableTextList,
-    EntryPreviewModal,
   ],
   templateUrl: './entry-detail-page.html',
   styleUrl: './entry-detail-page.scss',
@@ -69,6 +66,7 @@ type EntryNotesTab = 'comments' | 'support';
 })
 export class EntryDetailPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly entriesService = inject(EntriesService);
   private readonly collaboration = inject(CollaborationService);
   private readonly mediaService = inject(MediaService);
@@ -76,13 +74,37 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
 
   @ViewChild('mediaInput') private mediaInput?: ElementRef<HTMLInputElement>;
+  @ViewChildren(RepeatableTextList) private writtenForms?: QueryList<RepeatableTextList>;
 
   private entryId = 0;
+  readonly isNew = signal(false);
+  readonly framesVisible = signal(localStorage.getItem('cx-entry-editor-hierarchy-frames') !== 'off');
+  readonly editing = signal(false);
+  readonly canEditFields = computed(() => this.canEdit() && this.editing());
+  startEditing(): void {
+    if (!this.canEdit() || this.saving()) return;
+    this.saveSuccess.set(false);
+    this.editing.set(true);
+  }
+  cancelEditing(): void {
+    if (this.saving() || !window.confirm('Discard unsaved changes? · 放弃未保存的更改吗？')) return;
+    const item = this.entry();
+    if (item) this.populateEntryForm(item);
+    this.saveError.set(null);
+    this.statusConfirmation.set(null);
+    this.editing.set(false);
+  }
+  toggleFrames(): void {
+    this.framesVisible.update(value => !value);
+    localStorage.setItem('cx-entry-editor-hierarchy-frames', this.framesVisible() ? 'on' : 'off');
+  }
+  readonly structureVisible = signal(false);
   readonly entry = signal<EntryDetail | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly activeTab = signal<EntryTab>('content');
-  readonly notesTab = signal<EntryNotesTab>('comments');
+  readonly notesTab = signal<EntryNotesTab>('reference');
+  readonly notesExpanded = signal(false);
   readonly saving = signal(false);
   readonly saveSuccess = signal(false);
   readonly saveError = signal<string | null>(null);
@@ -90,7 +112,6 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly changingStatus = signal<string | null>(null);
   readonly statusError = signal<string | null>(null);
   readonly statusConfirmation = signal<string | null>(null);
-  readonly previewEntry = signal<PublicDictionaryEntry | null>(null);
 
   readonly comments = signal<CommentSummary[]>([]);
   readonly commentsLoading = signal(false);
@@ -136,6 +157,42 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly mediaError = signal<string | null>(null);
   readonly selectedMedia = signal<File | null>(null);
   readonly selectedMediaPreview = signal<string | null>(null);
+  readonly mediaTarget = signal<{ kind: 'sense' | 'example'; node: FormGroup } | null>(null);
+  openNodeMedia(kind: 'sense' | 'example', node: FormGroup): void {
+    if (!this.canEditFields()) return;
+    this.clearSelectedMedia();
+    this.mediaError.set(null);
+    this.mediaTarget.set({ kind, node });
+    this.mediaPlacement.set(kind + ':' + node.get('id')?.value);
+  }
+  closeNodeMedia(): void {
+    if (this.mediaSaving()) return;
+    this.clearSelectedMedia();
+    this.mediaTarget.set(null);
+  }
+  nodeMedia(kind: 'sense' | 'example', node: FormGroup): MediaAssetItem[] {
+    const id = node.get('id')?.value;
+    return id ? this.media().filter(item => item.placement === kind + ':' + id) : [];
+  }
+  resizeEditorText(fields: HTMLTextAreaElement[], delta: number): void {
+    for (const field of fields) {
+      const size = parseFloat(getComputedStyle(field).fontSize) || 16;
+      field.style.fontSize = Math.min(40, Math.max(12, size + delta)) + 'px';
+      field.style.height = 'auto';
+      field.style.height = field.scrollHeight + 'px';
+    }
+  }
+  addDefinitionPoint(field: HTMLTextAreaElement, sense: FormGroup): void {
+    const value = field.value;
+    const count = (value.match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/g) ?? []).length;
+    if (count >= 20) return;
+    const position = field.selectionStart ?? value.length;
+    const token = (position && value[position - 1] !== '\n' ? '\n' : '') + String.fromCodePoint(0x2460 + count) + ' ';
+    sense.get('definition')?.setValue(value.slice(0, position) + token + value.slice(field.selectionEnd ?? position));
+    this.markContentChanged();
+    field.focus();
+    field.setSelectionRange(position + token.length, position + token.length);
+  }
   readonly mediaPlacement = signal('cover');
   readonly pendingMediaDeleteId = signal<number | null>(null);
   readonly deletingMediaId = signal<number | null>(null);
@@ -207,6 +264,32 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    if (this.route.snapshot.data['newEntry']) {
+      this.isNew.set(true);
+      const draft: EntryDetail = {
+        id: 0,
+        lemma: '',
+        status: 'NewEntry',
+        pinyin: null,
+        pinyins: [],
+        complexForms: [],
+        homonyms: [],
+        gramGroups: [],
+        directPoses: [],
+        senses: [],
+        rowVersion: 0,
+        mainAuthorDisplayName: null,
+        lastEditorDisplayName: this.auth.editor()?.displayName ?? '',
+        createdAtUtc: '',
+        updatedAtUtc: '',
+        capabilities: { canEditContent: true, allowedStatusTransitions: [] },
+      };
+      this.entry.set(draft);
+      this.populateEntryForm(draft);
+      this.loading.set(false);
+      this.loadVocabularies();
+      return;
+    }
     this.entryId = Number(this.route.snapshot.paramMap.get('id'));
     if (!Number.isInteger(this.entryId) || this.entryId < 1) {
       this.error.set('სტატიის ნომერი არასწორია.');
@@ -235,6 +318,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   setNotesTab(tab: EntryNotesTab): void {
     this.notesTab.set(tab);
+    this.notesExpanded.set(true);
   }
 
   gramGroupsAt(homonymIndex: number): FormArray<FormGroup> {
@@ -245,8 +329,14 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     return this.gramGroupsAt(homonymIndex).at(gramGroupIndex).get('senses') as FormArray<FormGroup>;
   }
 
-  examplesAt(homonymIndex: number, gramGroupIndex: number, senseIndex: number): FormArray<FormGroup> {
-    return this.sensesAt(homonymIndex, gramGroupIndex).at(senseIndex).get('examples') as FormArray<FormGroup>;
+  examplesAt(
+    homonymIndex: number,
+    gramGroupIndex: number,
+    senseIndex: number,
+  ): FormArray<FormGroup> {
+    return this.sensesAt(homonymIndex, gramGroupIndex)
+      .at(senseIndex)
+      .get('examples') as FormArray<FormGroup>;
   }
 
   formArrayAt(group: FormGroup, name: string): FormArray<FormGroup> {
@@ -265,9 +355,19 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     if (!Number.isInteger(value) || value < 1) return '';
 
     const numerals: ReadonlyArray<readonly [number, string]> = [
-      [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
-      [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
-      [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+      [1000, 'M'],
+      [900, 'CM'],
+      [500, 'D'],
+      [400, 'CD'],
+      [100, 'C'],
+      [90, 'XC'],
+      [50, 'L'],
+      [40, 'XL'],
+      [10, 'X'],
+      [9, 'IX'],
+      [5, 'V'],
+      [4, 'IV'],
+      [1, 'I'],
     ];
     let remainder = value;
     let result = '';
@@ -292,7 +392,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   startStructure(kind: 'homonym' | 'grammar' | 'pos' | 'sense'): void {
     if (this.structureKind() !== null) return;
-    if (kind === 'homonym') this.homonyms.push(this.createHomonym());
+    if (kind === 'homonym') {
+      this.homonyms.push(this.createHomonym());
+      this.homonyms.push(this.createHomonym());
+    }
     if (kind === 'grammar') this.rootGramGroups.push(this.createGramGroup(1));
     if (kind === 'pos') this.directPoses.push(this.createDirectPos());
     if (kind === 'sense') this.rootSenses.push(this.createSense(1));
@@ -300,11 +403,39 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   addHomonym(): void {
+    if (!this.homonyms.length && (this.rootGramGroups.length || this.rootSenses.length)) {
+      const first = this.createHomonym();
+      for (const [source, key] of [[this.rootGramGroups, 'gramGroups'], [this.rootSenses, 'directSenses']] as const) {
+        const destination = this.formArrayAt(first, key);
+        while (source.length) {
+          const control = source.at(0);
+          source.removeAt(0);
+          destination.push(control);
+        }
+      }
+      this.homonyms.push(first);
+    }
+    if (this.homonyms.length >= 10) return;
     this.homonyms.push(this.createHomonym());
     this.entryForm.markAsDirty();
   }
 
   removeHomonym(index: number): void {
+    if (this.homonyms.length === 2) {
+      const other = this.homonyms.at(index === 0 ? 1 : 0);
+      if (
+        ['gramGroups', 'directSenses', 'markers', 'crossReferences'].every(
+          (key) => this.formArrayAt(other, key).length === 0,
+        ) &&
+        !other.get('text')?.value
+      ) {
+        this.homonyms.clear();
+        this.entryForm.markAsDirty();
+        return;
+      }
+      this.statusError.set('Homographs require at least two blocks. · 同形词至少需要两个区块。');
+      return;
+    }
     this.homonyms.removeAt(index);
     this.entryForm.markAsDirty();
   }
@@ -316,6 +447,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   addGroupTo(groups: FormArray<FormGroup>): void {
+    if (groups.parent?.get('directSenses')?.value?.length) return;
     groups.push(this.createGramGroup(groups.length + 1));
     this.entryForm.markAsDirty();
   }
@@ -337,11 +469,13 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   addSenseTo(senses: FormArray<FormGroup>): void {
+    if (senses.parent?.get('directSenses') === senses && senses.parent?.get('gramGroups')?.value?.length) return;
     senses.push(this.createSense(senses.length + 1));
     this.entryForm.markAsDirty();
   }
 
   removeSenseFrom(senses: FormArray<FormGroup>, index: number): void {
+    if (senses.parent?.get('pos') && senses.length === 1) return;
     senses.removeAt(index);
     this.renumberSenses(senses);
     this.entryForm.markAsDirty();
@@ -382,15 +516,35 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.entryForm.markAsDirty();
   }
 
-  removeExample(homonymIndex: number, gramGroupIndex: number, senseIndex: number, exampleIndex: number): void {
+  removeExample(
+    homonymIndex: number,
+    gramGroupIndex: number,
+    senseIndex: number,
+    exampleIndex: number,
+  ): void {
     this.examplesAt(homonymIndex, gramGroupIndex, senseIndex).removeAt(exampleIndex);
     this.entryForm.markAsDirty();
   }
 
   saveContent(): void {
     const item = this.entry();
-    if (!item || !this.canEdit() || this.saving()) return;
+    if (!item || !this.canEditFields() || this.saving()) return;
 
+    if (this.writtenForms?.some((list) => !list.flushInline())) {
+      this.saveError.set(
+        'გადაამოწმეთ პინინი და ტრადიციული ფორმები — მნიშვნელობები არ უნდა მეორდებოდეს.',
+      );
+      return;
+    }
+
+    const parents = [this.rootGramGroups, ...this.homonyms.controls.map(h => this.formArrayAt(h, 'gramGroups'))];
+    if (parents.some(groups => {
+      const values = groups.controls.map(g => String(g.get('pos')?.value ?? '').trim()).filter(Boolean);
+      return new Set(values).size !== values.length;
+    })) {
+      this.saveError.set('ერთი მშობლის ქვეშ ერთი და იგივე POS არ უნდა მეორდებოდეს — მნიშვნელობები ერთ POS ჯგუფში დაამატეთ.');
+      return;
+    }
     this.entryForm.markAllAsTouched();
     if (this.entryForm.invalid) {
       this.saveError.set('შეავსეთ სტატიის სათაური და გადაამოწმეთ ფორმა.');
@@ -402,25 +556,41 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.saveSuccess.set(false);
     this.concurrencyConflict.set(false);
 
-    this.entriesService
-      .saveContent(item.id, this.toSaveRequest(item.rowVersion))
-      .pipe(finalize(() => this.saving.set(false)))
-      .subscribe({
-        next: (updated) => {
-          this.entry.set(updated);
-          this.entryForm.markAsPristine();
-          this.saveSuccess.set(true);
-          this.loadHistory();
-        },
-        error: (error: HttpErrorResponse) => {
-          if (error.status === 409) {
-            this.concurrencyConflict.set(true);
-            this.saveError.set('სტატია სხვამ შეცვალა. განაახლეთ მონაცემები და შემდეგ შეინახეთ.');
-            return;
-          }
-          this.saveError.set(this.problemMessage(error, 'სტატიის შენახვა ვერ მოხერხდა.'));
-        },
-      });
+    const creating = item.id === 0;
+    const source = creating
+      ? this.entriesService
+          .create({ lemma: this.entryForm.controls.lemma.value!.trim(), pinyins: [] })
+          .pipe(
+            tap((created) => {
+              this.entryId = created.id;
+              this.entry.set(created);
+            }),
+            switchMap((created) =>
+              this.entriesService.saveContent(created.id, this.toSaveRequest(created.rowVersion)),
+            ),
+          )
+      : this.entriesService.saveContent(item.id, this.toSaveRequest(item.rowVersion));
+    source.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: (updated) => {
+        this.entry.set(updated);
+        this.populateEntryForm(updated);
+        this.editing.set(false);
+        this.saveSuccess.set(true);
+        if (this.isNew()) {
+          this.isNew.set(false);
+          void this.router.navigate(['/adminpanel/entries', updated.id], { replaceUrl: true });
+        }
+        this.loadHistory();
+      },
+      error: (error: HttpErrorResponse) => {
+        if (error.status === 409) {
+          this.concurrencyConflict.set(true);
+          this.saveError.set('სტატია სხვამ შეცვალა. განაახლეთ მონაცემები და შემდეგ შეინახეთ.');
+          return;
+        }
+        this.saveError.set(this.problemMessage(error, 'სტატიის შენახვა ვერ მოხერხდა.'));
+      },
+    });
   }
 
   reloadAfterConflict(): void {
@@ -465,80 +635,6 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   cancelStatusChange(): void {
     this.statusConfirmation.set(null);
-  }
-
-  openPreview(): void {
-    const item = this.entry();
-    if (!item) return;
-
-    const content = this.toSaveRequest(item.rowVersion);
-    const mapMarkers = (items: EditorialMarker[]) =>
-      items.map((marker) => ({
-        category: marker.category,
-        value: marker.value,
-        label:
-          this.vocabularies().find(
-            (vocabulary) =>
-              vocabulary.category === marker.category.toLowerCase() &&
-              vocabulary.code === marker.value,
-          )?.label ?? marker.value,
-      }));
-    const mapCrossReferences = (items: CrossReference[]) =>
-      items.map((reference) => ({
-        type: reference.type,
-        label: reference.label,
-        target: reference.target,
-        displayText: reference.displayText,
-        placement: reference.placement,
-        targetEntryId: reference.targetEntryId,
-        targetEntryLemma: reference.targetEntryLemma,
-      }));
-    const mapSense = (sense: Sense) => ({
-      number: sense.number,
-      definition: sense.definition,
-      markers: mapMarkers(sense.markers),
-      crossReferences: mapCrossReferences(sense.crossReferences),
-      examples: sense.examples.map((example) => ({
-        zh: example.zh,
-        ka: example.ka,
-        markers: mapMarkers(example.markers),
-        crossReferences: mapCrossReferences(example.crossReferences),
-      })),
-    });
-    const mapGroup = (group: GramGroup) => ({
-      number: group.number,
-      pos: group.pos,
-      markers: mapMarkers(group.markers),
-      crossReferences: mapCrossReferences(group.crossReferences),
-      senses: group.senses.map(mapSense),
-    });
-
-    this.previewEntry.set({
-      id: item.id,
-      lemma: content.lemma || item.lemma,
-      pinyin: content.pinyins[0]?.value ?? null,
-      pinyins: content.pinyins.map((pinyin) => pinyin.value),
-      complexForms: content.complexForms.map((form) => form.value),
-      updatedAtUtc: new Date().toISOString(),
-      homonyms: content.homonyms.map((homonym) => ({
-        text: homonym.text || null,
-        markers: mapMarkers(homonym.markers),
-        crossReferences: mapCrossReferences(homonym.crossReferences),
-        gramGroups: homonym.gramGroups.map(mapGroup),
-      })),
-      gramGroups: content.gramGroups.map(mapGroup),
-      directPoses: content.directPoses.map((directPos) => ({
-        pos: directPos.pos,
-        markers: mapMarkers(directPos.markers),
-        crossReferences: mapCrossReferences(directPos.crossReferences),
-        senses: directPos.senses.map(mapSense),
-      })),
-      senses: content.senses.map(mapSense),
-    });
-  }
-
-  closePreview(): void {
-    this.previewEntry.set(null);
   }
 
   updateCommentText(event: Event): void {
@@ -709,14 +805,14 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.mediaError.set(null);
     if (!file) return;
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      this.mediaError.set('დასაშვებია მხოლოდ JPEG, PNG, WebP ან GIF სურათი.');
+      this.mediaError.set('დასაშვებია მხოლოდ JPEG, PNG ან WebP სურათი.');
       input.value = '';
       return;
     }
-    if (file.size <= 0 || file.size > 10 * 1024 * 1024) {
-      this.mediaError.set('სურათის ზომა უნდა იყოს 10 MB-მდე.');
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      this.mediaError.set('სურათის ზომა უნდა იყოს 5 MB-მდე.');
       input.value = '';
       return;
     }
@@ -731,7 +827,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   uploadMedia(): void {
     const file = this.selectedMedia();
-    if (!file || !this.canEdit() || this.mediaSaving()) return;
+    if (!file || !this.canEditFields() || !this.entryId || this.mediaSaving()) return;
+    if (this.mediaTarget() && !this.mediaTarget()!.node.get('id')?.value) return;
 
     this.mediaSaving.set(true);
     this.mediaError.set(null);
@@ -792,17 +889,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   statusLabel(status: string): string {
-    const key = this.normalizeStatus(status);
-    return (
-      {
-        NewEntry: 'ახალი სტატია',
-        ZhReview: 'ჩინური შემოწმება',
-        KaReview: 'ქართული შემოწმება',
-        Ready: 'მზადაა',
-        Published: 'გამოქვეყნებული',
-        Archived: 'არქივი',
-      }[key] ?? status
-    );
+    return getStatusMeta(status).label;
   }
 
   historyActionLabel(action: string): string {
@@ -871,8 +958,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       .pipe(finalize(() => this.supportMaterialsLoading.set(false)))
       .subscribe({
         next: (items) => this.supportMaterials.set(items),
-        error: () =>
-          this.supportMaterialError.set('დამხმარე მასალის ჩატვირთვა ვერ მოხერხდა.'),
+        error: () => this.supportMaterialError.set('დამხმარე მასალის ჩატვირთვა ვერ მოხერხდა.'),
       });
   }
 
@@ -938,15 +1024,18 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.pinyins.clear();
     for (const pinyin of entry.pinyins ?? []) this.pinyins.push(this.createPinyin(pinyin));
     this.complexForms.clear();
-    for (const form of entry.complexForms ?? []) this.complexForms.push(this.createComplexForm(form));
+    for (const form of entry.complexForms ?? [])
+      this.complexForms.push(this.createComplexForm(form));
     this.homonyms.clear();
     for (const homonym of entry.homonyms) this.homonyms.push(this.createHomonym(homonym));
     this.rootGramGroups.clear();
-    for (const group of entry.gramGroups ?? []) this.rootGramGroups.push(this.createGramGroup(group.number, group));
+    for (const group of entry.gramGroups ?? [])
+      this.rootGramGroups.push(this.createGramGroup(group.number, group));
     this.directPoses.clear();
     for (const pos of entry.directPoses ?? []) this.directPoses.push(this.createDirectPos(pos));
     this.rootSenses.clear();
-    for (const sense of entry.senses ?? []) this.rootSenses.push(this.createSense(sense.number, sense));
+    for (const sense of entry.senses ?? [])
+      this.rootSenses.push(this.createSense(sense.number, sense));
     this.entryForm.markAsPristine();
   }
 
@@ -970,16 +1059,31 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  private createHomonym(homonym?: Homonym): FormGroup {
+  private createHomonym(homonym?: Homonym & { senses?: Sense[] }): FormGroup {
     return this.fb.group({
       id: [homonym?.id ?? null],
       text: [homonym?.text ?? ''],
+      directSenses: this.fb.array<FormGroup>(
+        (homonym?.directSenses ?? []).map((s) => this.createSense(s.number, s)),
+      ),
       markers: this.createMarkers(homonym?.markers),
       crossReferences: this.createCrossReferences(homonym?.crossReferences),
       gramGroups: this.fb.array<FormGroup>(
         homonym
-          ? homonym.gramGroups.map((group) => this.createGramGroup(group.number, group))
-          : [this.createGramGroup(1)],
+          ? (
+              homonym.gramGroups ?? [
+                {
+                  id: null,
+                  posSegmentId: null,
+                  number: 1,
+                  pos: null,
+                  markers: [],
+                  crossReferences: [],
+                  senses: homonym.senses ?? [],
+                },
+              ]
+            ).map((group) => this.createGramGroup(group.number, group))
+          : [],
       ),
     });
   }
@@ -1015,7 +1119,9 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       markers: this.createMarkers(pos?.markers),
       crossReferences: this.createCrossReferences(pos?.crossReferences),
       senses: this.fb.array<FormGroup>(
-        pos ? pos.senses.map((sense) => this.createSense(sense.number, sense)) : [this.createSense(1)],
+        pos
+          ? pos.senses.map((sense) => this.createSense(sense.number, sense))
+          : [this.createSense(1)],
       ),
     });
   }
@@ -1028,7 +1134,9 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       definition: [sense?.definition ?? ''],
       markers: this.createMarkers(sense?.markers),
       crossReferences: this.createCrossReferences(sense?.crossReferences),
-      examples: this.fb.array<FormGroup>((sense?.examples ?? []).map((example) => this.createExample(example))),
+      examples: this.fb.array<FormGroup>(
+        (sense?.examples ?? []).map((example) => this.createExample(example)),
+      ),
     });
   }
 
@@ -1046,7 +1154,9 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   private createMarkers(items: EditorialMarker[] = []): FormArray<FormGroup> {
     return this.fb.array<FormGroup>(
-      items.map((item) => this.fb.group({ id: [item.id], category: [item.category], value: [item.value] })),
+      items.map((item) =>
+        this.fb.group({ id: [item.id], category: [item.category], value: [item.value] }),
+      ),
     );
   }
 
@@ -1054,9 +1164,14 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     return this.fb.array<FormGroup>(
       items.map((item) =>
         this.fb.group({
-          id: [item.id], type: [item.type], label: [item.label], target: [item.target],
-          targetEntryId: [item.targetEntryId ?? null], targetEntryLemma: [item.targetEntryLemma ?? null],
-          displayText: [item.displayText ?? ''], placement: [item.placement],
+          id: [item.id],
+          type: [item.type],
+          label: [item.label],
+          target: [item.target],
+          targetEntryId: [item.targetEntryId ?? null],
+          targetEntryLemma: [item.targetEntryLemma ?? null],
+          displayText: [item.displayText ?? ''],
+          placement: [item.placement],
         }),
       ),
     );
@@ -1126,6 +1241,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       homonyms: homonyms.map((homonym) => ({
         id: homonym.id ?? null,
         text: homonym.text?.trim() ?? '',
+        directSenses: (homonym.directSenses ?? []).map(mapSense),
         markers: homonym.markers ?? [],
         crossReferences: homonym.crossReferences ?? [],
         gramGroups: (homonym.gramGroups ?? []).map(mapGroup),
@@ -1141,17 +1257,28 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     const content = this.toSaveRequest(this.entry()?.rowVersion ?? 0);
     const errors: string[] = [];
     if (!content.lemma) errors.push('გამოქვეყნებისთვის სათაური აუცილებელია.');
-    if (content.homonyms.some((homonym) => !homonym.gramGroups.length)) {
+    if (
+      content.homonyms.some(
+        (homonym) => !homonym.gramGroups.length && !homonym.directSenses?.length,
+      )
+    ) {
       errors.push('ყველა ჰომონიმს უნდა ჰქონდეს მინიმუმ ერთი გრამატიკული ჯგუფი.');
     }
-    const groups = [...content.homonyms.flatMap((homonym) => homonym.gramGroups), ...content.gramGroups];
+    const groups = [
+      ...content.homonyms.flatMap((homonym) => homonym.gramGroups),
+      ...content.gramGroups,
+    ];
     if (groups.some((group) => !group.pos) || content.directPoses.some((pos) => !pos.pos)) {
       errors.push('ყველა გრამატიკულ ჯგუფს უნდა ჰქონდეს არჩეული POS.');
     }
-    if (groups.some((group) => !group.senses.length) || content.directPoses.some((pos) => !pos.senses.length)) {
+    if (
+      groups.some((group) => !group.senses.length) ||
+      content.directPoses.some((pos) => !pos.senses.length)
+    ) {
       errors.push('გამოქვეყნებისთვის საჭიროა მინიმუმ ერთი მნიშვნელობა.');
     }
     const senses = [
+      ...content.homonyms.flatMap((h) => h.directSenses ?? []),
       ...groups.flatMap((group) => group.senses),
       ...content.directPoses.flatMap((pos) => pos.senses),
       ...content.senses,

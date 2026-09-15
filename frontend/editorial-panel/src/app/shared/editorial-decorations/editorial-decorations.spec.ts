@@ -27,6 +27,23 @@ describe('EditorialDecorations XR linking', () => {
   let component: EditorialDecorations;
   let entries: EntriesServiceStub;
   const fb = new FormBuilder();
+  it('adds controlled Style values without duplicates and limits them to two', () => {
+    component.vocabularies = [
+      { id: 1, category: 'style', sortOrder: 0, code: 'a', label: 'A' },
+      { id: 2, category: 'style', sortOrder: 0, code: 'b', label: 'B' },
+      { id: 3, category: 'style', sortOrder: 0, code: 'c', label: 'C' },
+    ];
+    const choose = (value: string) =>
+      component.selectMarker('Style', { target: { value } } as unknown as Event);
+    choose('a');
+    choose('a');
+    choose('b');
+    choose('c');
+    expect(component.markers.getRawValue().map((m) => m['value'])).toEqual(['a', 'b']);
+    component.readonly = true;
+    choose('c');
+    expect(component.markers.length).toBe(2);
+  });
 
   beforeEach(() => {
     entries = new EntriesServiceStub();

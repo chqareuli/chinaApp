@@ -8,7 +8,7 @@ namespace Chiniseapp.Infrastructure.Notifications;
 
 public class NotificationService(ChiniseDbContext db) : INotificationService
 {
-    public async Task NotifyEntryChangedAsync(Entry entry, int actingEditorId, string changeType, CancellationToken ct = default)
+    public async Task NotifyEntryChangedAsync(Entry entry, int actingEditorId, string changeType, CancellationToken ct = default, string? detail = null)
     {
         // Notify only the two most recent distinct previous contributors.
         // Unsaved audit rows for the change in progress are not returned by this
@@ -41,7 +41,7 @@ public class NotificationService(ChiniseDbContext db) : INotificationService
                 RecipientEditorId = recipientId,
                 EntryId = entry.Id,
                 TriggeredByEditorId = actingEditorId,
-                Type = changeType,
+                Type = changeType, Detail = detail,
                 IsRead = false,
                 CreatedAtUtc = now,
             });
@@ -65,14 +65,20 @@ public class NotificationService(ChiniseDbContext db) : INotificationService
         var entryIds = rows.Select(r => r.EntryId).Distinct().ToList();
         var editorIds = rows.Select(r => r.TriggeredByEditorId).Distinct().ToList();
 
-        var lemmas = await db.Entries.Where(e => entryIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, e => e.Lemma, ct);
-        var names = await db.Editors.Where(e => editorIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, e => e.DisplayName, ct);
+        var entries = await db.Entries.Where(e => entryIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
+        var editors = await db.Editors.Where(e => editorIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
 
         return rows
             .Select(n => new NotificationSummary(
-                n.Id, n.EntryId, lemmas.GetValueOrDefault(n.EntryId, string.Empty),
-                n.TriggeredByEditorId, names.GetValueOrDefault(n.TriggeredByEditorId, string.Empty),
-                n.Type, n.IsRead, n.CreatedAtUtc))
+                n.Id, n.EntryId, entries.GetValueOrDefault(n.EntryId)?.Lemma ?? string.Empty,
+                n.TriggeredByEditorId, editors.GetValueOrDefault(n.TriggeredByEditorId)?.DisplayName ?? string.Empty,
+                n.Type, n.IsRead, n.CreatedAtUtc)
+                {
+                    Detail = n.Detail,
+                    TriggeredByRole = editors.GetValueOrDefault(n.TriggeredByEditorId)?.EditorialRole ?? editors.GetValueOrDefault(n.TriggeredByEditorId)?.Role.ToString(),
+                    TriggeredByIsSupervisor = editors.GetValueOrDefault(n.TriggeredByEditorId)?.Role == Chiniseapp.Domain.Enums.EditorRole.SuperAdmin,
+                    EntryStatus = entries.GetValueOrDefault(n.EntryId)?.Status.ToString(),
+                })
             .ToList();
     }
 
@@ -95,6 +101,19 @@ public class NotificationService(ChiniseDbContext db) : INotificationService
         if (string.IsNullOrWhiteSpace(body))
         {
             throw new NotificationValidationException("Message body is required.");
+        }
+
+        if (request.AllEditors)
+        {
+            var recipients = await db.Editors.Where(e => e.IsActive && e.Id != senderEditorId).Select(e => e.Id).ToListAsync(ct);
+            if (recipients.Count == 0) throw new NotificationValidationException("No active recipients.");
+            var broadcastId = Guid.NewGuid();
+            var sentAt = DateTime.UtcNow;
+            var copies = recipients.Select(id => new DirectMessage { SenderEditorId = senderEditorId,
+                RecipientEditorId = id, Body = body, BroadcastId = broadcastId, SentAtUtc = sentAt }).ToList();
+            db.DirectMessages.AddRange(copies);
+            await db.SaveChangesAsync(ct);
+            return await ToSummaryAsync(copies[0], ct);
         }
 
         var recipientExists = await db.Editors.AnyAsync(e => e.Id == request.RecipientEditorId, ct);
@@ -131,12 +150,12 @@ public class NotificationService(ChiniseDbContext db) : INotificationService
         var editorIds = messages.SelectMany(m => new[] { m.SenderEditorId, m.RecipientEditorId }).Distinct().ToList();
         var names = await db.Editors.Where(e => editorIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, e => e.DisplayName, ct);
 
-        return messages
+        return messages.DistinctBy(m => m.BroadcastId?.ToString() ?? $"private:{m.Id}")
             .Select(m => new DirectMessageSummary(
                 m.Id,
                 m.SenderEditorId, names.GetValueOrDefault(m.SenderEditorId, string.Empty),
                 m.RecipientEditorId, names.GetValueOrDefault(m.RecipientEditorId, string.Empty),
-                m.Body, m.SentAtUtc, m.ReadAtUtc))
+                m.Body, m.SentAtUtc, m.ReadAtUtc) { BroadcastId = m.BroadcastId })
             .ToList();
     }
 
@@ -159,6 +178,6 @@ public class NotificationService(ChiniseDbContext db) : INotificationService
         var recipientName = await db.Editors.Where(e => e.Id == message.RecipientEditorId).Select(e => e.DisplayName).FirstOrDefaultAsync(ct) ?? string.Empty;
         return new DirectMessageSummary(
             message.Id, message.SenderEditorId, senderName, message.RecipientEditorId, recipientName,
-            message.Body, message.SentAtUtc, message.ReadAtUtc);
+            message.Body, message.SentAtUtc, message.ReadAtUtc) { BroadcastId = message.BroadcastId };
     }
 }

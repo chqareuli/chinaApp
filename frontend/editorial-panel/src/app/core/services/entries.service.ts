@@ -30,6 +30,10 @@ export class EntriesService {
       .set('pageSize', options.pageSize)
       .set('sort', options.sort);
 
+    if (options.workEditorId) params = params.set('workEditorId', options.workEditorId);
+    if (options.scoreKind) params = params.set('scoreKind', options.scoreKind);
+    if (options.authorId) params = params.set('authorId', options.authorId);
+    if (options.excludeDrafts) params = params.set('excludeDrafts', true);
     if (options.query?.trim()) {
       params = params.set('q', options.query.trim());
     }

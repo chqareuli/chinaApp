@@ -14,8 +14,14 @@ export class EditorsService {
     return this.http.get<EditorListItem[]>(`${this.apiBaseUrl}/editors`);
   }
 
-  updateMe(displayName: string): Observable<EditorListItem> {
-    return this.http.put<EditorListItem>(`${this.apiBaseUrl}/editors/me`, { displayName });
+  getMe(): Observable<EditorListItem> {
+    return this.http.get<EditorListItem>(`${this.apiBaseUrl}/editors/me`);
+  }
+  updateMe(displayName: string, fields: Partial<EditorListItem> = {}): Observable<EditorListItem> {
+    return this.http.put<EditorListItem>(`${this.apiBaseUrl}/editors/me`, {
+      ...fields,
+      displayName,
+    });
   }
 
   changeOwnPassword(currentPassword: string, newPassword: string): Observable<void> {

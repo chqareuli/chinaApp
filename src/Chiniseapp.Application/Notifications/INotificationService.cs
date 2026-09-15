@@ -9,7 +9,7 @@ public interface INotificationService
     /// excluding the editor who made the current change. Caller's SaveChangesAsync persists
     /// them alongside whatever triggered them.
     /// </summary>
-    Task NotifyEntryChangedAsync(Entry entry, int actingEditorId, string changeType, CancellationToken ct = default);
+    Task NotifyEntryChangedAsync(Entry entry, int actingEditorId, string changeType, CancellationToken ct = default, string? detail = null);
 
     Task<IReadOnlyList<NotificationSummary>> GetForEditorAsync(int editorId, bool unreadOnly, CancellationToken ct = default);
 

@@ -19,6 +19,8 @@ public class EntryConfiguration : IEntityTypeConfiguration<Entry>
         builder.Property(e => e.Pinyin)
             .HasMaxLength(255);
 
+        builder.Property(e => e.LexicalForms).HasColumnType("jsonb");
+
         builder.Property(e => e.Status)
             .HasColumnType("entry_status")
             .IsRequired();

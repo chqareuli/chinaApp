@@ -15,4 +15,7 @@ public record ScoreCountsByStatus(
 
 public record EditorAccountingDetail(
     int EditorId, string DisplayName, string Email, string Role, DateTime CreatedAtUtc,
-    ScoreCountsByStatus ScoresByStatus);
+    ScoreCountsByStatus ScoresByStatus)
+{
+    public IReadOnlyDictionary<string,int> EntriesByStatus { get; init; } = new Dictionary<string,int>();
+}

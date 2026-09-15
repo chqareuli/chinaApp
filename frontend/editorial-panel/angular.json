@@ -31,7 +31,9 @@
               }
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.scss",
+              "src/handoff-reference.css",
+              "src/handoff-adapters.scss"
             ]
           },
           "configurations": {

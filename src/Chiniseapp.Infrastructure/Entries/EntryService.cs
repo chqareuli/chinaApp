@@ -12,6 +12,36 @@ namespace Chiniseapp.Infrastructure.Entries;
 
 public class EntryService(ChiniseDbContext db, IScoringService scoringService, INotificationService notificationService) : IEntryService
 {
+    public async Task<IReadOnlyList<VocabularyListItem>> GetVocabulariesAsync(CancellationToken ct = default)
+    {
+        var items = await db.ControlledVocabularies.AsNoTracking().Where(v => v.IsActive)
+            .OrderBy(v => v.Category).ThenBy(v => v.SortOrder).ThenBy(v => v.Id).ToListAsync(ct);
+        return items.Select(v => new VocabularyListItem(v.Id, v.Category.ToString().ToLowerInvariant(),
+            v.Code, v.DisplayZh, v.SortOrder)).ToList();
+    }
+
+    public async Task<PagedResult<EntrySummary>> GetFilteredListAsync(
+        EntryListFilter filter, EditorRole currentEditorRole, CancellationToken ct = default)
+    {
+        var page = Math.Max(1, filter.Page);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 200);
+        var query = EntryListQuery.Filter(db.Entries.AsNoTracking(), db.Segments, filter, currentEditorRole);
+        if(filter.WorkEditorId is { } workEditor)
+        {
+            if(filter.ScoreKind is "main" or "additional")
+            {
+                var type=filter.ScoreKind=="main"?ScoreType.Main:ScoreType.Additional;
+                query=query.Where(e=>db.ScoreEntries.Any(s=>s.EntryId==e.Id && s.EditorId==workEditor && s.ScoreType==type));
+            }
+            else query=query.Where(e=>e.Status!=EntryStatus.Archived && (e.CreatedByEditorId==workEditor || db.ScoreEntries.Any(s=>s.EntryId==e.Id && s.EditorId==workEditor)));
+        }
+        var total = await query.CountAsync(ct);
+        var entries = await EntryListQuery.Sort(query, filter.Sort)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        var names = await LoadDisplayNamesAsync(entries, ct);
+        return new PagedResult<EntrySummary>(entries.Select(e => ToSummary(e, names)).ToList(), total, page, pageSize);
+    }
+
     public async Task<EntryDetail> CreateAsync(
         CreateEntryRequest request, int currentEditorId, EditorRole currentEditorRole, CancellationToken ct = default)
     {
@@ -36,6 +66,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             SearchNormalizedTitle = TitleNormalizer.Normalize(lemma),
         };
 
+        EntryTreeMapper.SaveForms(entry,
+            request.Pinyins?.Select((value, i) => new FormItemDto(null, value, i)).ToList(), null);
         db.Entries.Add(entry);
         await db.SaveChangesAsync(ct);
 
@@ -62,6 +94,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
     public async Task<EntryDetail> SaveContentAsync(
         int id, SaveEntryContentRequest request, int currentEditorId, EditorRole currentEditorRole, CancellationToken ct = default)
     {
+
         var entry = await db.Entries.FindAsync([id], ct)
             ?? throw new EntryValidationException($"Entry {id} does not exist.");
 
@@ -90,20 +123,18 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         entry.LastEditorEditorId = currentEditorId;
         entry.UpdatedAtUtc = DateTime.UtcNow;
 
-        // Delete-then-recreate needs to share a transaction with the
-        // concurrency-checked entry update: ExecuteDeleteAsync runs
-        // immediately (not deferred to SaveChanges), so without an explicit
-        // transaction a concurrency conflict on the entry row would still
-        // leave the old segments deleted.
+        EntryTreeMapper.SaveForms(entry, request.Pinyins ?? (request.Pinyin is not null
+            ? (string.IsNullOrWhiteSpace(request.Pinyin) ? [] : [new FormItemDto(null, request.Pinyin, 0)]) : null), request.ComplexForms);
+        var existing = await db.Segments.Where(s => s.EntryId == id).ToListAsync(ct);
+        var mapper = new EntryTreeMapper(id, existing, entry.UpdatedAtUtc);
+        mapper.Apply(request);
+        db.Segments.AddRange(mapper.Nodes.Where(s => s.Id == 0));
+
+        // Persist moves before removing old ancestors, keeping retained nodes and comments intact.
+        // Both phases share the concurrency-checked entry update's transaction.
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         try
         {
-            await db.Segments.Where(s => s.EntryId == id).ExecuteDeleteAsync(ct);
-
-            var newSegments = new List<Segment>();
-            BuildSegments(newSegments, id, request.Homonyms, entry.UpdatedAtUtc);
-            db.Segments.AddRange(newSegments);
-
             db.AuditLogEntries.Add(new AuditLogEntry
             {
                 EntityType = nameof(Entry),
@@ -117,6 +148,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             await notificationService.NotifyEntryChangedAsync(entry, currentEditorId, nameof(AuditAction.ContentEdited), ct);
 
             await db.SaveChangesAsync(ct);
+            db.Segments.RemoveRange(mapper.Removed);
+            await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
         }
         catch (DbUpdateConcurrencyException)
@@ -125,7 +158,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             throw new EntryConcurrencyException();
         }
 
-        return await BuildDetailAsync(entry, request.Homonyms, currentEditorRole, ct);
+        return await BuildDetailAsync(entry, await LoadHomonymsAsync(id, ct), currentEditorRole, ct);
     }
 
     public async Task<EntryDetail> ChangeStatusAsync(int id, EntryStatus targetStatus, int currentEditorId, CancellationToken ct = default)
@@ -145,6 +178,18 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         if (!StatusTransitionRules.CanTransition(actor.Role, previousStatus, targetStatus))
         {
             throw new EntryStatusTransitionForbiddenException(previousStatus.ToString(), targetStatus.ToString());
+        }
+
+        if (targetStatus == EntryStatus.Published)
+        {
+            var tree = EntryTreeMapper.Read(await db.Segments.AsNoTracking().Where(s => s.EntryId == id).ToListAsync(ct));
+            var groups = tree.GramGroups.Concat(tree.Homonyms.SelectMany(h => h.GramGroups ?? [])).ToList();
+            var senses = tree.Senses.Concat(tree.Homonyms.SelectMany(h=>h.DirectSenses)).Concat(groups.SelectMany(g => g.Senses)).Concat(tree.DirectPoses.SelectMany(p => p.Senses)).ToList();
+            if (tree.Homonyms.Any(h => (h.GramGroups is null || h.GramGroups.Count == 0) && h.DirectSenses.Count == 0) ||
+                groups.Any(g => string.IsNullOrWhiteSpace(g.Pos) || g.Senses.Count == 0) ||
+                tree.DirectPoses.Any(p => string.IsNullOrWhiteSpace(p.Pos) || p.Senses.Count == 0) ||
+                senses.Count == 0 || senses.Any(s => string.IsNullOrWhiteSpace(s.Definition)))
+                throw new EntryValidationException("Complete the POS, senses and definitions, then save before publishing.");
         }
 
         // main_author locks the first time an entry leaves new_entry, to the
@@ -174,7 +219,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         });
 
         await scoringService.AwardForStatusChangeAsync(entry, previousStatus, actor.Role, currentEditorId, ct);
-        await notificationService.NotifyEntryChangedAsync(entry, currentEditorId, nameof(AuditAction.StatusChanged), ct);
+        await notificationService.NotifyEntryChangedAsync(entry, currentEditorId, nameof(AuditAction.StatusChanged), ct, $"{previousStatus} → {targetStatus}");
 
         await db.SaveChangesAsync(ct);
 
@@ -255,104 +300,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
     private static string? NormalizePinyin(string? pinyin) =>
         string.IsNullOrWhiteSpace(pinyin) ? null : pinyin.Trim();
 
-    private static void BuildSegments(List<Segment> target, int entryId, List<HomonymDto> homonyms, DateTime now)
-    {
-        for (var h = 0; h < homonyms.Count; h++)
-        {
-            var homonymSegment = NewSegment(entryId, null, SegmentType.Homonym, h, now);
-            target.Add(homonymSegment);
-
-            // Stage 1 hides gramGrp/POS from the editor: every homonym gets
-            // exactly one implicit gramGrp so "sense belongs to a gramGrp"
-            // holds without exposing that UI yet (per the Stage-1 tree-shape
-            // rule in docs/backend-plan.md).
-            var gramGrpSegment = NewSegment(entryId, homonymSegment, SegmentType.GramGrp, 0, now);
-            target.Add(gramGrpSegment);
-
-            var senses = homonyms[h].Senses;
-            for (var s = 0; s < senses.Count; s++)
-            {
-                var senseSegment = NewSegment(entryId, gramGrpSegment, SegmentType.Sense, s, now);
-                senseSegment.Number = s + 1;
-                target.Add(senseSegment);
-
-                var definitionSegment = NewSegment(entryId, senseSegment, SegmentType.Definition, 0, now);
-                definitionSegment.Value = senses[s].Definition;
-                target.Add(definitionSegment);
-
-                var examples = senses[s].Examples;
-                for (var e = 0; e < examples.Count; e++)
-                {
-                    var exampleSegment = NewSegment(entryId, senseSegment, SegmentType.Example, e + 1, now);
-                    target.Add(exampleSegment);
-
-                    var zhSegment = NewSegment(entryId, exampleSegment, SegmentType.ZhSegment, 0, now);
-                    zhSegment.Value = examples[e].Zh;
-                    target.Add(zhSegment);
-
-                    var kaSegment = NewSegment(entryId, exampleSegment, SegmentType.KaSegment, 1, now);
-                    kaSegment.Value = examples[e].Ka;
-                    target.Add(kaSegment);
-                }
-            }
-        }
-    }
-
-    private static Segment NewSegment(int entryId, Segment? parent, SegmentType type, int order, DateTime now) => new()
-    {
-        EntryId = entryId,
-        Parent = parent,
-        SegmentType = type,
-        OrderIndex = order,
-        CreatedAtUtc = now,
-        UpdatedAtUtc = now,
-    };
-
-    private async Task<List<HomonymDto>> LoadHomonymsAsync(int entryId, CancellationToken ct)
-    {
-        var segments = await db.Segments
-            .Where(s => s.EntryId == entryId)
-            .OrderBy(s => s.OrderIndex)
-            .ToListAsync(ct);
-
-        var byParent = segments
-            .Where(s => s.ParentSegmentId.HasValue)
-            .GroupBy(s => s.ParentSegmentId!.Value)
-            .ToDictionary(g => g.Key, g => g.OrderBy(s => s.OrderIndex).ToList());
-
-        IEnumerable<Segment> ChildrenOf(int? parentId) => parentId is null
-            ? segments.Where(s => s.ParentSegmentId is null)
-            : byParent.TryGetValue(parentId.Value, out var children) ? children : [];
-
-        List<Segment> Children(int? parentId, SegmentType type) =>
-            ChildrenOf(parentId).Where(s => s.SegmentType == type).ToList();
-
-        var homonyms = new List<HomonymDto>();
-        foreach (var homonymSeg in Children(null, SegmentType.Homonym))
-        {
-            var gramGrp = Children(homonymSeg.Id, SegmentType.GramGrp).FirstOrDefault();
-            var senseDtos = new List<SenseDto>();
-
-            if (gramGrp is not null)
-            {
-                foreach (var senseSeg in Children(gramGrp.Id, SegmentType.Sense))
-                {
-                    var definition = Children(senseSeg.Id, SegmentType.Definition).FirstOrDefault();
-                    var exampleDtos = Children(senseSeg.Id, SegmentType.Example)
-                        .Select(exampleSeg => new ExampleDto(
-                            Children(exampleSeg.Id, SegmentType.ZhSegment).FirstOrDefault()?.Value ?? string.Empty,
-                            Children(exampleSeg.Id, SegmentType.KaSegment).FirstOrDefault()?.Value ?? string.Empty))
-                        .ToList();
-
-                    senseDtos.Add(new SenseDto(senseSeg.Number ?? 0, definition?.Value ?? string.Empty, exampleDtos));
-                }
-            }
-
-            homonyms.Add(new HomonymDto(senseDtos));
-        }
-
-        return homonyms;
-    }
+    private async Task<List<HomonymDto>> LoadHomonymsAsync(int entryId, CancellationToken ct) =>
+        EntryTreeMapper.Read(await db.Segments.AsNoTracking().Where(s => s.EntryId == entryId).ToListAsync(ct)).Homonyms;
 
     private async Task<EntryDetail> BuildDetailAsync(
         Entry entry, List<HomonymDto> homonyms, EditorRole currentEditorRole, CancellationToken ct)
@@ -373,6 +322,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 
         var rowVersion = db.Entry(entry).Property<uint>("xmin").CurrentValue;
 
+        var tree = EntryTreeMapper.Read(await db.Segments.AsNoTracking().Where(s => s.EntryId == entry.Id).ToListAsync(ct));
+        var forms = EntryTreeMapper.ReadForms(entry);
         return new EntryDetail(
             entry.Id,
             entry.Lemma,
@@ -389,7 +340,11 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
                 Enum.GetValues<EntryStatus>()
                     .Where(target => StatusTransitionRules.CanTransition(currentEditorRole, entry.Status, target))
                     .Select(target => target.ToString())
-                    .ToList()));
+                    .ToList()))
+        {
+            Pinyins = forms.Pinyins, ComplexForms = forms.ComplexForms,
+            GramGroups = tree.GramGroups, DirectPoses = tree.DirectPoses, Senses = tree.Senses
+        };
     }
 
     private async Task<Dictionary<int, string>> LoadDisplayNamesAsync(List<Entry> entries, CancellationToken ct)

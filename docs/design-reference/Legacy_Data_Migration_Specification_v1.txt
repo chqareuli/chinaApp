@@ -1,0 +1,136 @@
+CHINESE.GE — Legacy Data Migration Specification 
+(ძველი მონაცემების მიგრაციის სპეციფიკაცია)
+Parser / Import Boundary · Version 1.0
+Scope: არსებული Chinese-Ge Dictionary data-ის ახალ Entry Editor Semantic Model-ში Migration. ეს დოკუმენტი განსაზღვრავს Legacy Parser structure-ების ინტერპრეტაციას Migration-ის პროცესში.
+1. უცვლელი ძირითადი საზღვარი
+Parser segmentation ≠ ახალი Editorial data structure.
+Legacy token-ები — ZH_RUN, KA_RUN, ZH_SEGMENT, KA_SEGMENT, DBL_ZH_RUN და LINKISH_RUN — შეიძლება საჭირო იყოს ძველ Record-ებში საზღვრების დასადგენად. ისინი Migration/Parser construct-ებია და ახალ Database-ში ავტომატურად არ უნდა გადაიქცეს Table-ებად, Entity-ებად ან Editable level-ებად.
+2. Target semantic object-ები
+Target object
+Migration-ის მნიშვნელობა
+ENTRY
+Headword-level Record; Headword სავალდებულოა და Global unique უნდა იყოს.
+PRONUNCIATION
+Entry-ის განსხვავებული Pronunciation record-ები; Draft logic-ში 0..6; ერთ Entry-ში Duplicate Pinyin დაუშვებელია.
+TRADITIONAL_FORM
+0..n Form; შეიძლება ეხებოდეს მთლიან Entry-ს ან კონკრეტულ Homograph-ს.
+HOMOGRAPH
+Optional structure: 0 ან სულ მცირე 2; უკავშირდება Entry Pronunciation-ს.
+GRAMMAR_GROUP
+თითო Group-ზე ერთი POS; ეკუთვნის Entry-ს ან Homograph-ს.
+SENSE
+Semantic meaning unit; სტრუქტურულად ყოველთვის არსებობს, მაშინაც კი, როდესაც UI number დამალულია.
+DEFINITION
+თითო Sense-ზე 0..1; Target-language Definition/Equivalent text.
+XR / XR_TARGET
+Structured cross-reference Fixed type-ით და ერთი ან რამდენიმე Target-ით.
+EXAMPLE
+Chinese source_text + Georgian target_text; თითოეული ცალკე Field-ში.
+3. Legacy workbook-ის გამოყენება
+თანდართული Legacy workbook შეიცავს Parser guidance-ს, Terminology/Token inventory-ს, Segmentation rule-ებს, TEI mapping-ს, XR/Link ინფორმაციასა და Error case-ებს. იგი უნდა გამოიყენებოდეს ძველი Corpus-ის Parsing-ის დამხმარე წყაროდ და არა ახალი Programmer Specification-ის შემცვლელად.
+Programmer Guide
+TERMINOLOGY TABLE
+Token Inventory
+Segmentation Rules
+TEI Mapping
+(xr) ბმულები
+EROR
+4. Migration mapping rule-ები
+Legacy concept
+Target
+წესი
+Legacy headword
+ENTRY.headword
+უნდა გადაიყვანოს ერთ Unique Entry-ში.
+Legacy Pinyin fields/readings
+PRONUNCIATION
+გადაიყვანოს ცალკეულ Pronunciation record-ებად; order შენარჩუნდეს; მაქს. 6.
+Traditional forms
+TRADITIONAL_FORM
+შეიქმნას ცალკე Record-ები; Homograph-ს მიებას მხოლოდ იქ, სადაც ამას Legacy semantics ადასტურებს.
+Legacy homograph markers
+HOMOGRAPH + pronunciation_id + order
+hé 1-ის მსგავსი Display marker Identity-დ არ შეინახოს; Display label გამოითვალოს.
+POS divisions
+GRAMMAR_GROUP
+თითო Group-ზე ერთი POS.
+Meaning divisions
+SENSE
+Semantic order შენარჩუნდეს; თითო Sense-ზე მაქსიმუმ ერთი Definition.
+Georgian meaning text
+DEFINITION.text
+Synonymous equivalent-ები რამდენიმე Definition entity-ად არ დაიყოს.
+Cross-reference text
+XR + XR_TARGET
+გადაიყვანოს Fixed XR type-ებში; თუ შესაძლებელია, Target დაუკავშირდეს Stable Entry ID-ს.
+Chinese example
+EXAMPLE.source_text
+ცალკე უნდა გამოიყოს სხვა Chinese Parser run-ებისგან.
+Georgian example translation
+EXAMPLE.target_text
+KA_RUN არ შეინახოს Semantic child entity-ად.
+Style / Domain markers
+Highest applicable semantic level
+მხოლოდ Homograph, Grammar Group, Sense ან Example დონეზე; Inherited value-ები არ დაკოპირდეს.
+5. Homograph migration
+ჩვეულებრივი Entry-ებისთვის ხელოვნური Homograph 1 არ შეიქმნას.
+დასაშვები Target cardinality არის 0 ან ≥2 Homograph.
+თითოეული Homograph უკავშირდება ერთ Entry Pronunciation-ს; ერთი Pronunciation შეიძლება რამდენიმე Homograph-მა გაიზიაროს.
+Homograph-ის Visible label მიიღება Headword-ის, მინიჭებული Pronunciation-ის, Sibling distribution-ისა და order-ის საფუძველზე.
+თუ ყველა Homograph ერთსა და იმავე Pronunciation-ს იყენებს, Display უნდა იყოს Headword + number (მაგ., 从 1, 从 2).
+თუ Pronunciation-ები განსხვავდება, განმეორებულ Pronunciation-ს ენიჭება Subgroup number (hé 1, hé 2), ხოლო უნიკალური Pronunciation ნაჩვენებია ნომრის გარეშე.
+6. XR normalization
+XR type
+Derived label
+equivalent
+იგივეა, რაც
+see
+იხ.
+seeAlso
+ასევე
+antonym
+იხ. ანტ.
+illustration
+იხ. სურ.
+LINKISH_RUN მხოლოდ დროებითი Parsing classification-ია. Migration-მა Link-like material უნდა გადაიყვანოს XR/XR_TARGET სტრუქტურაში. Legacy neutralized-link pattern-ების შემთხვევაში Non-clickable refinement text ცალკე უნდა შენარჩუნდეს და Link მხოლოდ ნამდვილ Target-ზე გაკეთდეს.
+7. Style / Domain migration
+Style და Domain დასაშვებია მხოლოდ Homograph, Grammar Group, Sense და Example დონეებზე. Migration-ისას Value უნდა განთავსდეს ყველაზე მაღალ Semantic level-ზე, რომელსაც იგი მთლიანად ეხება. Inherited value-ები Child record-ებში ფიზიკურად არ უნდა დაკოპირდეს.
+8. Migration validation და Exception report
+Condition
+Migration action
+Duplicate headword
+კონფლიქტური Record-ის Migration დაიბლოკოს; Report-ში შევიდეს ორივე Source record.
+6-ზე მეტი განსხვავებული Pronunciation
+Exception; მონაცემი ჩუმად არ შეიკვეცოს.
+Parsing-ის შემდეგ ზუსტად 1 Homograph
+Exception; შემოწმდეს Legacy segmentation.
+Definition Effective POS-ისა და Style-ის გარეშე
+Structural exception, რომელიც Editorial review-ს საჭიროებს.
+XR Missing/Unknown type-ით ან Target-ის გარეშე
+Exception; Source text შენარჩუნდეს Report-ში.
+Example მხოლოდ ერთი მხრით
+Import დასაშვებია მხოლოდ Draft/Incomplete state-ში; მოინიშნოს Editorial completion-ისთვის.
+Unresolved XR target
+Display text შენარჩუნდეს, Target ID დარჩეს Nullable და შემთხვევა მოინიშნოს Resolution-ისთვის.
+Ambiguous Parser boundary
+Semantic split ხელოვნურად არ შეიქმნას; Report-ში შევიდეს Source fragment და Parser context.
+9. Dry-run-ის მოთხოვნა
+Migration თავდაპირველად უნდა გაეშვას Database-ის Copy/Staging ვერსიაზე.
+შეიქმნას Count-ები Target entity type-ისა და Workflow stage-ის მიხედვით.
+შეიქმნას Machine-readable Exception log და Human-readable Review list.
+არცერთი Source record არ უნდა იქნეს ჩუმად გამოტოვებული ან წაშლილი.
+Acceptance-ის დასრულებამდე Source legacy identifier/reference უნდა შენარჩუნდეს Migrated record-ში ან Migration crosswalk table-ში.
+Production cutover დასაშვებია მხოლოდ Representative sample-ებისა და Exception class-ების დამტკიცების შემდეგ.
+10. Acceptance sampling
+ჩვეულებრივი Entry Homograph-ების გარეშე
+Entry რამდენიმე Pronunciation-ით
+Entry 2+ Homograph-ით, რომლებიც ერთ Pronunciation-ს იზიარებენ
+Entry შერეული Homograph Pronunciation-ებით
+Entry რამდენიმე Traditional Form-ით
+POS-ზე დაფუძნებული რამდენიმე Sense
+Style-ზე დაფუძნებული Sense POS-ის გარეშე
+მხოლოდ XR-ის შემცველი Sense
+Definition + XR შემცველი Sense
+Example ცალკე Chinese და Georgian field-ებით
+Legacy neutralized-link შემთხვევა
+Entry-ები, რომლებიც EROR sheet-იდან Parser/Error edge case-ებს შეიცავს

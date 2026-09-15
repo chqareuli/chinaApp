@@ -16,6 +16,8 @@ public class Entry
 
     public string? Pinyin { get; set; }
 
+    public string? LexicalForms { get; set; }
+
     public EntryStatus Status { get; set; } = EntryStatus.NewEntry;
 
     /// <summary>

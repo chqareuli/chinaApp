@@ -42,6 +42,10 @@ export interface CreateSupportMaterialRequest {
 }
 
 export interface NotificationSummary {
+  triggeredByRole?: import('./auth.models').EditorRole;
+  triggeredByIsSupervisor?: boolean;
+  entryStatus?: string;
+  detail?: string | null;
   id: number;
   entryId: number;
   entryLemma: string;
@@ -53,6 +57,7 @@ export interface NotificationSummary {
 }
 
 export interface DirectMessageSummary {
+  broadcastId?: string | null;
   id: number;
   senderEditorId: number;
   senderDisplayName: string;

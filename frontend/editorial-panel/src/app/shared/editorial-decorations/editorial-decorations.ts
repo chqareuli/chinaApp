@@ -1,7 +1,24 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, EventEmitter, inject, Input, Output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  EventEmitter,
+  inject,
+  Input,
+  Output,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { catchError, debounceTime, distinctUntilChanged, finalize, of, Subject, switchMap } from 'rxjs';
+import {
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  finalize,
+  of,
+  Subject,
+  switchMap,
+} from 'rxjs';
 import { EditorialMarker, EntrySummary, VocabularyItem } from '../../core/models/entry.models';
 import { EntriesService } from '../../core/services/entries.service';
 
@@ -24,6 +41,30 @@ export class EditorialDecorations {
   @Input({ required: true }) crossReferences!: FormArray<FormGroup>;
   @Input() vocabularies: VocabularyItem[] = [];
   @Input() readonly = false;
+  @Input() scopeOnly = false;
+  @Input() layout: 'default' | 'definition' | 'example' = 'default';
+  selectMarker(category: MarkerCategory, event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const value = select.value;
+    select.value = '';
+    if (!value || this.readonly || !this.valuesFor(category).some((v) => v.code === value)) return;
+    const same = this.markers.controls.filter((m) => m.get('category')?.value === category);
+    if (
+      same.some((m) => m.get('value')?.value === value) ||
+      ((category === 'Style' || category === 'Domain') && same.length >= 2)
+    )
+      return;
+    this.markers.push(
+      this.fb.group({ id: [null as number | null], category: [category], value: [value] }),
+    );
+    this.contentChanged.emit();
+  }
+  markerLimit(category: MarkerCategory): boolean {
+    return (
+      (category === 'Style' || category === 'Domain') &&
+      this.markers.controls.filter((m) => m.get('category')?.value === category).length >= 2
+    );
+  }
   @Output() readonly contentChanged = new EventEmitter<void>();
 
   readonly markerEditorOpen = signal(false);
@@ -84,12 +125,17 @@ export class EditorialDecorations {
         const target = this.normalizeTarget(this.xrDraft.controls.target.value ?? '');
         const exact = suggestions.find((item) => this.normalizeTarget(item.lemma) === target);
         if (exact) {
-          this.xrDraft.patchValue({ targetEntryId: exact.id, targetEntryLemma: exact.lemma }, { emitEvent: false });
+          this.xrDraft.patchValue(
+            { targetEntryId: exact.id, targetEntryLemma: exact.lemma },
+            { emitEvent: false },
+          );
         }
       });
   }
 
-  valuesFor(category: MarkerCategory = this.markerDraft.controls.category.value ?? 'Style'): VocabularyItem[] {
+  valuesFor(
+    category: MarkerCategory = this.markerDraft.controls.category.value ?? 'Style',
+  ): VocabularyItem[] {
     return this.vocabularies.filter((item) => item.category === category.toLocaleLowerCase());
   }
 
@@ -116,7 +162,13 @@ export class EditorialDecorations {
     const value = this.markerDraft.getRawValue();
     const editing = this.markerEditingIndex();
     if (editing === null) {
-      this.markers.push(this.fb.group({ id: [null as number | null], category: [value.category], value: [value.value] }));
+      this.markers.push(
+        this.fb.group({
+          id: [null as number | null],
+          category: [value.category],
+          value: [value.value],
+        }),
+      );
     } else {
       this.markers.at(editing).patchValue(value);
     }
@@ -133,8 +185,12 @@ export class EditorialDecorations {
     this.markerEditorOpen.set(false);
     this.xrEditingIndex.set(null);
     this.xrDraft.setValue({
-      type: 'see', target: '', targetEntryId: null, targetEntryLemma: null,
-      displayText: '', placement: 'Inline',
+      type: 'see',
+      target: '',
+      targetEntryId: null,
+      targetEntryLemma: null,
+      displayText: '',
+      placement: 'Inline',
     });
     this.xrSuggestions.set([]);
     this.xrEditorOpen.set(true);
@@ -144,9 +200,12 @@ export class EditorialDecorations {
     const item = this.crossReferences.at(index).getRawValue();
     this.xrEditingIndex.set(index);
     this.xrDraft.setValue({
-      type: item.type ?? 'see', target: item.target ?? '',
-      targetEntryId: item.targetEntryId ?? null, targetEntryLemma: item.targetEntryLemma ?? null,
-      displayText: item.displayText ?? '', placement: item.placement ?? 'Standalone',
+      type: item.type ?? 'see',
+      target: item.target ?? '',
+      targetEntryId: item.targetEntryId ?? null,
+      targetEntryLemma: item.targetEntryLemma ?? null,
+      displayText: item.displayText ?? '',
+      placement: item.placement ?? 'Standalone',
     });
     this.xrSuggestions.set([]);
     this.targetQueries.next(item.target ?? '');
@@ -178,7 +237,12 @@ export class EditorialDecorations {
     const editing = this.xrEditingIndex();
     const payload = { ...value, label };
     if (editing === null) {
-      this.crossReferences.push(this.fb.group({ id: [null as number | null], ...Object.fromEntries(Object.entries(payload).map(([key, item]) => [key, [item]])) }));
+      this.crossReferences.push(
+        this.fb.group({
+          id: [null as number | null],
+          ...Object.fromEntries(Object.entries(payload).map(([key, item]) => [key, [item]])),
+        }),
+      );
     } else {
       this.crossReferences.at(editing).patchValue(payload);
     }
@@ -197,9 +261,11 @@ export class EditorialDecorations {
   }
 
   private markerValueLabel(category: MarkerCategory, value: string): string {
-    return this.vocabularies.find(
-      (item) => item.category === category.toLowerCase() && item.code === value,
-    )?.label ?? value;
+    return (
+      this.vocabularies.find(
+        (item) => item.category === category.toLowerCase() && item.code === value,
+      )?.label ?? value
+    );
   }
 
   xrText(index: number): string {

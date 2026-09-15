@@ -1,0 +1,482 @@
+Editorial Panel Functional Specification
+Editorial Panel-ის ფუნქციური სპეციფიკაცია
+რედაქტორის პანელის ფუნქციური სპეციფიკაცია
+Version 1.1  |  3 September 2026
+ფერთა პრინციპი: ქართული თარგმანი — ლურჯი; ვებგვერდის სტრუქტურისა და პროგრამირების ძირითადი English technical terms — ინგლისურად, შავი წყაროს ტექსტში.  ვერსია 1.1  |  3 სექტემბერი 2026
+Programmer handoff document
+პროგრამისტებისთვის გადასაცემი სამუშაო დოკუმენტი
+Normative companion to the approved Editorial Panel HTML prototype and the Entry Editor Programmer Specification v1.0.
+ნორმატიული თანმხლები დოკუმენტი დამტკიცებული Editorial Panel HTML prototype-ისა და Entry Editor Programmer Specification v1.0-ისთვის.
+
+1. Purpose and normative status
+1. მიზანი და ნორმატიული სტატუსი
+This document defines the functional behavior, access rules, workflow behavior, filtering, counters, notifications, messaging, statistics, account administration, and download logic of the CHINESE.GE Editorial Panel. It is intended for implementation by the development team. ეს დოკუმენტი განსაზღვრავს CHINESE.GE Editorial Panel-ის ფუნქციურ ქცევას, access-ის წესებს, workflow-ის მუშაობას, filtering-ს, counters-ს, Notifications-ს, Messages-ს, Statistics-ს, Account-ის ადმინისტრირებასა და Download-ის ლოგიკას. დოკუმენტი განკუთვნილია development team-ის მიერ სისტემის რეალიზაციისთვის. 
+EP-GEN-001  The approved Editorial Panel HTML is the visual/UI/UX reference. This document is the functional-behavior reference. The implementation must satisfy both.
+EP-GEN-001  დამტკიცებული Editorial Panel HTML წარმოადგენს ვიზუალურ /UI/UX reference-ს. ეს დოკუმენტი წარმოადგენს functional behavior-ის reference-ს. Implementation უნდა აკმაყოფილებდეს ორივეს.
+EP-GEN-002  The Entry Editor data model, lexical validation, Homograph/POS/Sense/Definition/XR/Example logic, Style/Domain inheritance, and related structural rules remain governed by the separate “CHINESE_GE_Entry_Editor_Programmer_Specification_v1.0”.
+EP-GEN-002  Entry Editor-ის data model, lexical Validation, Homograph/POS/Sense/Definition/XR/Example logic, Style/Domain inheritance და შესაბამისი structural rules კვლავ რეგულირდება ცალკე “CHINESE_GE_Entry_Editor_Programmer_Specification_v1.0”-ით.
+EP-GEN-003  If an internal prototype key differs from the final visible terminology, the canonical backend identifiers and final visible labels specified here take precedence.
+EP-GEN-003  თუ prototype-ის შიდა key განსხვავდება საბოლოო ხილული terminology-სგან, უპირატესობა ენიჭება აქ განსაზღვრულ canonical backend identifiers-სა და final visible labels-ს.
+1.1 Canonical workflow stages
+1.1 კანონიკური workflow stages
+Backend ID
+Backend IDბაზის identifier
+English label
+English labelინგლისური label
+Chinese label
+Chinese labelჩინური label
+Notes
+Notesშენიშვნა
+new_entry
+New Entry
+新建
+Draft stage; hidden from the default Home list. | Draft stage; default Home list-ში არ ჩანს.
+
+zh_review
+Chinese Translation ReviewCHT-review
+中文审核
+Chinese Translation Review stage. | Chinese Translation Review-ის Stage.
+
+ka_review
+Georgian Language ReviewGEL-review
+格鲁吉亚语审核
+Georgian Language Review stage. | Georgian Language Review-ის Stage.
+
+ready
+Ready
+待发布
+Ready for publication.
+გამოსაქვეყნებლად მზადაა.
+published
+Published
+已发布
+Published entry.
+გამოქვეყნებული Entry.
+
+Implementation note: CHT-review and GEL-review are approved short UI labels. The canonical Backend Stage IDs remain zh_review and ka_review.
+Implementation note: CHT-review და GEL-review არის დამტკიცებული მოკლე UI labels. Backend Stage ID-ებად კვლავ გამოიყენება zh_review და ka_review.
+1.2 Roles
+Codeკოდი
+English roleRole-ის ინგლისური სახელი
+Chinese labelჩინური label
+Core scopeძირითადი უფლებამოსილება
+SV
+Supervisor
+主管
+Administrative control; maximum 2 supervisors; download privilege.
+ადმინისტრაციული კონტროლი; მაქსიმუმ 2 Supervisor; Download privilege.
+EC
+Editor-in-Chief
+主编
+Editorial leadership role.
+სარედაქციო ხელმძღვანელობის Role.
+DE
+Deputy Editor
+副主编
+Deputy editorial role.
+მთავარი რედაქტორის მოადგილის Role.
+CE
+Chinese–X Translation Editor
+汉外翻译编辑
+Chinese→target-language editorial work.
+Chinese→target-language სარედაქციო სამუშაო.
+GE
+Georgian Language Editor
+格文编辑
+Georgian-language review.
+ქართული ენის review.
+AE
+Assistant Editor
+助理编辑
+Assistant editorial work.
+დამხმარე სარედაქციო სამუშაო.
+
+EP-GEN-004  A user may hold more than one role badge where authorized (for example EC + SV). Permissions are evaluated by the union of active role permissions.
+EP-GEN-004  მომხმარებელს, შესაბამისი authorization-ის შემთხვევაში, შეიძლება ერთზე მეტი role badge ჰქონდეს (მაგალითად EC + SV). Permissions განისაზღვრება ყველა active role-ის permissions-ის გაერთიანებით.
+EP-GEN-005  Supervisory authority does not automatically grant access to private Messages conversations. Message privacy is participant-based, not hierarchy-based.
+EP-GEN-005  Supervisor-ის უფლებამოსილება ავტომატურად არ იძლევა private Messages conversations-ზე წვდომას. Messages-ის privacy ეფუძნება participant-ებს და არა იერარქიას.
+2. Global panel behavior  Panel-ის საერთო ფუნქციონირება
+EP-GLO-001  Authenticated pages share the main navigation: Home, Messages, Notifications, New Entry, Media, Statistics, Editorial Team, My Account, and Log out.
+EP-GLO-001  Authenticated pages იყენებს საერთო main navigation-ს: Home, Messages, Notifications, New Entry, Media, Statistics, Editorial Team, My Account და Log out.
+EP-GLO-002  Unread counters for Messages and Notifications are displayed in red and update when items are read or new unread items are created.
+EP-GLO-002  Messages-ისა და Notifications-ის unread counters გამოჩნდეს წითლად და განახლდეს item-ის წაკითხვის ან ახალი unread item-ის შექმნისას.
+EP-GLO-003  The visible user area displays the editor name and active role badge(s). Selecting the account control opens My Account; Log out ends the authenticated session.
+EP-GLO-003  მომხმარებლის ხილულ ზონაში გამოჩნდეს Editor-ის სახელი და active role badge(s). Account control-ის არჩევა ხსნის My Account-ს; Log out ასრულებს authenticated session-ს.
+EP-GLO-004  Font-size controls (+/−) are available on the principal panel pages and affect the current UI without changing stored dictionary content.
+EP-GLO-004  Font-size controls (+/−) ხელმისაწვდომია Panel-ის ძირითად გვერდებზე და ცვლის მიმდინარე UI-ის ზომას ისე, რომ dictionary content-ში შენახულ მონაცემებს არ ცვლის.
+EP-GLO-005  Search and filters must be server-safe and must not rely solely on the prototype’s client-side demonstration data.
+EP-GLO-005  Search და filters უნდა იყოს server-safe და არ უნდა ეყრდნობოდეს მხოლოდ prototype-ის client-side demonstration data-ს.
+EP-GLO-006  Dates and last-modified timestamps must be generated from persisted records, not from display-only strings.
+EP-GLO-006  Dates და Last modified timestamps უნდა წარმოიქმნას persisted records-იდან და არა მხოლოდ ეკრანზე საჩვენებელი strings-იდან.
+2.1 Shared visibility and authorization principles
+2.1 საერთო visibility და authorization-ის პრინციპები
+All editors may access the Home list, Editorial Team read-only view, My Account, Statistics summary, and Messages subject to the page-specific rules below. Notifications are available to eligible recipient roles; GE does not receive system-generated Notifications.
+ყველა Editor-ს აქვს წვდომა Home list-ზე, Editorial Team-ის read-only view-ზე, My Account-ზე, Statistics summary-ზე და Messages-ზე ქვემოთ მოცემული კონკრეტული გვერდების წესების შესაბამისად. Notifications ხელმისაწვდომია eligible recipient Role-ებისთვის; GE (ქართულის რედაქტორი - Georgian Language Editor) სისტემის მიერ შექმნილ Notifications-ს არ იღებს.
+Only authorized Supervisors may change Editorial Team membership/account state and perform database downloads.
+მხოლოდ უფლებამოსილ Supervisor-ებს შეუძლიათ Editorial Team-ის შემადგენლობის ან Account status-ის შეცვლა და database Download-ის შესრულება.
+GE-specific workflow movement is restricted to Georgian-review responsibilities described in Section 4.5.
+GE-ის workflow-ში გადაადგილების უფლებები შემოიფარგლება Georgian review-ის პასუხისმგებლობებით, რომლებიც აღწერილია შესაბამის ქვესექციაში.
+New-entry lexical validation and stage-transition validation are enforced by the Entry Editor specification, not duplicated in this panel layer.
+New Entry-ის lexical Validation და stage-transition Validation რეგულირდება Entry Editor specification-ით და ამ Panel layer-ში ხელახლა არ დუბლირდება.
+ 
+3. Log in / authentication
+EP-AUTH-001  The login page accepts Username and Password and provides a Remember me option.
+EP-AUTH-001  Login გვერდი იღებს Username-სა და Password-ს და აქვს Remember me option.
+EP-AUTH-002  Username format: 6–30 characters; first character must be a Latin letter; remaining characters may be Latin letters, digits, period, or underscore.
+EP-AUTH-002  Username-ის ფორმატი: 6–30 სიმბოლო; პირველი სიმბოლო აუცილებლად Latin letter; დანარჩენი შეიძლება იყოს Latin letters, digits, period ან underscore.
+EP-AUTH-003  A missing password or invalid username format prevents submission and shows an inline error message.
+EP-AUTH-003  Password-ის არქონა ან Username-ის არასწორი ფორმატი submission-ს ბლოკავს და აჩვენებს inline error message-ს.
+EP-AUTH-004  A newly created editor account uses a temporary password set by an authorized Supervisor. On first successful login, the user must change the temporary password before entering the working panel.
+EP-AUTH-004  ახლად შექმნილი Editor account იყენებს უფლებამოსილი Supervisor-ის მიერ დაყენებულ temporary password-ს. პირველი წარმატებული Login-ისას მომხმარებელმა სამუშაო Panel-ში შესვლამდე უნდა შეცვალოს temporary password.
+EP-AUTH-005  New passwords must contain at least 8 characters and the confirmation value must match.
+EP-AUTH-005  New Password უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს და Confirm new password უნდა ემთხვეოდეს მას.
+EP-AUTH-006  After the editor replaces the temporary password, Supervisors must not be able to view the current password. Password storage must use secure one-way hashing; plaintext passwords must never be stored.
+EP-AUTH-006  მას შემდეგ, რაც Editor შეცვლის temporary password-ს, Supervisor-ს აღარ უნდა შეეძლოს მიმდინარე Password-ის ნახვა. Password storage უნდა იყენებდეს secure one-way hashing-ს; plaintext Password არასოდეს უნდა შეინახოს.
+EP-AUTH-007  The password show/hide control changes only local visibility of the typed value and must not expose it elsewhere.
+EP-AUTH-007  Password show/hide control ცვლის მხოლოდ შეყვანილი მნიშვნელობის local visibility-ს და არ უნდა გამოაჩინოს იგი სხვაგან.
+EP-AUTH-008  Blocked or Cancelled accounts cannot authenticate. Active accounts may authenticate subject to valid credentials.
+EP-AUTH-008  Blocked ან Cancelled Account ვერ გაივლის authentication-ს. Active Account-ს შეუძლია authentication valid credentials-ის შემთხვევაში.
+4. Home page   Home გვერდი
+The Home page is the operational entry list for editors. It is not grouped by stage; records are shown in one list ordered by most recent edit.
+Home გვერდი არის Editor-ების სამუშაო Entry list. იგი stage-ების მიხედვით ჯგუფებად არ იყოფა; ჩანაწერები ერთიან list-ში ჩანს და ლაგდება უახლესი edit-ის მიხედვით.
+EP-HOME-001  Default sort order: Last modified descending (most recently changed entry first).
+EP-HOME-001  Default sort order: Last modified descending — ყველაზე ბოლოს შეცვლილი Entry პირველია.
+EP-HOME-002  The default Home list excludes entries in new_entry. New entries remain discoverable through search and through Total/aggregate views where explicitly specified.
+EP-HOME-002  Default Home list არ აჩვენებს new_entry stage-ის Entry-ებს. New Entry-ები კვლავ იძებნება Search-ით და Total/aggregate views-ით, სადაც ეს პირდაპირაა განსაზღვრული.
+EP-HOME-003  Columns: Author, Editor, Entry, Stage, Last modified. Author and Editor show editor identity; Stage uses final English/Chinese labels and stage color indicator.
+EP-HOME-003  Columns: Author, Editor, Entry, Stage, Last modified. Author და Editor აჩვენებს შესაბამის Editor identity-ს; Stage იყენებს საბოლოო English/Chinese labels-სა და stage color indicator-ს.
+EP-HOME-004  Header filters must support Author, Editor, Entry-content search, and Stage. Clear filters resets all active filters.
+EP-HOME-004  Header filters უნდა მოიცავდეს Author, Editor, Entry-content search და Stage-ს. Clear filters აუქმებს ყველა active filter-ს.
+EP-HOME-005  Entry-content search begins only when the query contains at least 1 Chinese Han character or at least 2 alphabetic letters. Shorter queries must not execute the content search.
+EP-HOME-005  Entry-content search იწყება მხოლოდ მაშინ, როდესაც query შეიცავს მინიმუმ 1 Chinese Han character-ს ან მინიმუმ 2 alphabetic letters-ს. უფრო მოკლე query-ზე content search არ უნდა შესრულდეს.
+EP-HOME-006  The general Search control may be used to locate entries/navigation content according to the production search implementation; it must not weaken the Entry-content minimum-length rule.
+EP-HOME-006  General Search control შეიძლება გამოიყენებოდეს Entry-ების/navigation content-ის მოსაძებნად production search implementation-ის შესაბამისად; მან არ უნდა შეასუსტოს Entry-content search-ის minimum-length rule.
+EP-HOME-007  Selecting an Entry opens that entry in the Entry Editor, subject to the current user’s access rights.
+EP-HOME-007  Entry-ის არჩევა ხსნის შესაბამის Entry-ს Entry Editor-ში, მიმდინარე მომხმარებლის access rights-ის გათვალისწინებით.
+EP-HOME-008  Pagination displays the result count and permits first/previous/numbered/next/last navigation.
+EP-HOME-008  Pagination აჩვენებს result count-ს და იძლევა first/previous/numbered/next/last navigation-ის შესაძლებლობას.
+EP-HOME-009  The list must reflect persisted author/editor/stage/last-modified metadata after each save or stage change.
+EP-HOME-009  ყოველი Save-ის ან stage change-ის შემდეგ list-მა უნდა ასახოს persisted Author/Editor/Stage/Last modified metadata.
+4.1 Home visibility by GE role   Home-ის visibility GE (Georgian Language Editor) role-ისთვის
+EP-HOME-GE-001  For a Georgian Language Editor working in the GEL-review queue, the operational Home list must present ka_review entries as the role-specific work queue.
+EP-HOME-GE-001  Georgian Language Editor-ისთვის, რომელიც GEL-review queue-ში მუშაობს, operational Home list უნდა აჩვენებდეს ka_review Entry-ებს როგორც მის role-specific work queue-ს.
+EP-HOME-GE-002  A GE editor may move an entry from ka_review to ready, or return it from ka_review to zh_review. A GE editor may not route an entry to other workflow stages.
+EP-HOME-GE-002  GE Editor-ს შეუძლია Entry გადაიყვანოს ka_review-დან ready-ში ან დააბრუნოს ka_review-დან zh_review-ში. GE Editor-ს სხვა workflow stage-ში გადაყვანის უფლება არ აქვს.
+4.2 Entry History · 历史   Entry-ის რედაქტირების ისტორია
+EP-HIST-001  The History · 历史 control is available to every authenticated editor who is authorized to open the Entry.
+EP-HIST-001  History · 历史 ღილაკი ხელმისაწვდომია ყველა authenticated Editor-ისთვის, რომელსაც Entry-ის გახსნის უფლება აქვს.
+EP-HIST-002  History opens a read-only record of the current Entry's editorial history. This version provides no restore, revert, rollback, or old-version recovery action.
+EP-HIST-002  History ხსნის მიმდინარე Entry-ის სარედაქციო ისტორიის მხოლოდ სანახავ (read-only) ჩანაწერებს. ამ ვერსიაში ძველი ვერსიის აღდგენის, დაბრუნების ან rollback-ის მოქმედება გათვალისწინებული არ არის.
+EP-HIST-003  Each history record displays at minimum: date and time, Editor, action type, changed section, and a short change summary.
+EP-HIST-003  ისტორიის თითოეული ჩანაწერი მინიმუმ აჩვენებს: თარიღსა და დროს, Editor-ს, action type-ს, შეცვლილ section-ს და ცვლილების მოკლე summary-ს.
+EP-HIST-004  Every successful Stage change must appear in Entry History and must identify the previous Stage and the new Stage.
+EP-HIST-004  ყოველი successful Stage change უნდა აისახოს Entry History-ში და უნდა მიუთითებდეს წინა Stage-სა და ახალ Stage-ს.
+EP-HIST-005  Entry History is generated from persisted audit records and must not be reconstructed from the current Entry state alone.
+EP-HIST-005  Entry History უნდა წარმოიქმნას persisted audit records-იდან და არ უნდა აღდგეს მხოლოდ Entry-ის მიმდინარე მდგომარეობის საფუძველზე.
+5. Editorial Team
+EP-TEAM-001  The Editorial Team page is visible to all editors.
+EP-TEAM-001  Editorial Team გვერდი ხილულია ყველა Editor-ისთვის.
+EP-TEAM-002  Only Supervisors may add editors, modify role assignments, change account status, or grant/remove Supervisor status.
+EP-TEAM-002  მხოლოდ Supervisor-ს შეუძლია Editor-ის დამატება, role assignment-ის შეცვლა, Account status-ის შეცვლა ან Supervisor status-ის მინიჭება/მოხსნა.
+EP-TEAM-003  The system must enforce a maximum of 2 active Supervisors. Attempts to exceed the limit are rejected.
+EP-TEAM-003  სისტემამ უნდა უზრუნველყოს მაქსიმუმ 2 active Supervisor. მესამე active Supervisor-ის დამატების მცდელობა უარყოფილია.
+EP-TEAM-004  Displayed columns include Editor, Role, Account status, Created, and Actions. Filters include Role and Account status.
+EP-TEAM-004  Displayed columns მოიცავს Editor, Role, Account status, Created და Actions-ს. Filters მოიცავს Role-სა და Account status-ს.
+EP-TEAM-005  Account statuses are Active, Blocked, and Cancelled. Blocked is reversible; Cancelled means the account is no longer operational. Historical editorial records must remain attributable to the cancelled editor.
+EP-TEAM-005  Account statuses არის Active, Blocked და Cancelled. Blocked შექცევადია; Cancelled ნიშნავს, რომ Account აღარ არის operational. Historical editorial records უნდა დარჩეს Cancelled Editor-ზე მიკუთვნებული.
+EP-TEAM-006  Selecting an editor name opens that editor’s profile/accounting view. For other users this view is read-only except for fields/actions explicitly granted to Supervisors.
+EP-TEAM-006  Editor-ის სახელის არჩევა ხსნის მისი profile/accounting view-ს. სხვა მომხმარებლებისთვის ეს view არის read-only, გარდა Supervisor-ისთვის პირდაპირ მინიჭებული fields/actions-ისა.
+EP-TEAM-007  Display name format is full first name + space + last-name initial + period (for example “Zurab M.”). Optional Chinese name may be shown beneath/alongside the Latin display name.
+EP-TEAM-007  Display name format: სრული First name + space + Last name-ის პირველი ასო + period (მაგალითად “Zurab M.”). Optional Chinese name შეიძლება გამოჩნდეს Latin display name-ის ქვემოთ ან გვერდით.
+EP-TEAM-008  Add editor form fields: First name (required), Last name (required), Chinese name (optional), Email address (required), Role (required), Temporary password (required), WeChat account (optional), and Supervisor flag subject to the 2-supervisor limit.
+EP-TEAM-008  Add Editor form fields: First name (required), Last name (required), Chinese name (optional), Email address (required), Role (required), Temporary password (required), WeChat account (optional) და Supervisor flag — 2-Supervisor limit-ის გათვალისწინებით.
+EP-TEAM-009  The editor’s Created value is system-generated at account creation and is not manually editable.
+EP-TEAM-009  Editor-ის Created value ავტომატურად იქმნება Account creation-ის დროს და ხელით რედაქტირებადი არ არის.
+EP-TEAM-010  After a user changes the temporary password, Supervisors cannot read or directly overwrite that password. Account cancellation/blocking remains available to authorized Supervisors.
+EP-TEAM-010  მომხმარებლის მიერ temporary password-ის შეცვლის შემდეგ Supervisor ვერ წაიკითხავს და პირდაპირ ვერ გადააწერს მის Password-ს. Account cancellation/blocking კვლავ ხელმისაწვდომია უფლებამოსილი Supervisor-ისთვის.
+6. My Account
+EP-ACC-001  My Account contains three functional sections: MY WORK, PERSONAL INFORMATION, and SECURITY.
+EP-ACC-001  My Account შეიცავს სამ ფუნქციურ section-ს: MY WORK, PERSONAL INFORMATION და SECURITY.
+EP-ACC-002  MY WORK displays rows for New Entry, Chinese Translation Review (CHT-review), Georgian Language Review (GEL-review), Ready, Published, and Total; columns are Entries, Main score, and Additional score.
+EP-ACC-002  MY WORK აჩვენებს rows-ს: New Entry, Chinese Translation Review (CHT-review), Georgian Language Review (GEL-review), Ready, Published და Total; columns არის Entries, Main score და Additional score.
+EP-ACC-003  Each stage entry count is clickable and opens the corresponding entry list for that editor. Total opens all entries counted for that editor, including New entries.
+EP-ACC-003  თითოეული stage-ის Entry count clickable-ია და ხსნის შესაბამის Entry list-ს ამ Editor-ისთვის. Total ხსნის ამ Editor-ისთვის დათვლილ ყველა Entry-ს, მათ შორის New Entry-ებს.
+EP-ACC-004  Main score and Additional score are calculated from persisted scoring events; the page must not recalculate historical ownership from the current stage alone.
+EP-ACC-004   Main score და Additional score უნდა ინახებოდეს როგორც რედაქტორის მიერ უკვე მიღებული ქულების ისტორია. სტატიის შემდგომი გადატანა სხვა Stage-ზე არ უნდა იწვევდეს ადრე მიღებული ქულის დაკარგვას ან თავიდან დათვლას. My Work გვერდზე ქულების საერთო რაოდენობა უნდა გამოითვალოს ამ შენახული ისტორიის საფუძველზე.
+EP-ACC-005  Main score rule: 1 Main score is awarded only when an Entry is moved from new_entry to any other Stage. The Editor who performs that transition becomes the Author of the Entry. The Author cannot receive any further Main score or Additional score for that same Entry.
+EP-ACC-005  Main score-ის წესი: 1 Main score ენიჭება მხოლოდ მაშინ, როდესაც Entry new_entry Stage-იდან გადადის ნებისმიერ სხვა Stage-ში. ამ გადასვლის შემსრულებელი Editor ხდება Entry-ის Author. Author-ს იმავე Entry-ზე შემდგომში აღარ ენიჭება არც Main score და არც Additional score.
+EP-ACC-006  Additional score rule: any Editor other than the Author who edits the Entry or changes its Stage receives 1 Additional score for that Entry. For one Editor + one Entry, Additional score is awarded only once. Repeated Edit, Save, or Stage change actions on the same Entry do not create another score.
+EP-ACC-006  Additional score-ის წესი: Author-ის გარდა ნებისმიერ Editor-ს, რომელიც Entry-ს დაარედაქტირებს ან მის Stage-ს შეცვლის, ამ Entry-ზე ენიჭება 1 Additional score. ერთი Editor + ერთი Entry = მაქსიმუმ 1 Additional score. იმავე Entry-ის მრავალჯერადი Edit, Save ან Stage change ახალ ქულას აღარ წარმოქმნის.
+EP-ACC-007  AE rule: Assistant Editor (AE) may edit Entry content and Helper Materials content, but cannot change the Entry Stage. For editorial work on a specific Entry, AE receives 1 Additional score, subject to EP-ACC-006.
+EP-ACC-007  AE-ის წესი: Assistant Editor (AE)-ს შეუძლია Entry-ის ტექსტისა და Helper Materials-ის ტექსტის რედაქტირება, მაგრამ Entry-ის Stage-ის შეცვლის უფლება არ აქვს. კონკრეტული Entry-ის სარედაქციო სამუშაოსთვის AE იღებს 1 Additional score-ს EP-ACC-006-ის წესის შესაბამისად.
+EP-ACC-008  PERSONAL INFORMATION allows the user to update editable profile fields including Email and, where conflict checks permit, name/surname; Chinese name and WeChat account are editable profile data.
+EP-ACC-008  PERSONAL INFORMATION მომხმარებელს აძლევს editable profile fields-ის განახლების საშუალებას, მათ შორის Email და, conflict checks-ის შემთხვევაში, name/surname; Chinese name და WeChat account ასევე editable profile data-ა.
+EP-ACC-009  SECURITY requires Current password, New password, and Confirm new password. Password change succeeds only after current-password verification and matching valid new-password values.
+EP-ACC-009  SECURITY მოითხოვს Current password, New password და Confirm new password-ს. Password change წარმატებულია მხოლოდ Current password-ის verification-ისა და valid matching New password values-ის შემთხვევაში.
+EP-ACC-010  When another editor’s account/profile is opened from Editorial Team, security/password data is never shown.
+EP-ACC-010  როდესაც Editorial Team-იდან იხსნება სხვა Editor-ის Account/Profile, Security/Password data არასოდეს უნდა გამოჩნდეს.
+
+7. Statistics
+EP-STAT-001  Statistics is visible to all editors.
+EP-STAT-001  Statistics ხილულია ყველა Editor-ისთვის.
+EP-STAT-002  The Entries summary shows counts for New Entry, Chinese Translation Review (CHT-review), Georgian Language Review (GEL-review), Ready, Published, and Total.
+EP-STAT-002  Entries summary აჩვენებს რაოდენობებს: New Entry, Chinese Translation Review (CHT-review), Georgian Language Review (GEL-review), Ready, Published და Total.
+EP-STAT-003  Selecting a stage count opens the corresponding list of entries; selecting Total opens the complete list, including New entries.
+EP-STAT-003  Stage count-ის არჩევა ხსნის შესაბამის Entry list-ს; Total-ის არჩევა ხსნის სრულ list-ს, მათ შორის New Entry-ებს.
+EP-STAT-004  Counts must be calculated from current persisted stage state and must not be hard-coded.
+EP-STAT-004  Counts უნდა გამოითვალოს მიმდინარე persisted stage state-იდან და არ უნდა იყოს hard-coded.
+7.1 Database Download
+EP-DL-001  Database Download controls are visible/usable only by Supervisors. Other editors may view Statistics but must not be able to execute downloads.
+EP-DL-001  Database Download controls ხილული/გამოსაყენებელია მხოლოდ Supervisor-ებისთვის. სხვა Editor-ებს შეუძლიათ Statistics-ის ნახვა, მაგრამ Download-ის შესრულება არ უნდა შეეძლოთ.
+EP-DL-002  Supported export actions: TEI/XML, JSON, and Helper Materials.
+EP-DL-002  Supported export actions: TEI/XML, JSON და Helper Materials.
+EP-DL-003  Download filters: Status, Editor, From date - To date.
+EP-DL-004  Status “All eligible” includes all export-eligible workflow stages and excludes new_entry by default.
+EP-DL-004  Status “All eligible” მოიცავს ყველა export-eligible workflow stage-ს და default-ად გამორიცხავს new_entry-ს.
+EP-DL-005  Standard TEI/XML and JSON dictionary exports exclude New entries and exclude Helper Materials unless Helper Materials is the selected export type.
+EP-DL-005  Standard TEI/XML და JSON dictionary exports გამორიცხავს New Entry-ებს და Helper Materials-ს, თუ export type-ად სპეციალურად Helper Materials არ არის არჩეული.
+
+EP-DL-006  Date filtering must be implemented using a documented persisted timestamp field (for example last-modified or another agreed export timestamp) and must use the same rule consistently for TEI/XML and JSON.
+EP-DL-006  Date filtering უნდა განხორციელდეს documented persisted timestamp field-ის გამოყენებით (მაგალითად Last modified ან სხვა შეთანხმებული export timestamp) და ერთი და იგივე წესი თანმიმდევრულად გამოიყენოს TEI/XML-სა და JSON-ში.
+EP-DL-007  Helper Materials export is a separate export path and does not change the ordinary dictionary export scope.
+EP-DL-007  Helper Materials export არის ცალკე export path და არ ცვლის ordinary dictionary export scope-ს.
+8. Notifications  Notifications are system-generated editorial-change notices. They are not private chat messages and must be linked to an entry and an editorial event.
+Notifications არის სისტემის მიერ ავტომატურად შექმნილი შეტყობინებები სარედაქციო ცვლილებების შესახებ. ისინი არ წარმოადგენს პირად chat messages-ს და აუცილებლად უნდა უკავშირდებოდეს კონკრეტულ Entry-სა და editorial event-ს.
+EP-NOT-001  A notification is generated on each relevant Save event when entry content, supporting/reference material, comment data, or workflow stage is changed.
+EP-NOT-001  Notification იქმნება ყოველი relevant Save event-ისას, როდესაც იცვლება Entry content, reference material, Comment data ან workflow stage.
+EP-NOT-002  When an Editor saves a relevant change to an Entry, the Notification is sent to the Editor who worked on that Entry immediately before the new change. The Editor who made the new change does not receive a Notification for their own Save. GE — Georgian Language Editor does not receive automatic Notifications.
+EP-NOT-002  როდესაც Editor შეინახავს Entry-ში შესაბამის ცვლილებას, Notification ეგზავნება იმ Editor-ს, რომელმაც ამ Entry-ზე უშუალოდ მის წინ იმუშავა. ცვლილების შემტანი Editor საკუთარ Save-ზე Notification-ს არ იღებს. GE — Georgian Language Editor ავტომატურ Notifications-ს არ იღებს.
+EP-NOT-003  Each notification stores at minimum: notification_id, recipient_editor_id, actor_editor_id, entry_id, event/change type, detail/summary, created_at, and read/unread state.
+EP-NOT-003  თითოეული Notification მინიმუმ ინახავს: notification_id, recipient_editor_id, actor_editor_id, entry_id, event/change type, detail/summary, created_at და read/unread state.
+EP-NOT-004  The list displays Date, Editor (actor), and Entry. Unread items are visually marked.
+EP-NOT-004  List აჩვენებს Date, Editor (actor) და Entry-ს. Unread items ვიზუალურად მონიშნულია.
+EP-NOT-005  Only unread filters the list to unread notifications for the authenticated recipient.
+EP-NOT-005  Only unread filter აჩვენებს მხოლოდ authenticated recipient-ის unread Notifications-ს.
+EP-NOT-006  Selecting a notification in Quick View displays the change summary/detail and the Entry title. Viewing the item marks it as read.
+EP-NOT-006  Notification-ის Quick View-ში არჩევისას გამოჩნდება change summary/detail და Entry title. Item-ის ნახვა მას read-ად მონიშნავს.
+EP-NOT-007  Selecting the Entry title opens the corresponding Entry Editor record. Opening the notification/entry also marks that notification as read.
+EP-NOT-007  Entry title-ის არჩევა ხსნის შესაბამის Entry Editor record-ს. Notification/Entry-ის გახსნაც ამ Notification-ს read-ად მონიშნავს.
+EP-NOT-008  The unread counter equals the number of unread notifications for the current user and must update after read-state changes.
+EP-NOT-008  Unread counter უდრის current user-ის unread Notifications-ის რაოდენობას და read-state change-ის შემდეგ უნდა განახლდეს.
+EP-NOT-009  Notification read state is per recipient; one user reading an item does not alter another user’s notification state.
+EP-NOT-009  Notification read state ინდივიდუალურია თითოეული recipient-ისთვის; ერთი მომხმარებლის მიერ Item-ის წაკითხვა სხვა მომხმარებლის Notification state-ს არ ცვლის.
+EP-NOT-010  GE — Georgian Language Editor does not receive system-generated Notifications. When communication with other editors is required, GE uses Messages.
+EP-NOT-010  GE — Georgian Language Editor სისტემის მიერ ავტომატურად შექმნილ Notifications-ს არ იღებს. სხვა Editor-ებთან კომუნიკაციის საჭიროების შემთხვევაში GE იყენებს Messages-ს.
+9. Messages Messages is an internal text-only conversation system, separate from Notifications. Messages არის შიდა, მხოლოდ ტექსტური საკომუნიკაციო სისტემა, რომელიც Notifications-ისგან დამოუკიდებელია.
+EP-MSG-001  The page consists of a conversation/thread list and the selected conversation pane.
+EP-MSG-001  გვერდი შედგება conversation/thread list-ისა და selected conversation pane-ისგან.
+EP-MSG-002  New message starts a conversation with one selected editor or an explicitly selected participant group. “All editors” is a group conversation only when all editors are explicit participants.
+EP-MSG-002  New message იწყებს conversation-ს ერთ selected Editor-თან ან მკაფიოდ selected participant group-თან. “All editors” group conversation-ად ითვლება მხოლოდ მაშინ, როდესაც ყველა Editor explicit participant-ია.
+EP-MSG-003  Conversations are visible only to their participants. Supervisors have no special access to conversations in which they are not participants.
+EP-MSG-003  Conversations ხილულია მხოლოდ მათი participants-ისთვის. Supervisor-ს არ აქვს სპეციალური access იმ conversation-ზე, რომლის participant-იც არ არის.
+EP-MSG-004  Messages are text-only. File attachments are outside the current specification.
+EP-MSG-004  Messages განკუთვნილია მხოლოდ ტექსტური შეტყობინებების გასაგზავნად. File attachment ფუნქცია ამ ვერსიაში გათვალისწინებული არ არის.
+EP-MSG-005  The thread list displays Date, Editor/conversation identity, and Unread count. “Only unread” filters to conversations with unread messages for the current user.
+EP-MSG-005  Thread list აჩვენებს Date, Editor/conversation identity და Unread count-ს. “Only unread” აჩვენებს მხოლოდ conversation-ებს, რომლებშიც current user-ს unread Messages აქვს.
+EP-MSG-006  The global Messages unread counter is the sum/count of unread message items for the current user and updates when messages are read.
+EP-MSG-006  Global Messages unread counter არის current user-ის unread message items-ის რაოდენობა და Messages-ის წაკითხვისას განახლდება.
+EP-MSG-007  Entry titles recognized in message text should be auto-linked to the corresponding entry when an unambiguous Entry can be resolved. The link must use stable Entry identity, not fragile text replacement after storage.
+EP-MSG-007  Message text-ში ამოცნობილი Entry titles ავტომატურად უნდა გადაიქცეს შესაბამის Entry-ზე link-ად, როდესაც Entry ერთმნიშვნელოვნად იდენტიფიცირდება. Link უნდა იყენებდეს stable Entry identity-ს და არა storage-ის შემდეგ ტექსტის მყიფე replacement-ს. [თუ Message-ში მითითებული ტექსტი ზუსტად ემთხვევა ლექსიკონში არსებულ Entry headword-ს, იგი ავტომატურად უნდა გახდეს შესაბამის Entry-ზე გადასასვლელი Link. ბმული უნდა უკავშირდებოდეს კონკრეტული Entry-ის უნიკალურ entry_id-ს. Link-ზე დაჭერისას უნდა გაიხსნას შესაბამისი სტატია Entry Editor-ში.]
+EP-MSG-008  Sending a message records sender, participant/thread identity, message text, created_at, and per-participant read state.
+EP-MSG-008  Message-ის გაგზავნისას ინახება sender, participant/thread identity, message text, created_at და per-participant read state.
+EP-MSG-009  Edit/Delete of sent messages may be implemented if technically feasible; if implemented, it must preserve authorization (sender only) and must not expose deleted private content to non-participants. This feature is optional for v1.0.
+EP-MSG-009  Sent Messages-ის Edit/Delete შეიძლება განხორციელდეს, თუ ტექნიკურად მიზანშეწონილია; განხორციელების შემთხვევაში დაცული უნდა იყოს authorization (მხოლოდ sender) და deleted private content არ უნდა გამოჩნდეს non-participant-ებისთვის. ეს feature v1.0-ში optional-ია.
+EP-MSG-010  Opening a conversation marks visible unread messages as read for the current participant according to the implemented read-receipt policy.
+EP-MSG-010  Conversation-ის გახსნა current participant-ისთვის visible unread Messages-ს read-ად მონიშნავს განხორციელებული read-receipt policy-ის შესაბამისად.
+10. Media navigation
+EP-MED-001  The main navigation includes Media. Detailed Media management functions are not defined at this stage and will be specified separately later.
+EP-MED-001  Main navigation-ში გათვალისწინებულია Media განყოფილება. Media-ს მართვის ფუნქციები ამ ეტაპზე დეტალურად განსაზღვრული არ არის და მოგვიანებით ცალკე დამუშავდება.
+11. Stage movement and panel-level permissions
+11. Stage movement და Panel-level permissions
+EP-WF-001  Workflow transitions must be authorized by role and must invoke Entry Editor transition validation before the persisted stage changes.
+EP-WF-001  Workflow transitions უნდა იყოს role-ის მიხედვით authorized და persisted stage-ის შეცვლამდე უნდა გამოიძახოს Entry Editor transition Validation.
+EP-WF-002  A failed blocking validation leaves the entry in its current stage and returns actionable ERROR messages to the user.
+EP-WF-002  Blocking Validation-ის ჩავარდნისას Entry რჩება current stage-ში და მომხმარებელს უბრუნდება ქმედითი ERROR messages.
+EP-WF-003  Draft Save in new_entry may preserve incomplete lexical structures where the Entry Editor specification permits WARNING + Save allowed. The panel must not silently promote such an entry.
+EP-WF-003  Draft Save new_entry-ში შეიძლება ინახავდეს incomplete lexical structures-ს იქ, სადაც Entry Editor specification უშვებს WARNING + Save allowed-ს. Panel-მა ასეთი Entry ჩუმად არ უნდა გადაიყვანოს შემდეგ stage-ზე.
+EP-WF-004  GE transition rights are limited to ka_review → ready and ka_review → zh_review. Any other attempted GE stage change is rejected server-side.
+EP-WF-004  GE transition rights შემოიფარგლება ka_review → ready და ka_review → zh_review გადასვლებით. GE-ის (ქართულის რედაქტორის) ნებისმიერი სხვა stage change server-side უნდა უარყოფილ იქნეს. ან საერთოდ არ გამოჩნდეს GE -ის გვერდზე.
+EP-WF-005  Every successful stage change must update audit history, last-modified metadata, scoring events where applicable, and notification events where applicable in one consistent transaction or equivalent atomic workflow.
+EP-WF-005  ყოველი successful stage change ერთ consistent transaction-ში ან equivalent atomic workflow-ში უნდა აახლებდეს audit history-ს, Last modified metadata-ს, შესაბამის scoring events-სა და Notification events-ს.
+11.1 Role-based Stage transition permissions
+11.1 Role-ის მიხედვით Stage-ის შეცვლის უფლებები
+EP-WF-006  SV — Supervisor, EC — Editor-in-Chief, and DE — Deputy Editor may move an Entry from any Stage to any other Stage.
+EP-WF-006  SV — Supervisor-ს, EC — Editor-in-Chief-ს და DE — Deputy Editor-ს შეუძლიათ Entry გადაიყვანონ ნებისმიერი Stage-იდან ნებისმიერ სხვა Stage-ში.
+EP-WF-007  CE — Chinese–X Translation Editor may move an Entry from any Stage to any other Stage except Published (published). CE cannot move an Entry into published.
+EP-WF-007  CE — Chinese–X Translation Editor-ს შეუძლია Entry გადაიყვანოს ნებისმიერი Stage-იდან ნებისმიერ სხვა Stage-ში, გარდა Published (published)-ისა. CE-ს Entry-ის published Stage-ში გადაყვანის უფლება არ აქვს.
+EP-WF-008  GE — Georgian Language Editor may perform only ka_review → zh_review and ka_review → ready transitions. No other Stage change is permitted.
+EP-WF-008  GE — Georgian Language Editor-ს შეუძლია მხოლოდ ka_review → zh_review და ka_review → ready გადასვლები. სხვა Stage change დაუშვებელია.
+EP-WF-009  AE — Assistant Editor cannot change an Entry Stage.
+EP-WF-009  AE — Assistant Editor-ს Entry-ის Stage-ის შეცვლის უფლება არ აქვს.
+EP-WF-010  If an AE works on an Entry at the initial stage, the subsequent Stage change is performed by SV, EC, DE, or CE within that role’s permissions. When the Entry moves from new_entry to another Stage, the Editor performing that transition becomes the Author; AE remains recorded as an Editor who worked on the Entry at the initial stage.
+EP-WF-010  თუ AE Entry-ს საწყის Stage-ზე ამუშავებს, Stage-ის შემდგომ ცვლილებას ახორციელებს SV, EC, DE ან CE თავისი Role-ის უფლებების ფარგლებში. როდესაც Entry new_entry-დან სხვა Stage-ში გადადის, გადასვლის შემსრულებელი Editor ხდება Author, ხოლო AE რჩება ამ Entry-ზე საწყის Stage-ზე მომუშავე Editor-ად.
+12. Data and audit requirements  12. Data და audit-ის მოთხოვნები
+EP-DATA-001  All functional objects use stable database identifiers. Display names, stage labels, entry titles, and list positions are not identifiers.
+EP-DATA-001  ყველა functional object იყენებს stable database identifiers-ს. Display names, stage labels, Entry titles და list positions identifiers არ არის. სისტემის თითოეულ ძირითად ობიექტს — მაგალითად Entry, Editor, Message, Notification და სხვ. — უნდა ჰქონდეს საკუთარი უნიკალური და მუდმივი ID. პროგრამამ ობიექტებს შორის კავშირისთვის სწორედ ეს ID უნდა გამოიყენოს. ეკრანზე გამოსაჩენი სახელები, Entry headword, Stage-ის სახელწოდება ან ცხრილში ჩანაწერის მდებარეობა ობიექტის ID-ად არ უნდა გამოიყენებოდეს.
+EP-DATA-002  Editorial actions that affect accountability must be auditable: actor, target entry/account/thread, action type, timestamp, and relevant before/after state.
+EP-DATA-002  Editorial actions, რომლებიც accountability-ზე მოქმედებს, auditable უნდა იყოს: actor, target Entry/Account/thread, action type, timestamp და შესაბამისი before/after state. სისტემამ უნდა შეინახოს მნიშვნელოვანი სარედაქციო მოქმედებების ისტორია. თითოეული ასეთი მოქმედებისთვის უნდა დაფიქსირდეს ვინ შეასრულა მოქმედება, რომელ Entry-ზე ან Account-ზე შესრულდა იგი, რა ტიპის მოქმედება იყო, როდის შესრულდა და საჭიროების შემთხვევაში — რა მდგომარეობა იყო ცვლილებამდე და რა გახდა ცვლილების შემდეგ.
+EP-DATA-003  Historical editor attribution must remain intact when an editor is Blocked or Cancelled.
+EP-DATA-003  Historical Editor attribution უცვლელად უნდა დარჩეს Editor-ის Blocked ან Cancelled მდგომარეობაშიც.
+EP-DATA-003A  Scoring records must enforce exactly one Main score per Entry and at most one Additional score per Editor + Entry pair. The Entry Author is not eligible for Additional score on that same Entry.
+EP-DATA-003A  Scoring records-მა უნდა უზრუნველყოს თითო Entry-ზე მხოლოდ ერთი Main score და თითო Editor + Entry წყვილზე მაქსიმუმ ერთი Additional score. Entry-ის Author-ს იმავე Entry-ზე Additional score არ ენიჭება.
+EP-DATA-004  Last modified for an entry is updated by substantive saved entry changes or stage changes according to one documented backend rule. Mere viewing must not change it.
+EP-DATA-004  Entry-ის Last modified ახლდება substantive saved Entry changes-ის ან stage changes-ის დროს ერთი documented backend rule-ის მიხედვით. მხოლოდ ნახვამ იგი არ უნდა შეცვალოს.
+EP-DATA-005  Unread/read state for Notifications and Messages must be stored, not inferred from browser state.
+EP-DATA-005  Notifications-ისა და Messages-ის unread/read state უნდა ინახებოდეს database-ში და არ უნდა გამომდინარეობდეს browser state-იდან.
+EP-DATA-006  Role and permission checks must be enforced server-side/API-side. Hiding a button in the UI is not sufficient authorization.
+EP-DATA-006  Role და permission checks უნდა განხორციელდეს server-side/API-side. UI-ში ღილაკის დამალვა საკმარისი authorization არ არის. მომხმარებელს UI-ში უნდა გამოუჩნდეს მხოლოდ ის მოქმედებები, რომელთა შესრულების უფლებაც მისი Role-ის მიხედვით აქვს. ამასთან, შესაბამისი უფლება მოქმედების შესრულების მომენტშიც უნდა შემოწმდეს Server/API-ის მიერ. მხოლოდ UI-ში ღილაკის დამალვა სისტემის დაცვისთვის საკმარისი არ არის
+EP-DATA-007  All mutations must validate authenticated user identity and current account status.
+EP-DATA-007  ყველა mutation-მა უნდა შეამოწმოს authenticated user identity და current Account status.
+
+13. Functional page matrix  გვერდების ფუნქციური matrix
+Pageგვერდი
+All editorsყველა Editor
+Supervisor-only actionsმხოლოდ Supervisor-ის მოქმედებები
+Primary output / behaviorძირითადი შედეგი / ფუნქციონირება
+Log in
+Public authentication surface
+Public authentication surface.
+—
+Authenticate active user; force temp-password change.
+Active user-ის authentication; temporary password-ის სავალდებულო შეცვლა.
+Home
+Yes, role-filtered where required
+დიახ, საჭიროებისას role-ის მიხედვით filtered.
+—
+Operational entry list, search/filter, open Entry.
+სამუშაო Entry list, Search/filter, Entry-ის გახსნა.
+Editorial Team
+Read
+Read — ნახვა.
+Add/edit/status/role/supervisor administration
+Add/edit/status/role/Supervisor administration.
+Team roster and editor profile access.
+Team roster და Editor profile access.
+My Account
+Own account; other profiles read-only as allowed
+საკუთარი Account; სხვა profiles — ნებადართულ ფარგლებში read-only.
+Administrative account actions via Team page
+Account-ის ადმინისტრაციული მოქმედებები Team page-იდან.
+Work counts/scores, profile, password.
+სამუშაოს counts/Scores, Profile, Password.
+Statistics
+Yes
+დიახ.
+Database Download
+Database Download.
+Stage counts and entry lists.
+Stage counts და Entry lists.
+Notifications
+Own notifications only; GE does not receive Notifications. | მხოლოდ საკუთარი Notifications; GE Notifications-ს არ იღებს.
+მხოლოდ საკუთარი Notifications.
+No hierarchy override
+იერარქიული override არ არსებობს.
+System-generated change notices for eligible recipients; GE is excluded. | სისტემის მიერ შექმნილი ცვლილების Notifications eligible recipients-ისთვის; GE გამონაკლისია.
+სისტემის მიერ შექმნილი ცვლილების Notifications.
+Messages
+Participant conversations only
+მხოლოდ იმ conversations-ზე წვდომა, რომლის participant-იც არის.
+No hierarchy override
+იერარქიული override არ არსებობს.
+Private/group text conversations.
+Private/group text conversations.
+Media
+Navigation present
+Navigation-ში წარმოდგენილია.
+Per future/approved media rules
+მომავალი/დამტკიცებული Media rules-ის მიხედვით.
+Stable media objects.
+Stable Media objects.
+
+14. Acceptance criteria
+ID
+ID
+Acceptance testმისაღებობის ტესტი
+AC-01
+Home excludes new_entry by default and orders remaining entries by Last modified descending.
+Home default-ად გამორიცხავს new_entry-ს და დანარჩენ Entry-ებს Last modified descending-ის მიხედვით ალაგებს.
+AC-02
+Entry-content search does not run for 0 Hanzi + fewer than 2 letters.
+Entry-content search არ სრულდება, თუ query-ში არის 0 Hanzi (იეროგლიფი) და 2-ზე ნაკლები letter.
+AC-03
+Backend Workflow Stage IDs are new_entry, zh_review, ka_review, ready, and published. In the UI, zh_review is Chinese Translation Review · 中文审核, short label CHT-review; ka_review is Georgian Language Review · 格鲁吉亚语审核, short label GEL-review. | Backend-ში Workflow Stage ID-ებად გამოიყენება new_entry, zh_review, ka_review, ready და published. UI-ში zh_review არის Chinese Translation Review · 中文审核, მოკლე ფორმით CHT-review; ka_review — Georgian Language Review · 格鲁吉亚语审核, მოკლე ფორმით GEL-review.
+Canonical stage IDs სწორად უკავშირდება final English/Chinese labels-ს Backend-ში. Workflow stages-ისთვის გამოიყენება მუდმივი Stage ID-ები: new_entry, zh_review, ka_review, ready, published. UI-ში zh_review უნდა გამოჩნდეს სრული სახელით Chinese Translation Review · 中文审核 ან მოკლე ფორმით CHT-review, ხოლო ka_review — Georgian Language Review · 格鲁吉亚语审核 ან მოკლე ფორმით GEL-review.
+AC-04
+A GE user cannot make a stage transition outside ka_review→ready or ka_review→zh_review.
+GE user ვერ ასრულებს stage transition-ს ka_review→ready ან ka_review→zh_review-ის ფარგლებს გარეთ.
+AC-05
+A third active Supervisor cannot be created.
+მესამე active Supervisor ვერ შეიქმნება.
+AC-06
+Blocked/Cancelled accounts cannot log in; historical attribution remains visible.
+Blocked/Cancelled Account ვერ შედის სისტემაში; historical attribution ხილული რჩება.
+AC-07
+First login with temporary password requires a password change.
+Temporary password-ით პირველი Login მოითხოვს Password change-ს.
+AC-08
+A Supervisor cannot read another editor’s current password.
+Supervisor ვერ კითხულობს სხვა Editor-ის მიმდინარე Password-ს.
+AC-09
+Statistics counts equal database stage counts; Total includes New.
+Statistics counts ემთხვევა database stage counts-ს; Total მოიცავს New-ს.
+AC-10
+Non-Supervisor cannot execute TEI/XML, JSON, or Helper Materials download even by direct endpoint request.
+Non-Supervisor ვერ ასრულებს TEI/XML, JSON ან Helper Materials Download-ს direct endpoint request-ითაც კი.
+AC-11
+Standard exports exclude new_entry; Helper Materials remains separate.
+Standard exports გამორიცხავს new_entry-ს; Helper Materials ცალკე რჩება.
+AC-12
+Saving a relevant change creates the correct Notification for the previous eligible Editor and increments that recipient’s unread counter. GE is excluded because Georgian Language Editors do not receive Notifications. | Relevant change-ის Save ქმნის სწორ Notification-ს წინა eligible Editor-ისთვის და ზრდის recipient-ის unread counter-ს. GE გამონაკლისია, რადგან Georgian Language Editor Notifications-ს არ იღებს.
+Relevant change-ის Save ქმნის სწორ Notification-ს previous Editor-ისთვის და ზრდის recipient-ის unread counter-ს.
+AC-13
+Quick View marks the selected notification read and updates the counter.
+Quick View selected Notification-ს read-ად მონიშნავს და counter-ს აახლებს.
+AC-14
+A Supervisor cannot read a private Messages thread unless they are a participant.
+Supervisor ვერ კითხულობს private Messages thread-ს, თუ participant არ არის.
+AC-15
+Opening a Messages conversation updates read state only for the current participant.
+Messages conversation-ის გახსნა read state-ს ცვლის მხოლოდ current participant-ისთვის.
+AC-16
+My Work stage counts link to that editor’s corresponding lists; Total includes New.
+My Work stage counts უკავშირდება ამ Editor-ის შესაბამის lists-ს; Total მოიცავს New-ს.
+AC-17
+Stage changes, scores, audit records, last-modified metadata, and notifications remain internally consistent after a successful transition.
+Successful transition-ის შემდეგ stage changes, Scores, audit records, Last modified metadata და Notifications ერთმანეთთან consistent რჩება.
+AC-18
+SV, EC, and DE can move an Entry from any Stage to any other Stage. | SV-ს, EC-ს და DE-ს შეუძლიათ Entry გადაიყვანონ ნებისმიერი Stage-იდან ნებისმიერ სხვა Stage-ში.
+AC-19
+CE can change an Entry Stage but cannot move an Entry into published. | CE-ს შეუძლია Entry-ის Stage-ის შეცვლა, მაგრამ Entry-ის published Stage-ში გადაყვანა არ შეუძლია.
+AC-20
+AE cannot change an Entry Stage. | AE-ს Entry-ის Stage-ის შეცვლა არ შეუძლია.
+AC-21
+For the same non-Author Editor + Entry pair, repeated Edit, Save, or Stage change actions produce at most 1 Additional score. | ერთი და იმავე non-Author Editor + Entry წყვილზე მრავალჯერადი Edit, Save ან Stage change წარმოქმნის მაქსიმუმ 1 Additional score-ს.
+AC-22
+GE does not receive system-generated Notifications. | GE სისტემის მიერ ავტომატურად შექმნილ Notifications-ს არ იღებს.
+AC-23
+When an Entry moves from new_entry to another Stage, the Editor performing that transition becomes the Author and receives 1 Main score. An AE who worked on the Entry at the initial stage remains recorded as an Editor and receives the applicable 1 Additional score only. | როდესაც Entry new_entry-დან სხვა Stage-ში გადადის, გადასვლის შემსრულებელი Editor ხდება Author და იღებს 1 Main score-ს. AE, რომელმაც Entry საწყის Stage-ზე დაამუშავა, რჩება Editor-ად და იღებს მხოლოდ შესაბამის 1 Additional score-ს.
+AC-24
+Every authorized Editor can open read-only History for an Entry; each record shows date/time, Editor, action type, changed section, and a short summary; Stage changes show before/after Stage; no restore action is available. | ყველა უფლებამოსილ Editor-ს შეუძლია Entry-ის read-only History-ის გახსნა; თითოეული ჩანაწერი აჩვენებს თარიღს/დროს, Editor-ს, action type-ს, შეცვლილ section-სა და მოკლე summary-ს; Stage change აჩვენებს წინა/ახალ Stage-ს; restore action ხელმისაწვდომი არ არის.
+
+15. Implementation precedence / handoff package
+For implementation, use the following precedence when requirements touch the same feature: Implementation-ისას, როდესაც რამდენიმე მოთხოვნა ერთსა და იმავე feature-ს ეხება, გამოიყენეთ შემდეგი პრიორიტეტულობა:
+1. This Editorial Panel Functional Specification v1.1 — functional behavior and permissions for panel pages. 1. ეს Editorial Panel Functional Specification v1.1 — Panel-ის გვერდების functional behavior და permissions.
+2. Approved Editorial Panel FINAL HTML — page composition, visible labels, interaction reference, and UI/UX. 2. დამტკიცებული Editorial Panel FINAL HTML — page composition, visible labels, interaction reference და UI/UX.
+3. Entry Editor Programmer Specification v1.0 — lexical data model, validation, workflow-completeness rules, and structured-entry behavior. 3. Entry Editor Programmer Specification v1.0 — lexical data model, Validation, workflow-completeness rules და structured Entry behavior.
+4. Approved Entry Editor IDEAL V2 / FINAL HANDOFF HTML — Entry Editor visual behavior. 4. დამტკიცებული Entry Editor IDEAL V2 / FINAL HANDOFF HTML — Entry Editor-ის visual behavior.
+5. Legacy Data Migration Specification and parser source workbook — migration/parsing only; they must not redefine the new semantic data model. 5. Legacy Data Migration Specification და parser source workbook — მხოლოდ migration/parsing-ისთვის; მათ არ უნდა გადააკეთონ ახალი semantic data model.
+Implementation note: Where the HTML is clearly demonstration-only (sample names, dates, counts, temporary data, legacy JavaScript keys), production behavior is defined by persisted data plus the canonical requirements in this document.
+Implementation note: იქ, სადაც HTML აშკარად მხოლოდ demonstration-ისთვისაა (sample names, dates, counts, temporary data, legacy JavaScript keys), production behavior განისაზღვრება persisted data-ითა და ამ დოკუმენტის canonical requirements-ით.
+16. Out of scope for this version   16. ამ ვერსიის ფარგლებს გარეთ
+Detailed Entry Editor lexical schema and Validation rules are specified in CHINESE_GE_Entry_Editor_Programmer_Specification_v1.0: mainly Chapters 3–17 for the lexical schema and Chapters 18–19, together with object-specific chapters, for Validation and workflow gating.
+Entry Editor-ის დეტალური lexical schema და Validation rules აღწერილია CHINESE_GE_Entry_Editor_Programmer_Specification_v1.0-ში: lexical schema ძირითადად 3–17 თავებში, ხოლო Validation და workflow gating — 18–19 თავებში და შესაბამის structural object-ების თავებში.
+Detailed Media library/upload/storage workflow beyond stable media IDs.
+Media library/upload/storage workflow-ის დეტალები stable media IDs-ის ფარგლებში არ არის.
+Email/SMS/push delivery of Notifications; v1.0 specifies in-panel notifications.
+Notifications-ის Email/SMS/push delivery; v1.0 განსაზღვრავს მხოლოდ Panel-ის შიდა Notifications-ს.
+File attachments, voice/video calls, and external-messenger integration in Messages.
+Messages-ში file attachments, voice/video calls და external-messenger integration. - ეს არ არის გათვალისწინებული და არც გვინდა ჯერ.
+A scoring policy beyond the agreed Main score / Additional score rules in this specification.
+ამ specification-ში შეთანხმებული Main score / Additional score წესების ფარგლებს მიღმა scoring policy.
+Changes to the five canonical workflow stages.
+ხუთი კანონიკური workflow stage-ის ცვლილება.

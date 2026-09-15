@@ -18,6 +18,10 @@ export interface PagedResult<T> {
 export type EntryListSort = 'UpdatedDesc' | 'UpdatedAsc' | 'LemmaAsc' | 'LemmaDesc' | 'Status';
 
 export interface EntryListQuery {
+  workEditorId?: number;
+  scoreKind?: string;
+  authorId?: number;
+  excludeDrafts?: boolean;
   page: number;
   pageSize: number;
   query?: string;
@@ -65,6 +69,7 @@ export interface DirectPos {
 }
 
 export interface Homonym {
+  directSenses?: Sense[];
   id: number | null;
   text: string;
   markers: EditorialMarker[];

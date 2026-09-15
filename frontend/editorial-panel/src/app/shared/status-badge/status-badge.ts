@@ -7,12 +7,12 @@ interface StatusMeta {
 
 const fallback: StatusMeta = { label: 'უცნობი', cssClass: 'status-unknown' };
 const statuses: Record<string, StatusMeta> = {
-  newentry: { label: 'ახალი სტატია', cssClass: 'status-new' },
-  zhreview: { label: 'ჩინური შემოწმება', cssClass: 'status-zh' },
-  kareview: { label: 'ქართული შემოწმება', cssClass: 'status-ka' },
-  ready: { label: 'მზადაა', cssClass: 'status-ready' },
-  published: { label: 'გამოქვეყნებული', cssClass: 'status-published' },
-  archived: { label: 'არქივი', cssClass: 'status-archived' },
+  newentry: { label: 'New Entry · 新建', cssClass: 'status-new' },
+  zhreview: { label: 'CHT-review · 中文审核', cssClass: 'status-zh' },
+  kareview: { label: 'GEL-review · 格文审核', cssClass: 'status-ka' },
+  ready: { label: 'Ready · 待发布', cssClass: 'status-ready' },
+  published: { label: 'Published · 已发布', cssClass: 'status-published' },
+  archived: { label: 'Archived · 已归档', cssClass: 'status-archived' },
 };
 
 export function getStatusMeta(status: string): StatusMeta {

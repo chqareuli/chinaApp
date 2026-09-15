@@ -130,6 +130,7 @@
             [ngTemplateOutlet]="xrView"
             [ngTemplateOutletContext]="{ items: homonym.crossReferences }"
           />
+          @for(sense of homonym.directSenses ?? [];track sense.number){<ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{sense}"/>}
           @for (group of homonym.gramGroups; track group.number) {
             <ng-container
               [ngTemplateOutlet]="groupView"

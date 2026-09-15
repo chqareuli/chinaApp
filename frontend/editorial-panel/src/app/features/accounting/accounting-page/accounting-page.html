@@ -1,79 +1,123 @@
-<section class="accounting-page">
-  <header>
-    <p class="page-kicker">სტატისტიკა</p>
-    <h1 class="page-title">აღრიცხვა</h1>
-    <p class="muted">სტატიების მდგომარეობა და რედაქტორების შესრულებული სამუშაო.</p>
-  </header>
+<section id="cge-editorial-statistics-final">
+  <div class="cge-heading">
+    <h2>STATISTICS<br />统计</h2>
+  </div>
   @if (error()) {
     <div class="error-banner">{{ error() }}</div>
   }
   @if (loading()) {
-    <div class="empty-state">მონაცემები იტვირთება…</div>
+    <div class="empty-state">Loading… · 加载中</div>
   } @else {
-    @if (personal(); as me) {
-      <section class="personal-card">
-        <div>
-          <span class="avatar">{{ me.displayName.charAt(0) }}</span>
-          <div>
-            <p class="page-kicker">ჩემი ანგარიში</p>
-            <h2>{{ me.displayName }}</h2>
-            <small
-              >{{ roleLabels[me.role] }} ·
-              {{ me.createdAtUtc | date: 'dd MMM yyyy' : '+0400' }}</small
-            >
-          </div>
+    <div class="cge-table-area">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead class="cge-header">
+            <tr>
+              <th>Stage<br /><span class="text-small">状态</span></th>
+              <th class="text-end">Entries<br /><span class="text-small">词目数量</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (status of statuses; track status) {
+              <tr class="cge-row">
+                <td><app-status-badge [status]="status" /></td>
+                <td class="text-end">
+                  <a [routerLink]="['/adminpanel/entries']" [queryParams]="{ status: status }">{{
+                    statusCount(status)
+                  }}</a>
+                </td>
+              </tr>
+            }
+            <tr class="cge-row">
+              <td>Total · 总计</td>
+              <td class="text-end">
+                <a [routerLink]="['/adminpanel/entries']">{{ totals()?.total ?? 0 }}</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <app-panel-font-control />
+    </div>
+    @if (canExport()) {
+      <section class="cge-download" aria-label="Database download · 数据库下载">
+        <div class="cge-heading">
+          <h2>DATABASE DOWNLOAD<br />数据库下载</h2>
         </div>
-        <div class="score">
-          <strong>{{ personalTotals().main }}</strong
-          ><span>მთავარი</span>
+        <div class="cge-supervisor text-small">
+          <span class="viz-badge">SV</span> Supervisor · 主管
         </div>
-        <div class="score">
-          <strong>{{ personalTotals().additional }}</strong
-          ><span>დამატებითი</span>
+        <div class="cge-filter-grid">
+          <label class="form-label"
+            >Status · 状态<select class="form-select" [(ngModel)]="exportStatus">
+              <option value="">All eligible · 全部可导出</option>
+              <option value="ZhReview">CHT-review · 中文审核</option>
+              <option value="KaReview">GEL-review · 格文审核</option>
+              <option value="Ready">Ready · 待发布</option>
+              <option value="Published">Published · 已发布</option>
+            </select></label
+          >
+          <label class="form-label"
+            >Editor · 编辑<select class="form-select" [(ngModel)]="exportEditor">
+              <option value="">All editors · 全部编辑</option>
+              @for (editor of editors(); track editor.editorId) {
+                <option [value]="editor.editorId">{{ editor.displayName }}</option>
+              }
+            </select></label
+          >
+          <label class="form-label"
+            >From · 起始日期<input class="form-control" type="date" [(ngModel)]="exportFrom"
+          /></label>
+          <label class="form-label"
+            >To · 截止日期<input class="form-control" type="date" [(ngModel)]="exportTo"
+          /></label>
         </div>
+        <div class="cge-download-actions">
+          <button class="btn btn-primary" [disabled]="exporting()" (click)="exportFile('xml')">
+            ↓ TEI/XML
+          </button>
+          <button class="btn" [disabled]="exporting()" (click)="exportFile('json')">↓ JSON</button>
+          <button class="btn" [disabled]="exporting()" (click)="exportFile('helper')">
+            ↓ Helper Materials · 辅助资料
+          </button>
+        </div>
+        <p class="text-small text-center">Last modified · 最后修改时间 (UTC)</p>
+        @if (exportError()) {
+          <p class="error-banner" role="alert">{{ exportError() }}</p>
+        }
       </section>
     }
-    <section class="status-section">
-      <div class="section-title">
-        <div>
-          <p class="page-kicker">ბაზის მდგომარეობა</p>
-          <h2>სტატიები სტატუსების მიხედვით</h2>
-        </div>
-        <strong>{{ totals()?.total ?? 0 }} სულ</strong>
-      </div>
-      <div class="status-grid">
-        @for (status of statuses; track status) {
-          <article>
-            <app-status-badge [status]="status" /><strong>{{ statusCount(status) }}</strong>
-          </article>
-        }
-      </div>
-    </section>
     @if (canViewGlobal()) {
-      <section class="editor-scores">
-        <div class="section-title">
-          <div>
-            <p class="page-kicker">გუნდი</p>
-            <h2>რედაქტორების ქულები</h2>
-          </div>
-        </div>
-        <div class="score-table">
-          <div class="table-head">
-            <span>რედაქტორი</span><span>მთავარი</span><span>დამატებითი</span><span>ჯამი</span>
-          </div>
-          @for (editor of editors(); track editor.editorId) {
-            <article>
-              <div>
-                <strong>{{ editor.displayName }}</strong
-                ><small>{{ roleLabels[editor.role] }}</small>
-              </div>
-              <span>{{ editor.mainScoreTotal }}</span
-              ><span>{{ editor.additionalScoreTotal }}</span
-              ><b>{{ editor.mainScoreTotal + editor.additionalScoreTotal }}</b>
-            </article>
-          }
-        </div>
-      </section>
+      <div class="cge-heading">
+        <h2>EDITORIAL WORK<br />编辑工作</h2>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead class="cge-header">
+            <tr>
+              <th>Editor<br /><span class="text-small">编辑</span></th>
+              <th class="text-end">Main score<br /><span class="text-small">主分</span></th>
+              <th class="text-end">Additional score<br /><span class="text-small">附加分</span></th>
+              <th class="text-end">Total<br /><span class="text-small">总计</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (editor of editors(); track editor.editorId) {
+              <tr class="cge-row">
+                <td>
+                  <span class="cge-person"
+                    ><span class="viz-badge">{{ roleCodes[editor.role] }}</span
+                    >{{ editor.displayName }}</span
+                  >
+                </td>
+                <td class="text-end">{{ editor.mainScoreTotal }}</td>
+                <td class="text-end">{{ editor.additionalScoreTotal }}</td>
+                <td class="text-end">{{ editor.mainScoreTotal + editor.additionalScoreTotal }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     }
   }
 </section>

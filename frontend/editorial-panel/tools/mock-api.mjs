@@ -209,6 +209,12 @@ createServer(async (request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1');
   const path = url.pathname;
   if (request.method === 'OPTIONS') return json(response, 204);
+  if (path === '/vocabularies') return json(response, 200, [
+    { id: 1, category: 'pos', code: '名', label: '名 · Noun', sortOrder: 1 },
+    { id: 2, category: 'pos', code: '动', label: '动 · Verb', sortOrder: 2 },
+    { id: 3, category: 'style', code: '口', label: '口 · Colloquial', sortOrder: 1 },
+    { id: 4, category: 'domain', code: '医', label: '医 · Medicine', sortOrder: 1 },
+  ]);
   if (path === '/auth/login' || path === '/auth/refresh')
     return json(response, 200, {
       accessToken: 'qa-access-token',
@@ -217,7 +223,15 @@ createServer(async (request, response) => {
     });
   if (path === '/auth/logout') return json(response, 204);
   if ((path === '/entries' || path === '/entries/all') && request.method === 'GET') {
-    const items = entry ? [summary()] : [];
+    const q = (url.searchParams.get('q') || '').trim().toLowerCase();
+    const status = url.searchParams.get('status');
+    const authorId = url.searchParams.get('authorId');
+    const editorId = url.searchParams.get('editorId');
+    const excludeDrafts = url.searchParams.get('excludeDrafts') === 'true' || path === '/entries';
+    const matches = entry && (!excludeDrafts || entry.status !== 'NewEntry')
+      && (!status || entry.status === status) && (!authorId || authorId === '1')
+      && (!editorId || editorId === '1') && (!q || JSON.stringify(entry).toLowerCase().includes(q));
+    const items = matches ? [summary()] : [];
     return json(response, 200, {
       items,
       totalCount: items.length,

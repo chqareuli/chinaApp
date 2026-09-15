@@ -12,6 +12,8 @@ public class MediaAsset
 {
     public int Id { get; set; }
 
+    public int? EntryId { get; set; }
+
     /// <summary>Segment the media is inserted into, if any.</summary>
     public int? InsertedIntoSegmentId { get; set; }
 

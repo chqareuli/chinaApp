@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Chiniseapp.Application.Auth;
 using Chiniseapp.Infrastructure;
 using Chiniseapp.Infrastructure.Auth;
@@ -15,6 +16,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+if (args.Contains("--migrate-only", StringComparer.Ordinal))
+{
+    using var migrationScope = app.Services.CreateScope();
+    await migrationScope.ServiceProvider.GetRequiredService<ChiniseDbContext>().Database.MigrateAsync();
+    return;
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

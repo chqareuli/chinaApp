@@ -4,6 +4,10 @@ namespace Chiniseapp.Application.Entries;
 
 public interface IEntryService
 {
+    Task<IReadOnlyList<VocabularyListItem>> GetVocabulariesAsync(CancellationToken ct = default);
+    Task<PagedResult<EntrySummary>> GetFilteredListAsync(
+        EntryListFilter filter, EditorRole currentEditorRole, CancellationToken ct = default);
+
     /// <summary>Minimum viable create: headword only, per spec 9 (title is the only required field).</summary>
     Task<EntryDetail> CreateAsync(
         CreateEntryRequest request, int currentEditorId, EditorRole currentEditorRole, CancellationToken ct = default);

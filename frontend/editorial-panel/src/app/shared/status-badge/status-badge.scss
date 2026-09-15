@@ -1,45 +1,34 @@
-.status-badge {
-  --status-color: #737b76;
+:host {
   display: inline-flex;
-  min-height: 28px;
+}
+.status-badge {
+  display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 5px 10px;
-  color: var(--status-color);
-  border: 1px solid color-mix(in srgb, var(--status-color) 24%, white);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--status-color) 8%, white);
-  font-size: 0.73rem;
-  font-weight: 800;
   white-space: nowrap;
+  font-size: inherit;
+  font-weight: 430;
 }
-
 .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--status-color);
+  background: currentColor;
+  flex: 0 0 8px;
 }
-
-.status-new {
-  --status-color: #808080;
+.status-new,
+.status-archived {
+  color: #85888e;
 }
-
 .status-zh {
-  --status-color: #c00000;
+  color: #a62c2b;
 }
-
 .status-ka {
-  --status-color: #0000ff;
+  color: #286fac;
 }
-
 .status-ready {
-  --status-color: #00b050;
+  color: #23743f;
 }
-
 .status-published {
-  --status-color: #000000;
+  color: #1a1c1f;
 }
-
-.status-archived { --status-color: #7b648d; }
-.status-unknown { --status-color: #8a704e; }

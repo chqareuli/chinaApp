@@ -1,213 +1,278 @@
-<section class="users-page">
-  <header class="page-head">
-    <div>
-      <p class="page-kicker">Super admin</p>
-      <h1 class="page-title">მომხმარებლები</h1>
-      <p>როლები, წვდომა და ანგარიშების უსაფრთხო მართვა.</p>
-    </div>
-    <button class="btn btn-primary" type="button" (click)="toggleCreate()">
-      ＋ მომხმარებლის დამატება
-    </button>
-  </header>
+<section id="cge-editorial-team-refined">
+  <div class="cge-heading">
+    <h2>EDITORIAL TEAM<br />编辑团队</h2>
+  </div>
   @if (error()) {
-    <div class="error-banner">{{ error() }}</div>
+    <div class="error-banner" role="alert">{{ error() }}</div>
+  }
+  <div class="cge-table-area">
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead class="cge-header">
+          <tr>
+            <th class="text-nowrap">Editor<br /><span class="text-small">编辑</span></th>
+            <th>
+              <label class="form-label"
+                ><span class="sr-only">Role · 角色</span
+                ><select
+                  class="form-select"
+                  [value]="roleFilter()"
+                  (change)="roleFilter.set($any($event.target).value)"
+                >
+                  <option value="">Role · 角色</option>
+                  @for (role of roles; track role) {
+                    <option [value]="role">
+                      {{ roleNames[role].en }} · {{ roleNames[role].zh }}
+                    </option>
+                  }
+                </select></label
+              >
+            </th>
+            <th>
+              <label class="form-label"
+                ><span class="sr-only">Account status · 账户状态</span
+                ><select
+                  class="form-select"
+                  [value]="statusFilter()"
+                  (change)="statusFilter.set($any($event.target).value)"
+                >
+                  <option value="">Account status · 账户状态</option>
+                  <option value="active">Active · 启用</option>
+                  <option value="blocked">Blocked · 已封锁</option>
+                  <option value="cancelled">Cancelled · 已注销</option>
+                </select></label
+              >
+            </th>
+            <th class="text-nowrap">Created<br /><span class="text-small">创建时间</span></th>
+            <th class="text-nowrap">Actions<br /><span class="text-small">操作</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr>
+              <td colspan="5">Loading… · 加载中</td>
+            </tr>
+          } @else {
+            @for (editor of filteredEditors(); track editor.id) {
+              <tr class="cge-row">
+                <td>
+                  <span class="cge-person"
+                    ><span class="viz-badge">{{ roleCodes[roleFor(editor)] }}</span>
+                    @if (isSupervisor(editor) && roleFor(editor) !== 'SuperAdmin') {
+                      <span class="viz-badge">SV</span>
+                    }
+                    <span class="cge-name"
+                      ><button type="button" class="cge-profile-link" (click)="beginEdit(editor)">
+                        {{ editor.displayName }}
+                      </button>
+                      @if (editor.chineseName) {
+                        <span class="text-small">{{ editor.chineseName }}</span>
+                      }
+                    </span></span
+                  >
+                </td>
+                <td class="role-text">
+                  <span class="cge-role"
+                    >{{ roleNames[roleFor(editor)].en
+                    }}<span class="text-small">{{ roleNames[roleFor(editor)].zh }}</span></span
+                  >
+                </td>
+                <td>
+                  <span
+                    class="cge-state"
+                    [class.cge-active]="editor.isActive"
+                    [class.cge-inactive]="!editor.isActive"
+                    ><span class="cge-mark"></span
+                    >{{
+                      stateFor(editor) === 'cancelled'
+                        ? 'Cancelled · 已注销'
+                        : editor.isActive
+                          ? 'Active · 启用'
+                          : 'Blocked · 已封锁'
+                    }}</span
+                  >
+                </td>
+                <td class="text-nowrap">
+                  {{ editor.createdAtUtc | date: 'yyyy-MM-dd' : '+0400' }}
+                </td>
+                <td>
+                  <button
+                    class="btn btn-ghost"
+                    type="button"
+                    (click)="beginEdit(editor)"
+                    [attr.aria-label]="'Edit ' + editor.displayName + ' · 修改'"
+                    title="Edit · 修改"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z" />
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5">No editors · 暂无编辑</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-panel-font-control />
+  </div>
+  <div class="cge-footer">
+    <span class="text-small text-muted"
+      >{{ filteredEditors().length }} editors · {{ filteredEditors().length }} 位编辑</span
+    ><button class="btn btn-primary" type="button" (click)="toggleCreate()">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M16 21v-2a6 6 0 0 0-6-6H8a6 6 0 0 0-6 6v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M19 8v6M22 11h-6" />
+      </svg>
+      Add editor · 添加编辑
+    </button>
+  </div>
+  @if (editingEditor(); as editor) {
+    <section aria-label="Edit editor · 修改编辑">
+      <form
+        class="cge-form"
+        [formGroup]="editForm"
+        (ngSubmit)="saveEdit(editor)"
+        autocomplete="off"
+        novalidate
+      >
+        <div>{{ editor.displayName }} · Edit editor · 修改编辑</div>
+        <div class="cge-fields">
+          <label class="form-label"
+            >Role · 角色<select class="form-select" formControlName="role">
+              @if (roleFor(editor) === 'SuperAdmin') {
+                <option value="SuperAdmin">Supervisor · 主管</option>
+              }
+              @for (role of roles; track role) {
+                <option [value]="role">{{ roleNames[role].en }} · {{ roleNames[role].zh }}</option>
+              }
+            </select></label
+          >
+          <label class="form-label"
+            >Account status · 账户状态<select class="form-select" formControlName="accountStatus">
+              <option value="active">Active · 启用</option>
+              <option value="blocked">Blocked · 已封锁</option>
+              <option value="cancelled">Cancelled · 已注销</option>
+            </select></label
+          >
+        </div>
+        <label class="form-check form-switch"
+          ><input class="form-check-input" type="checkbox" formControlName="isSupervisor" /><span
+            class="form-check-label"
+            >Supervisor · 主管</span
+          ></label
+        >
+        <div class="cge-form-actions">
+          <button class="btn btn-primary" type="submit" [disabled]="editingSaving()">
+            {{ editingSaving() ? 'Saving… · 保存中' : 'Save · 保存' }}</button
+          ><button class="btn" type="button" (click)="cancelEdit()">Cancel · 取消</button>
+        </div>
+      </form>
+    </section>
   }
   @if (createOpen()) {
-    <form
-      class="create-card"
-      [formGroup]="createForm"
-      (ngSubmit)="create()"
-      autocomplete="off"
-      novalidate
-    >
-      <div class="section-head">
-        <h2>ახალი მომხმარებელი</h2>
-        <button type="button" (click)="createOpen.set(false)">×</button>
-      </div>
-      <div class="form-grid">
-        <div class="field">
-          <label for="new-editor-display-name">სახელი</label>
-          <input
-            id="new-editor-display-name"
-            name="new-editor-display-name"
-            formControlName="displayName"
-            autocomplete="off"
-          />
-          @if (createForm.controls.displayName.touched && createForm.controls.displayName.invalid) {
-            <small class="field-error">სახელი აუცილებელია.</small>
-          }
-        </div>
-        <div class="field">
-          <label for="new-editor-email">ელფოსტა</label>
-          <input
-            id="new-editor-email"
-            name="new-editor-email"
-            type="email"
-            formControlName="email"
-            autocomplete="off"
-            autocapitalize="none"
-            spellcheck="false"
-          />
-          @if (createForm.controls.email.touched && createForm.controls.email.invalid) {
-            <small class="field-error">მიუთითეთ სწორი ელფოსტა.</small>
-          }
-        </div>
-        <div class="field">
-          <label for="new-editor-role">როლი</label
-          ><select id="new-editor-role" name="new-editor-role" formControlName="role">
-            @for (role of roles; track role) {
-              <option [value]="role">{{ roleLabels[role] }}</option>
-            }
-          </select>
-        </div>
-        <div class="field">
-          <label for="new-editor-password">საწყისი პაროლი</label>
-          <input
-            id="new-editor-password"
-            name="new-editor-password"
-            type="password"
-            formControlName="initialPassword"
-            autocomplete="new-password"
-          />
-          @if (
-            createForm.controls.initialPassword.touched &&
-            createForm.controls.initialPassword.invalid
-          ) {
-            <small class="field-error">პაროლი მინიმუმ 8 სიმბოლო უნდა იყოს.</small>
-          }
-        </div>
-      </div>
-      <button class="btn btn-primary" type="submit" [disabled]="saving()">
-        {{ saving() ? 'ინახება…' : 'შექმნა' }}
-      </button>
-    </form>
-  }
-  @if (loading()) {
-    <div class="empty-state">მომხმარებლები იტვირთება…</div>
-  } @else {
-    <div class="users-table">
-      <div class="table-head">
-        <span>მომხმარებელი</span><span>როლი</span><span>სტატუსი</span><span>შექმნა</span
-        ><span>მოქმედება</span>
-      </div>
-      @for (editor of editors(); track editor.id) {
-        <article>
-          <div class="identity">
-            <span class="avatar">{{ editor.displayName.charAt(0) }}</span>
-            <div>
-              <strong>{{ editor.displayName }}</strong
-              ><small>{{ editor.email }}</small>
-            </div>
-          </div>
-          <span class="role-text">{{ roleLabels[editor.role] }}</span>
-          <span class="state" [class.blocked]="!editor.isActive">{{
-            editor.isActive ? 'აქტიური' : 'დაბლოკილი'
-          }}</span
-          ><time>{{ editor.createdAtUtc | date: 'dd MMM yyyy' : '+0400' }}</time>
-          <div class="actions">
-            <button type="button" (click)="beginEdit(editor)">რედაქტირება</button>
-          </div>
-
-          @if (editingId() === editor.id) {
-            <form
-              class="edit-card"
-              [formGroup]="editForm"
-              (ngSubmit)="saveEdit(editor)"
+    <section aria-label="Add editor · 添加编辑">
+      <form
+        class="cge-form"
+        [formGroup]="createForm"
+        (ngSubmit)="create()"
+        autocomplete="off"
+        novalidate
+      >
+        <div>Add editor · 添加编辑</div>
+        <div class="cge-fields">
+          <label class="form-label"
+            >First name · 名 *<input
+              class="form-control"
+              formControlName="firstName"
               autocomplete="off"
-              novalidate
-            >
-              <div class="edit-card__head">
-                <div>
-                  <strong>მომხმარებლის რედაქტირება</strong>
-                  <small>შეცვალეთ ანგარიშის მონაცემები ერთიანად.</small>
-                </div>
-                <button type="button" aria-label="რედაქტირების დახურვა" (click)="cancelEdit()">
-                  ×
-                </button>
-              </div>
-
-              <div class="form-grid edit-grid">
-                <div class="field">
-                  <label [for]="'editor-display-name-' + editor.id">სახელი</label>
-                  <input
-                    [id]="'editor-display-name-' + editor.id"
-                    [name]="'editor-display-name-' + editor.id"
-                    formControlName="displayName"
-                    autocomplete="off"
-                  />
-                  @if (
-                    editForm.controls.displayName.touched && editForm.controls.displayName.invalid
-                  ) {
-                    <small class="field-error">სახელი აუცილებელია.</small>
-                  }
-                </div>
-
-                <div class="field">
-                  <label [for]="'editor-email-' + editor.id">ელფოსტა</label>
-                  <input
-                    [id]="'editor-email-' + editor.id"
-                    [name]="'editor-email-' + editor.id"
-                    type="email"
-                    formControlName="email"
-                    autocomplete="off"
-                    autocapitalize="none"
-                    spellcheck="false"
-                  />
-                  @if (editForm.controls.email.touched && editForm.controls.email.invalid) {
-                    <small class="field-error">მიუთითეთ სწორი ელფოსტა.</small>
-                  }
-                </div>
-
-                <div class="field">
-                  <label [for]="'editor-role-' + editor.id">როლი</label>
-                  <select
-                    [id]="'editor-role-' + editor.id"
-                    [name]="'editor-role-' + editor.id"
-                    formControlName="role"
-                  >
-                    @for (role of roles; track role) {
-                      <option [value]="role">{{ roleLabels[role] }}</option>
-                    }
-                  </select>
-                </div>
-
-                <div class="field">
-                  <label [for]="'editor-password-' + editor.id">ახალი პაროლი</label>
-                  <input
-                    [id]="'editor-password-' + editor.id"
-                    [name]="'editor-password-' + editor.id"
-                    type="password"
-                    formControlName="newPassword"
-                    autocomplete="new-password"
-                    placeholder="დატოვეთ ცარიელი, თუ არ იცვლება"
-                  />
-                  @if (
-                    editForm.controls.newPassword.touched && editForm.controls.newPassword.invalid
-                  ) {
-                    <small class="field-error">პაროლი მინიმუმ 8 სიმბოლო უნდა იყოს.</small>
-                  } @else {
-                    <small class="field-hint">არსებული პაროლი უსაფრთხოების გამო არ ჩანს.</small>
-                  }
-                </div>
-              </div>
-
-              <label class="status-toggle">
-                <input type="checkbox" formControlName="isActive" />
-                <span>ანგარიში აქტიურია</span>
-              </label>
-
-              <div class="edit-actions">
-                <button class="btn btn-primary" type="submit" [disabled]="editingSaving()">
-                  {{ editingSaving() ? 'ინახება…' : 'ცვლილებების შენახვა' }}
-                </button>
-                <button class="btn btn-secondary" type="button" (click)="cancelEdit()">
-                  გაუქმება
-                </button>
-              </div>
-            </form>
-          }
-        </article>
-      }
-    </div>
+          /></label>
+          <label class="form-label"
+            >Last name · 姓 *<input
+              class="form-control"
+              formControlName="lastName"
+              autocomplete="off"
+          /></label>
+          <label class="form-label"
+            >Chinese name · 中文姓名<input
+              class="form-control"
+              formControlName="chineseName"
+              placeholder="Optional · 选填"
+              autocomplete="off"
+          /></label>
+          <label class="form-label"
+            >Email address · 电子邮箱 *<input
+              class="form-control"
+              type="email"
+              formControlName="email"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+          /></label>
+          <label class="form-label"
+            >Role · 角色 *<select class="form-select" formControlName="role">
+              <option value="">Select · 请选择</option>
+              @for (role of roles; track role) {
+                <option [value]="role">{{ roleNames[role].en }} · {{ roleNames[role].zh }}</option>
+              }
+            </select></label
+          >
+          <label class="form-label"
+            >Temporary password · 临时密码 *<input
+              class="form-control"
+              type="password"
+              formControlName="initialPassword"
+              autocomplete="new-password"
+          /></label>
+          <label class="form-label"
+            >WeChat account · 微信账号<input
+              class="form-control"
+              formControlName="weChatAccount"
+              placeholder="Optional · 选填"
+              autocomplete="off"
+          /></label>
+        </div>
+        <label class="form-check form-switch"
+          ><input class="form-check-input" type="checkbox" formControlName="isSupervisor" /><span
+            class="form-check-label"
+            >Supervisor · 主管
+            <span class="text-small text-muted">{{ supervisorCount() }} / 2</span></span
+          ></label
+        >
+        <div class="text-small text-muted">
+          Temporary password must be changed after first sign-in · 首次登录后须修改临时密码
+        </div>
+        <div class="cge-form-actions">
+          <button class="btn btn-primary" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Saving… · 保存中' : 'Add editor · 添加编辑' }}</button
+          ><button class="btn" type="button" (click)="createOpen.set(false)">Cancel · 取消</button>
+        </div>
+      </form>
+    </section>
   }
 </section>

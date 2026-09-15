@@ -91,6 +91,7 @@ export class CollaborationService {
     return this.http.post<DirectMessageSummary>(`${this.apiBaseUrl}/messages`, {
       recipientEditorId,
       body,
+      allEditors: recipientEditorId === 0,
     });
   }
 

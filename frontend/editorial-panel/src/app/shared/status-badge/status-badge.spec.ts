@@ -2,12 +2,12 @@ import { getStatusMeta } from './status-badge';
 
 describe('getStatusMeta', () => {
   it.each([
-    ['NewEntry', 'ახალი სტატია'],
-    ['zh_review', 'ჩინური შემოწმება'],
-    ['KaReview', 'ქართული შემოწმება'],
-    ['ready', 'მზადაა'],
-    ['Published', 'გამოქვეყნებული'],
-  ])('maps %s to its Georgian label', (status, label) => {
+    ['NewEntry', 'New Entry · 新建'],
+    ['zh_review', 'CHT-review · 中文审核'],
+    ['KaReview', 'GEL-review · 格文审核'],
+    ['ready', 'Ready · 待发布'],
+    ['Published', 'Published · 已发布'],
+  ])('maps %s to the approved bilingual label', (status, label) => {
     expect(getStatusMeta(status).label).toBe(label);
   });
 

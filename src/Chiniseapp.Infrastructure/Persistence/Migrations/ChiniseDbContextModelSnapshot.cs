@@ -18,7 +18,7 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.10")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "audit_action", new[] { "created", "status_changed", "content_edited", "role_changed", "deactivated", "archived", "repair_mode_toggled", "comment_added", "other" });
@@ -210,6 +210,10 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("body");
 
+                    b.Property<Guid?>("BroadcastId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("broadcast_id");
+
                     b.Property<DateTime?>("ReadAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("read_at_utc");
@@ -247,6 +251,10 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ChineseName")
+                        .HasColumnType("text")
+                        .HasColumnName("chinese_name");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
@@ -257,19 +265,35 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("display_name");
 
+                    b.Property<string>("EditorialRole")
+                        .HasColumnType("text")
+                        .HasColumnName("editorial_role");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("email");
 
+                    b.Property<string>("FirstName")
+                        .HasColumnType("text")
+                        .HasColumnName("first_name");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_cancelled");
+
                     b.Property<DateTime?>("LastLoginAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_login_at_utc");
+
+                    b.Property<string>("LastName")
+                        .HasColumnType("text")
+                        .HasColumnName("last_name");
 
                     b.Property<string>("LegacyRoleRaw")
                         .HasColumnType("text")
@@ -283,6 +307,10 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.Property<EditorRole>("Role")
                         .HasColumnType("editor_role")
                         .HasColumnName("role");
+
+                    b.Property<string>("WeChatAccount")
+                        .HasColumnType("text")
+                        .HasColumnName("we_chat_account");
 
                     b.HasKey("Id")
                         .HasName("pk_editors");
@@ -328,6 +356,10 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("lemma");
+
+                    b.Property<string>("LexicalForms")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("lexical_forms");
 
                     b.Property<int?>("MainAuthorEditorId")
                         .HasColumnType("integer")
@@ -399,6 +431,10 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("EntryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("entry_id");
+
                     b.Property<MediaFileType>("FileType")
                         .HasColumnType("media_file_type")
                         .HasColumnName("file_type");
@@ -447,6 +483,9 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_media_assets");
 
+                    b.HasIndex("EntryId")
+                        .HasDatabaseName("ix_media_assets_entry_id");
+
                     b.HasIndex("InsertedIntoSegmentId")
                         .HasDatabaseName("ix_media_assets_inserted_into_segment_id");
 
@@ -468,6 +507,10 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Detail")
+                        .HasColumnType("text")
+                        .HasColumnName("detail");
 
                     b.Property<int>("EntryId")
                         .HasColumnType("integer")
@@ -673,6 +716,50 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.ToTable("segments", (string)null);
                 });
 
+            modelBuilder.Entity("Chiniseapp.Domain.Entities.SupportMaterial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AuthorEditorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("author_editor_id");
+
+                    b.Property<string>("CommentText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("comment_text");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<int>("EntryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("entry_id");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("language");
+
+                    b.HasKey("Id")
+                        .HasName("pk_support_materials");
+
+                    b.HasIndex("AuthorEditorId")
+                        .HasDatabaseName("ix_support_materials_author_editor_id");
+
+                    b.HasIndex("EntryId")
+                        .HasDatabaseName("ix_support_materials_entry_id");
+
+                    b.ToTable("support_materials", (string)null);
+                });
+
             modelBuilder.Entity("Chiniseapp.Domain.Entities.AuditLogEntry", b =>
                 {
                     b.HasOne("Chiniseapp.Domain.Entities.Editor", null)
@@ -748,6 +835,12 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Chiniseapp.Domain.Entities.MediaAsset", b =>
                 {
+                    b.HasOne("Chiniseapp.Domain.Entities.Entry", null)
+                        .WithMany()
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_media_assets_entries_entry_id");
+
                     b.HasOne("Chiniseapp.Domain.Entities.Segment", null)
                         .WithMany()
                         .HasForeignKey("InsertedIntoSegmentId")
@@ -829,6 +922,23 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_segments_segments_parent_segment_id");
 
                     b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("Chiniseapp.Domain.Entities.SupportMaterial", b =>
+                {
+                    b.HasOne("Chiniseapp.Domain.Entities.Editor", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorEditorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_support_materials_editors_author_editor_id");
+
+                    b.HasOne("Chiniseapp.Domain.Entities.Entry", null)
+                        .WithMany()
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_support_materials_entries_entry_id");
                 });
 
             modelBuilder.Entity("Chiniseapp.Domain.Entities.Entry", b =>

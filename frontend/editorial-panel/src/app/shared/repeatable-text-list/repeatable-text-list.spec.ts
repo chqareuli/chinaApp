@@ -51,4 +51,34 @@ describe('RepeatableTextList', () => {
     expect(component.items.length).toBe(1);
     expect(component.duplicateError()).toBe(true);
   });
+
+  it('commits typed pinyin when the entry is saved without a blur event', () => {
+    component.queueInline(null, ' cèshì ');
+    expect(component.flushInline()).toBe(true);
+    expect(component.itemValue(0)).toBe('cèshì');
+    expect(component.flushInline()).toBe(true);
+    expect(component.items.length).toBe(1);
+  });
+
+  it('rejects duplicate inline edits and preserves the saved values', () => {
+    component.queueInline(null, 'wèi');
+    component.flushInline();
+    component.queueInline(null, 'wéi');
+    component.flushInline();
+    component.queueInline(1, 'WÈI');
+    expect(component.flushInline()).toBe(false);
+    expect(component.itemValue(1)).toBe('wéi');
+    component.queueInline(1, 'wēi');
+    expect(component.flushInline()).toBe(true);
+    expect(component.itemValue(1)).toBe('wēi');
+  });
+
+  it('discards a pending edit when that value is removed', () => {
+    component.queueInline(null, 'wèi');
+    component.flushInline();
+    component.queueInline(0, '');
+    component.remove(0);
+    expect(component.flushInline()).toBe(true);
+    expect(component.items.length).toBe(0);
+  });
 });

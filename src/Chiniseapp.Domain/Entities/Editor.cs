@@ -19,6 +19,12 @@ public class Editor
     public string PasswordHash { get; set; } = string.Empty;
 
     public string DisplayName { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string? ChineseName { get; set; }
+    public string? WeChatAccount { get; set; }
+    public string? EditorialRole { get; set; }
+    public bool IsCancelled { get; set; }
 
     public EditorRole Role { get; set; }
 

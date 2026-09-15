@@ -1,0 +1,2269 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Chinese Ge Entry Editor — Ideal V2</title>
+<style>:root {
+  color-scheme: light dark;
+  background-color: transparent !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --main-surface-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --red: light-dark(rgb(186 38 35), rgb(250 66 62));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 10px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 17 17'%3E%3Cpath d='M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z'/%3E%3C/svg%3E");
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-visualize-standalone] {
+  background-color: var(--background) !important;
+}
+
+/* Generic mobile code-block hosts provide light/dark mode but no series palette.
+   AppBlock hosts set all six variables themselves. */
+:root:not([data-app-block-surface]) {
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(#f3883b, #f59a56);
+  --viz-series-3: light-dark(#5dc977, #74d58b);
+  --viz-series-4: light-dark(#eb77b1, #f08fc0);
+  --viz-series-5: light-dark(#9b79ec, #aa91ef);
+  --viz-series-6: light-dark(#3ab9b1, #5acbc2);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html > body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface]) > body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive > .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align="right"]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align="center"]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget > :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The bundled tooltip runtime owns [data-tooltip]. AppBlock's CSS-only
+   pseudo-tooltip can widen dense grids even while hidden. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls > .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls > .form-label > :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--interactive-label-primary-default, var(--primary-foreground));
+  background: var(--interactive-bg-primary-default, var(--foreground));
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(
+    in srgb,
+    var(--interactive-label-primary-default, var(--primary-foreground)) 50%,
+    transparent
+  );
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type="file"] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type="file"]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type="file"]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type="color"] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type="checkbox"] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type="checkbox"]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type="checkbox"]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: "";
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type="radio"]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: "";
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed="true"],
+    [aria-selected="true"],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed="true"], [aria-selected="true"], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget > svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+</style>
+</head>
+<body>
+<div id="cx-entry-v2">
+<style>
+#cx-entry-v2{color:var(--foreground)}#cx-entry-v2 .shell{display:grid;gap:14px}#cx-entry-v2 .bar,#cx-entry-v2 .head,#cx-entry-v2 .scope-head,#cx-entry-v2 .row,#cx-entry-v2 .actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}#cx-entry-v2 .bar{justify-content:space-between;padding:10px 12px;background:var(--accent);border:1px solid var(--border);border-radius:var(--radius)}#cx-entry-v2 .head{align-items:end}#cx-entry-v2 .grow{flex:1 1 260px}#cx-entry-v2 .stack{display:grid;gap:6px}#cx-entry-v2 .variants{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}#cx-entry-v2 .scope{display:grid;gap:10px;padding:12px;border-inline-start:3px solid var(--viz-series-2);background:var(--card);border-radius:var(--radius)}#cx-entry-v2 .scope-head{align-items:end}#cx-entry-v2 .mode{display:flex;flex-wrap:wrap;gap:8px;padding:8px;border:1px dashed var(--border);border-radius:var(--radius)}#cx-entry-v2 .pos{display:grid;gap:8px;margin-inline-start:12px;padding:10px;border-inline-start:3px solid var(--viz-series-4)}#cx-entry-v2 .sense{display:grid;gap:8px;margin-inline-start:18px;padding:10px;border-inline-start:3px solid var(--viz-series-6)}#cx-entry-v2 .example{display:grid;gap:7px;margin-inline-start:18px;padding:9px;border-inline-start:3px solid var(--viz-series-3)}#cx-entry-v2 .definition-line{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}#cx-entry-v2 .example-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}#cx-entry-v2 .tools{display:flex;flex-wrap:wrap;gap:4px;opacity:.18;transition:opacity .15s ease}#cx-entry-v2 .sense:hover .tools,#cx-entry-v2 .sense:focus-within .tools,#cx-entry-v2 .example:hover .tools,#cx-entry-v2 .example:focus-within .tools{opacity:1}#cx-entry-v2 .num{display:none;min-width:34px;justify-content:center;font-weight:500}#cx-entry-v2 .numbered>.row>.num{display:inline-flex}#cx-entry-v2 .ie-slot{display:flex;flex-wrap:wrap;gap:4px;min-height:24px;align-items:center;color:var(--muted-foreground)}#cx-entry-v2 .chip{display:inline-flex;align-items:center;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:var(--accent)}#cx-entry-v2 .media{color:var(--muted-foreground)}#cx-entry-v2 .direct{display:grid;grid-template-columns:minmax(150px,.35fr) minmax(220px,1fr) auto;gap:8px;align-items:end;margin-inline-start:12px;padding:10px;border-inline-start:3px solid var(--viz-series-6)}#cx-entry-v2 .status{min-height:24px;color:var(--muted-foreground)}@media(max-width:760px){#cx-entry-v2 .example-grid,#cx-entry-v2 .definition-line,#cx-entry-v2 .direct{grid-template-columns:1fr}#cx-entry-v2 .pos,#cx-entry-v2 .sense,#cx-entry-v2 .example,#cx-entry-v2 .direct{margin-inline-start:5px}#cx-entry-v2 .tools{opacity:1}}
+#cx-entry-v2 .head{display:grid;gap:8px;align-items:stretch}
+#cx-entry-v2 .head{max-width:none}
+#cx-entry-v2 .headword-input{width:100%;font-size:calc(var(--font-size-base) * 2);font-weight:700;color:var(--foreground)}
+#cx-entry-v2 .headword-input::placeholder,#cx-entry-v2 .title-row input::placeholder{color:var(--muted-foreground);opacity:.72}
+#cx-entry-v2 .title-row{display:flex;align-items:center;gap:8px;max-width:100%}
+#cx-entry-v2 .title-row .variants{display:flex;flex:0 1 auto;flex-wrap:wrap;gap:8px}
+#cx-entry-v2 .title-row .variants input{width:220px;font-size:calc(var(--font-size-base) * 2);font-weight:700;color:var(--foreground)}
+#cx-entry-v2 .title-add{flex:0 0 auto;color:var(--muted-foreground)}
+#cx-entry-v2 .title-cell{display:flex;align-items:center;gap:4px}
+#cx-entry-v2 .title-cell .remove-title{opacity:.35}
+#cx-entry-v2 .title-cell:hover .remove-title,#cx-entry-v2 .title-cell:focus-within .remove-title{opacity:1}
+#cx-entry-v2 #trad input{font-size:calc(var(--font-size-base) * 2);font-weight:700;color:#45c8c2}
+#cx-entry-v2 .scope,#cx-entry-v2 .pos,#cx-entry-v2 .sense,#cx-entry-v2 .example{gap:6px;padding-block:7px}
+#cx-entry-v2 .scope-head .hom-index{display:inline-flex;flex:0 0 47px;width:47px;height:43px;min-width:47px;padding:0;align-items:center;justify-content:center;border:0;border-radius:10px;background:#ff7a21;color:#fff;font-size:20px;font-weight:700;line-height:1}
+#cx-entry-v2 .scope-head .hom-label{flex:0 0 240px;width:240px;max-width:calc(100% - 108px);font-size:calc(var(--font-size-base) * 1.65);font-weight:700;color:var(--foreground)}
+#cx-entry-v2 .pos-select{max-width:620px;color:var(--muted-foreground)}
+#cx-entry-v2 .pos-select.has-value{flex:0 0 88px;max-width:88px;color:var(--green);font-size:calc(var(--font-size-base) * 1.35);font-weight:700}
+#cx-entry-v2 .scope-tools,#cx-entry-v2 .grammar-tools{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-inline-start:38px}
+#cx-entry-v2 .scope-tools{margin-inline-start:0}
+#cx-entry-v2 .scope-tools .ie-slot,#cx-entry-v2 .grammar-tools .ie-slot{flex:1 1 120px}
+#cx-entry-v2 .grammar-mark{cursor:help}
+#cx-entry-v2 .grammar-mark,#cx-entry-v2 .sense-num,#cx-entry-v2 .example-mark{border:0;border-radius:9px;color:var(--primary-foreground);font-weight:700;min-width:40px;width:40px;height:38px;align-items:center;justify-content:center;font-size:20px;line-height:1}
+#cx-entry-v2 .grammar-mark{font-size:22px;font-weight:800}
+#cx-entry-v2 .grammar-mark{background:#d52d28}
+#cx-entry-v2 .sense-num{background:#5555ff}
+#cx-entry-v2 .example-mark{display:inline-flex;background:#00a2e8}
+#cx-entry-v2 .definition-line{grid-template-columns:minmax(360px,1fr) 270px}
+#cx-entry-v2 .definition-line textarea{width:100%}
+#cx-entry-v2 .tools{display:grid;grid-template-columns:repeat(3,max-content);align-content:start}
+#cx-entry-v2 .definition-line>.tools{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:3px;width:270px}
+#cx-entry-v2 .definition-line>.tools .tool-row{display:flex;align-items:center;justify-content:flex-end;gap:3px;width:max-content}
+#cx-entry-v2 .definition-line>.tools .tool{padding-inline:6px}
+#cx-entry-v2 .example .tools{display:flex}
+#cx-entry-v2 .example-grid{align-items:start}
+#cx-entry-v2 .example-side{display:grid;gap:6px}
+#cx-entry-v2 .example-side .tools{display:flex;flex-wrap:wrap;gap:4px}
+#cx-entry-v2 .scope{border-inline-start:6px solid #ff7a21}
+#cx-entry-v2 .pos{border-inline-start:6px solid #d52d28}
+#cx-entry-v2 .sense{border-inline-start:6px solid #5555ff}
+#cx-entry-v2 .example{border-inline-start:6px solid #00a2e8}
+#cx-entry-v2 .ie-slot>.text-small{color:#7f9fa8}
+#cx-entry-v2 .ie-slot .marker-style{background:#e5f2ff;color:#8a2be2;font-weight:600}
+#cx-entry-v2 .ie-slot .marker-domain{background:#e5f2ff;color:#63c6de;font-weight:600}
+#cx-entry-v2 .ie-slot .chip[data-ie-kind]{gap:3px;padding-inline-end:5px}
+#cx-entry-v2 .ie-remove{display:none;align-items:center;justify-content:center;width:16px;height:16px;margin-inline-start:1px;padding:0;border:0;border-radius:50%;background:transparent;color:currentColor;font:700 14px/1 Arial,sans-serif;cursor:pointer;opacity:.68}
+#cx-entry-v2:not(.is-readonly) .ie-slot .chip[data-ie-kind]:hover .ie-remove,#cx-entry-v2:not(.is-readonly) .ie-slot .chip[data-ie-kind]:focus-within .ie-remove{display:inline-flex}
+#cx-entry-v2:not(.is-readonly) .ie-remove:hover,#cx-entry-v2:not(.is-readonly) .ie-remove:focus-visible{background:rgba(74,84,82,.12);opacity:1;outline:none}
+#cx-entry-v2.is-readonly .ie-remove{display:none!important;pointer-events:none}
+#cx-entry-v2 .scope.has-hom-label .hom-index{flex-basis:auto;width:auto;max-width:180px;padding-inline:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+#cx-entry-v2 .scope.has-hom-label .hom-label{display:none}
+#cx-entry-v2 .hom-label.is-duplicate{border-color:var(--destructive);box-shadow:0 0 0 2px color-mix(in srgb,var(--destructive) 18%,transparent)}
+#cx-entry-v2 .pos-select.has-value{flex:0 0 48px;width:48px;max-width:48px;height:38px;padding:0;text-align:center;text-align-last:center;border:0;border-radius:9px;background:#16b85f;color:#fff;font-size:22px;font-weight:800;appearance:none;background-image:none;cursor:pointer}
+#cx-entry-v2 .grammar-mark,#cx-entry-v2 .sense-num,#cx-entry-v2 .example-mark{min-width:36px;width:36px;height:34px;border-radius:8px;font-size:18px}
+#cx-entry-v2 .grammar-mark{font-size:20px}
+#cx-entry-v2 .pos-select.has-value{flex-basis:43px;width:43px;max-width:43px;height:34px;border-radius:8px;font-size:20px}
+#cx-entry-v2 .definition-editor{min-height:calc(2.9em + 18px);font-size:calc(var(--font-size-base) + 3px);font-weight:700;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+#cx-entry-v2 .rich-editor:empty::before{content:attr(data-placeholder);color:var(--muted-foreground);opacity:.72;font-weight:400;pointer-events:none}
+#cx-entry-v2 .inline-token{display:inline-block;padding:0 3px;border-radius:4px;font-weight:400;white-space:nowrap;cursor:default}
+#cx-entry-v2 .inline-link{color:#2563a8;background:#eaf3ff}
+#cx-entry-v2 .inline-abbr{color:#76538f;background:#f3edfa}
+#cx-entry-v2 .example textarea,#cx-entry-v2 .example .rich-editor{min-height:calc(1.45em + 18px);font-size:calc(var(--font-size-base) + 2px);line-height:1.45;overflow:hidden;resize:none}
+#cx-entry-v2 .definition-line{grid-template-columns:minmax(360px,1fr) 34px 270px;gap:5px}
+#cx-entry-v2 .example-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 34px;gap:8px}
+#cx-entry-v2 .font-controls{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;margin:0;align-self:stretch}
+#cx-entry-v2 .font-control{min-width:28px;padding:3px 5px;font-weight:700;color:var(--muted-foreground)}
+#cx-entry-v2 .app-header{display:grid;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--card)}
+#cx-entry-v2 .global-nav,#cx-entry-v2 .editor-nav,#cx-entry-v2 .editor-meta{display:flex;align-items:center;gap:8px;padding:7px 10px}
+#cx-entry-v2 .global-nav{border-bottom:1px solid var(--border);background:var(--background)}
+#cx-entry-v2 .nav-tools{display:flex;align-items:center;gap:2px}
+#cx-entry-v2 .nav-icon{position:relative;color:var(--muted-foreground)}
+#cx-entry-v2 .nav-badge{position:absolute;inset-block-start:-5px;inset-inline-end:-4px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#e05a65;color:#fff;font-size:9px;line-height:15px;text-align:center}
+#cx-entry-v2 .global-search{flex:1 1 300px;max-width:520px;margin-inline:auto}
+#cx-entry-v2 .role-chip{display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:50%;background:#e6f3ff;color:#397eb2;font-size:11px;font-weight:800}
+#cx-entry-v2 .user-name{font-size:13px;font-weight:600;white-space:nowrap}
+#cx-entry-v2 .editor-nav{position:sticky;top:0;z-index:30;justify-content:space-between;background:#edf8f5;box-shadow:0 1px 0 var(--border)}
+#cx-entry-v2 .editor-title{color:#63bdb5;font-weight:800;letter-spacing:.02em}
+#cx-entry-v2 .stage-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+#cx-entry-v2 .stage-select{width:auto;min-width:205px}
+#cx-entry-v2 .editor-meta{justify-content:flex-end;flex-wrap:wrap;border-top:1px solid color-mix(in srgb,var(--border) 65%,transparent);background:#f8fbfa;color:var(--muted-foreground);font-size:12px}
+#cx-entry-v2 .shell>.editor-nav,#cx-entry-v2 .shell>.editor-meta,#cx-entry-v2 .shell>.history-panel{margin-block-start:-14px}
+#cx-entry-v2 .editor-meta strong{color:var(--foreground)}
+#cx-entry-v2 .meta-separator{opacity:.45}
+#cx-entry-v2 .history-panel{display:none;padding:10px 12px;border-top:1px dashed var(--border);background:var(--background);font-size:12px;color:var(--muted-foreground)}
+#cx-entry-v2 .history-panel.is-open{display:block}
+#cx-entry-v2 .history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-block-end:8px}
+#cx-entry-v2 .history-readonly{padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:#f4f6f7;font-size:11px;font-weight:700}
+#cx-entry-v2 .history-table{width:100%;border-collapse:collapse;color:var(--foreground)}
+#cx-entry-v2 .history-table th,#cx-entry-v2 .history-table td{padding:6px 7px;border:1px solid var(--border);text-align:start;vertical-align:top}
+#cx-entry-v2 .history-table th{background:#f1f7f5;font-weight:700}
+#cx-entry-v2 .editor-actions{display:flex;align-items:center;gap:6px}
+#cx-entry-v2 .editor-actions [hidden]{display:none}
+#cx-entry-v2.is-readonly .head,#cx-entry-v2.is-readonly #scopes,#cx-entry-v2.is-readonly #add-scope{filter:none}
+#cx-entry-v2 #scopes{display:grid;gap:4px}
+#cx-entry-v2 .pos+.pos,#cx-entry-v2 .sense+.sense,#cx-entry-v2 .example+.example{margin-block-start:8px;border-start-start-radius:6px;border-end-start-radius:6px}
+#cx-entry-v2 .scope+.scope{margin-block-start:8px;border-start-start-radius:10px;border-end-start-radius:10px}
+#cx-entry-v2 .pos:has(+.pos),#cx-entry-v2 .sense:has(+.sense),#cx-entry-v2 .example:has(+.example){border-end-start-radius:6px}
+#cx-entry-v2 .scope:has(+.scope){border-end-start-radius:10px}
+#cx-entry-v2 .headword-input::placeholder,#cx-entry-v2 .title-row input::placeholder,#cx-entry-v2 .hom-label::placeholder{font-size:var(--font-size-base);font-weight:500;letter-spacing:0}
+#cx-entry-v2 .scope-tools .tool,#cx-entry-v2 .grammar-tools .tool{opacity:.18;transition:opacity .15s ease}
+#cx-entry-v2 .scope:hover>.scope-tools .tool,#cx-entry-v2 .scope:focus-within>.scope-tools .tool,#cx-entry-v2 .pos:hover>.grammar-tools .tool,#cx-entry-v2 .pos:focus-within>.grammar-tools .tool{opacity:1}
+#cx-entry-v2 .tools .tool,#cx-entry-v2 .scope-tools .tool,#cx-entry-v2 .grammar-tools .tool{border-color:transparent;background:transparent}
+#cx-entry-v2 .sense:hover .tools .tool,#cx-entry-v2 .sense:focus-within .tools .tool,#cx-entry-v2 .example:hover .tools .tool,#cx-entry-v2 .example:focus-within .tools .tool,#cx-entry-v2 .scope:hover>.scope-tools .tool,#cx-entry-v2 .scope:focus-within>.scope-tools .tool,#cx-entry-v2 .pos:hover>.grammar-tools .tool,#cx-entry-v2 .pos:focus-within>.grammar-tools .tool{border-color:#d8e2e5;background:#fbfdfd;box-shadow:0 1px 2px rgba(38,64,71,.04)}
+#cx-entry-v2.is-readonly .pos-select.has-value:disabled{opacity:1;color:#fff;-webkit-text-fill-color:#fff;background:#16b85f}
+#cx-entry-v2.is-readonly .tools{opacity:.12!important;pointer-events:none}
+#cx-entry-v2.is-readonly .tools .tool,#cx-entry-v2.is-readonly .scope-tools .tool,#cx-entry-v2.is-readonly .grammar-tools .tool{opacity:.12!important;pointer-events:none!important;border-color:transparent!important;background:transparent!important;box-shadow:none!important}
+#cx-entry-v2 .bracket-italic{font-style:italic}
+#cx-entry-v2 .inline-token{font-style:normal!important}
+#cx-entry-v2 .reference-material{position:relative;display:grid;gap:12px;margin-block-start:6px;padding:14px;border:1px solid #d8e3e0;border-radius:12px;background:#fbfdfc;box-shadow:0 2px 8px rgba(33,65,60,.05)}
+#cx-entry-v2 .reference-header,#cx-entry-v2 .reference-heading,#cx-entry-v2 .reference-actions,#cx-entry-v2 .reference-toolbar,#cx-entry-v2 .reference-nav,#cx-entry-v2 .reference-card-head,#cx-entry-v2 .reference-card-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+#cx-entry-v2 .reference-header{justify-content:space-between}
+#cx-entry-v2 .reference-heading{align-items:baseline}
+#cx-entry-v2 .reference-title{font-size:18px;font-weight:800;color:#245e57}
+#cx-entry-v2 .support-tabs{display:inline-flex;align-items:stretch;overflow:hidden;border:1px solid #c5d9d4;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(35,72,65,.05)}
+#cx-entry-v2 .support-tab{display:inline-flex;align-items:center;gap:7px;padding:10px 14px;border:0;border-radius:0;color:#53706b;background:transparent;font-size:17px;font-weight:750;cursor:pointer}
+#cx-entry-v2 .support-tab+.support-tab{border-inline-start:1px solid #d6e3e0}
+#cx-entry-v2 .support-tab.is-active{background:#eaf4f1;color:#245e57;box-shadow:inset 0 0 0 1px #c9ddd8}
+#cx-entry-v2 .comment-unread-count{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border-radius:999px;background:#e5484d;color:#fff;font-size:12px;font-weight:800}
+#cx-entry-v2 .comment-unread-count.is-zero{background:#dfe7e5;color:#71817e}
+#cx-entry-v2 .reference-font-controls{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid #dce6e3;border-radius:7px;background:#f7faf9}
+#cx-entry-v2 .reference-font-control{min-width:32px;padding:5px 6px;font-weight:800;color:#60716e}
+#cx-entry-v2 .reference-actions>.btn,#cx-entry-v2 .reference-font-controls{border-color:#cadbd7;background:#edf5f3;color:#365f59;box-shadow:0 1px 2px rgba(42,75,69,.04)}
+#cx-entry-v2 .reference-actions>.btn:hover,#cx-entry-v2 .reference-font-controls:hover{border-color:#9fc2ba;background:#e3f0ed;color:#244f49}
+#cx-entry-v2 .reference-subtitle{font-size:12px;color:var(--muted-foreground)}
+#cx-entry-v2 .reference-badge{display:inline-flex;align-items:center;padding:3px 8px;border:1px solid #cfe2dd;border-radius:999px;background:#edf7f4;color:#4d756e;font-size:11px}
+#cx-entry-v2 .reference-toolbar{justify-content:space-between;padding:9px;border:1px solid #e1e9e7;border-radius:9px;background:#f5f9f8}
+#cx-entry-v2 .reference-search{flex:1 1 280px;max-width:480px}
+#cx-entry-v2 .reference-nav{gap:4px}
+#cx-entry-v2 .reference-nav .is-active{border-color:#7dbbb1;background:#dff1ed;color:#215f56}
+#cx-entry-v2 .reference-list{display:grid;gap:9px}
+#cx-entry-v2 .reference-card{--ref-color:#334155;overflow:hidden;border:1px solid #dfe6e5;border-inline-start:5px solid var(--ref-color);border-radius:9px;background:#fff}
+#cx-entry-v2 .reference-card[data-group="G1"]{--ref-color:#800000;background:#faf7f7}
+#cx-entry-v2 .reference-card[data-group="G2"]{--ref-color:#171717;background:#f3f8fc}
+#cx-entry-v2 .reference-card[data-group="G3"]{--ref-color:#285fc5;background:#f3faf5}
+#cx-entry-v2 .reference-card[data-group="G4"]{--ref-color:#168044;background:#fff}
+#cx-entry-v2 .reference-card[data-group="G5"]{--ref-color:#7c28c8;background:#fff}
+#cx-entry-v2 .reference-card-head{justify-content:space-between;padding:9px 10px;border-bottom:1px solid color-mix(in srgb,var(--ref-color) 15%,#e4e9e8);background:color-mix(in srgb,var(--ref-color) 5%,transparent)}
+#cx-entry-v2 .reference-group{display:inline-flex;align-items:center;justify-content:center;min-width:38px;padding:4px 7px;border-radius:6px;background:var(--ref-color);color:#fff;font-weight:800}
+#cx-entry-v2 .reference-card-title{font-weight:750;color:#273634}
+#cx-entry-v2 .reference-source{font-size:12px;color:var(--muted-foreground)}
+#cx-entry-v2 .reference-content{padding:12px 14px;color:var(--ref-color);font-size:15px;line-height:1.65;white-space:pre-wrap;outline:none}
+#cx-entry-v2 .reference-content .han{color:#111}
+#cx-entry-v2 .reference-content[contenteditable="true"]{margin:7px;border:1px solid #8fc8be;border-radius:7px;background:#fff;box-shadow:0 0 0 2px rgba(94,179,164,.12)}
+#cx-entry-v2 .legacy-bullet{display:inline-block;margin-inline:2px;padding:0 4px;border-radius:4px;background:#dcefff;color:#2877ad;font-weight:800}
+#cx-entry-v2 .reference-search-mark{padding:0 .06em;border-radius:2px;background:#ffe78a;color:inherit;box-shadow:0 0 0 1px rgba(190,148,20,.08)}
+#cx-entry-v2 .reference-card.is-collapsed .reference-content{display:none}
+#cx-entry-v2 .reference-raw{display:none;margin:0;max-height:420px;overflow:auto;padding:14px;border:1px solid #dfe6e5;border-radius:9px;background:#f7f8f8;color:#394644;white-space:pre-wrap;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+#cx-entry-v2 .reference-material.is-raw .reference-list{display:none}
+#cx-entry-v2 .reference-material.is-raw .reference-raw{display:block}
+#cx-entry-v2 .reference-material.is-collapsed .reference-toolbar,#cx-entry-v2 .reference-material.is-collapsed .reference-list,#cx-entry-v2 .reference-material.is-collapsed .reference-raw,#cx-entry-v2 .reference-material.is-collapsed .reference-foot,#cx-entry-v2 .reference-material.is-collapsed .comments-panel{display:none}
+#cx-entry-v2 .reference-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--muted-foreground);font-size:11px}
+#cx-entry-v2 .comments-panel{display:none;gap:0;overflow:hidden;border:1px solid #d8e4e1;border-radius:9px;background:#fff}
+#cx-entry-v2 .reference-material.is-comments .comments-panel{display:grid}
+#cx-entry-v2 .reference-material.is-comments .reference-toolbar,#cx-entry-v2 .reference-material.is-comments .reference-list,#cx-entry-v2 .reference-material.is-comments .reference-raw,#cx-entry-v2 .reference-material.is-comments .reference-foot,#cx-entry-v2 .reference-material.is-comments .reference-subtitle,#cx-entry-v2 .reference-material.is-comments .reference-badge{display:none!important}
+#cx-entry-v2 .reference-material.is-comments #reference-edit,#cx-entry-v2 .reference-material.is-comments #reference-raw-toggle{display:none!important}
+#cx-entry-v2 .reference-material.is-comments .reference-actions{display:flex!important}
+#cx-entry-v2 .reference-material.is-comments #reference-pin,#cx-entry-v2 .reference-material.is-comments #reference-collapse{display:inline-flex!important}
+#cx-entry-v2 .comments-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid #e2e9e7;background:#f7faf9;color:var(--muted-foreground);font-size:13.2px}
+#cx-entry-v2 .comment-stream{display:block;max-height:420px;overflow:auto;padding:3px 8px;scrollbar-gutter:stable;background:#fff}
+#cx-entry-v2 .comment-item{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:7px;row-gap:2px;padding:6px 7px;border:0;border-bottom:1px solid #edf1f0;border-radius:0;background:transparent;box-shadow:none}
+#cx-entry-v2 .comment-item:last-child{border-bottom:0}
+#cx-entry-v2 .comment-item.thread-start:not(:first-child){margin-top:3px;border-top:2px solid #d9e5e2}
+#cx-entry-v2 .comment-item[data-parent-id]:not([data-parent-id=""]){padding-inline-start:13px}
+#cx-entry-v2 .comment-item.unread{border-inline-start:3px solid #e5484d;background:#fff8f8}
+#cx-entry-v2 .comment-item.unread .comment-meta,#cx-entry-v2 .comment-item.unread .comment-text{font-weight:750}
+#cx-entry-v2 .comment-meta{grid-column:1;display:flex;align-items:center;gap:7px;flex-wrap:nowrap;font-size:13.2px}
+#cx-entry-v2 .comment-author{color:#245e57;font-weight:800}
+#cx-entry-v2 .comment-author,#cx-entry-v2 .comment-recipient{cursor:pointer;text-decoration:none;border-bottom:1px dotted transparent}
+#cx-entry-v2 .comment-author:hover,#cx-entry-v2 .comment-recipient:hover{color:#2879b8;border-bottom-color:currentColor}
+#cx-entry-v2 .comment-author:focus-visible,#cx-entry-v2 .comment-recipient:focus-visible{outline:2px solid #8bbab1;outline-offset:2px;border-radius:3px}
+#cx-entry-v2 .comment-role{padding:3px 6px;border-radius:5px;background:#eaf4f1;color:#53706b;font-size:12px;font-weight:750;white-space:nowrap}
+#cx-entry-v2 .comment-time{margin-inline-start:auto;color:#2f55d4;font-weight:650;white-space:nowrap}
+#cx-entry-v2 .comment-flow-arrow{display:inline-flex;align-items:center;justify-content:center;min-width:24px;color:#5b6fc4;font-size:20px;font-weight:800;line-height:1;white-space:nowrap}
+#cx-entry-v2 .comment-recipient{color:#245e57;font-weight:800}
+#cx-entry-v2 .comment-reply-context{grid-column:1/-1;padding-inline-start:8px;border-inline-start:2px solid #b8cfca;color:#73827f;font-size:12px}
+#cx-entry-v2 .comment-text{grid-column:1/-1;color:#263431;font-size:16.8px;line-height:1.45;white-space:pre-wrap}
+#cx-entry-v2 .comment-entry-link{color:#2879b8;font-weight:650;text-decoration:none;border-bottom:1px dotted currentColor}
+#cx-entry-v2 .comment-actions{grid-column:2;grid-row:1;display:flex;align-items:center;justify-content:flex-end}
+#cx-entry-v2 .comment-reply{padding:5px 8px;border:1px solid #cadbd7!important;border-radius:7px!important;background:#edf4f2!important;color:#4f6e68!important;font-size:13.2px;opacity:1!important;box-shadow:0 1px 2px rgba(35,72,65,.06)}
+#cx-entry-v2 .comment-reply:hover{background:#e3efec!important;border-color:#abc8c1!important}
+#cx-entry-v2 .comment-composer{display:grid;gap:6px;padding:8px 10px;border:0;border-top:1px solid #d8e4e1;border-radius:0;background:#f5f9f8}
+#cx-entry-v2 .comment-composer.is-inline-reply{margin:3px 8px 7px 21px;border:1px solid #bfd4cf;border-radius:8px;background:#f3f8f7;box-shadow:0 2px 7px rgba(35,72,65,.07)}
+#cx-entry-v2 .reply-banner{display:none;align-items:center;justify-content:space-between;gap:8px;padding:6px 9px;border-radius:6px;background:#e8f2f0;color:#496a64;font-size:14.4px}
+#cx-entry-v2 .reply-banner.is-open{display:flex}
+#cx-entry-v2 .comment-input{min-height:62px!important;resize:vertical;background:#fff;font-size:16.8px}
+#cx-entry-v2 .comment-compose-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#cx-entry-v2 .comment-author-note{color:#7c8b88;font-size:13.2px}
+#cx-entry-v2 .comment-compose-actions .btn{font-size:13.2px}
+#cx-entry-v2 .comment-status{min-height:20px;color:#397b70;font-size:13.2px}
+#cx-entry-v2 .private-message-dialog{width:min(520px,calc(100vw - 32px));padding:0;border:1px solid #bfd4cf;border-radius:12px;background:#fff;color:#263431;box-shadow:0 18px 55px rgba(24,48,44,.25)}
+#cx-entry-v2 .private-message-dialog::backdrop{background:rgba(24,36,34,.32)}
+#cx-entry-v2 .private-message-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border-bottom:1px solid #dce7e4;background:#eef6f4;color:#245e57;font-size:16px;font-weight:800}
+#cx-entry-v2 .private-message-body{display:grid;gap:9px;padding:13px}
+#cx-entry-v2 .private-message-recipient{color:#53706b;font-size:13px}
+#cx-entry-v2 .private-message-input{min-height:92px!important;resize:vertical;font-size:15px}
+#cx-entry-v2 .private-message-actions{display:flex;justify-content:flex-end;gap:8px}
+#cx-entry-v2.reference-pinned{padding-inline-end:min(450px,38vw)}
+#cx-entry-v2 .reference-material.is-pinned{position:fixed;inset-block-start:82px;inset-inline-end:18px;z-index:42;width:min(420px,35vw);max-height:calc(100vh - 100px);overflow:auto;margin:0;box-shadow:0 14px 36px rgba(29,55,51,.22)}
+#cx-entry-v2 .reference-material.is-pinned .reference-search{max-width:none}
+#cx-entry-v2 .reference-material.is-pinned .reference-nav{width:100%}
+#cx-entry-v2 .reference-material.is-pinned .reference-nav .btn{flex:1 1 auto}
+@media(max-width:980px){#cx-entry-v2.reference-pinned{padding-inline-end:0}#cx-entry-v2 .reference-material.is-pinned{inset:76px 10px 10px;width:auto;max-height:none}}
+/* Nested-frame hierarchy comparison: compact 2px parent/child boundaries. */
+#cx-entry-v2 .scope{padding:10px;border:2px solid color-mix(in srgb,#ff7a21 72%,#d9e0df);border-radius:11px;background:color-mix(in srgb,#ff7a21 1.5%,var(--card));box-shadow:0 1px 3px rgba(76,62,45,.035)}
+#cx-entry-v2 .pos{margin-inline-start:7px;padding:8px;border:2px solid color-mix(in srgb,#d52d28 66%,#d9e0df);border-radius:9px;background:color-mix(in srgb,#d52d28 1.1%,transparent)}
+#cx-entry-v2 .sense{margin-inline-start:9px;padding:8px;border:2px solid color-mix(in srgb,#5555ff 62%,#d9e0df);border-radius:8px;background:color-mix(in srgb,#5555ff 1%,transparent)}
+#cx-entry-v2 .example{margin-inline-start:9px;padding:7px;border:2px solid color-mix(in srgb,#00a2e8 66%,#d9e0df);border-radius:8px;background:color-mix(in srgb,#00a2e8 1.1%,transparent)}
+#cx-entry-v2 .direct{margin-inline-start:7px;border:2px solid color-mix(in srgb,#5555ff 62%,#d9e0df);border-radius:8px;background:color-mix(in srgb,#5555ff 1%,transparent)}
+#cx-entry-v2 .scope+.scope,#cx-entry-v2 .pos+.pos,#cx-entry-v2 .sense+.sense,#cx-entry-v2 .example+.example{margin-block-start:9px}
+#cx-entry-v2.frames-hidden .scope,#cx-entry-v2.frames-hidden .pos,#cx-entry-v2.frames-hidden .sense,#cx-entry-v2.frames-hidden .example,#cx-entry-v2.frames-hidden .direct{border-color:transparent!important}
+#cx-entry-v2.is-readonly .definition-editor,#cx-entry-v2.is-readonly .example textarea.form-control:disabled,#cx-entry-v2.is-readonly .example .rich-editor{opacity:1!important;color:var(--foreground);-webkit-text-fill-color:var(--foreground);background:var(--background)!important}
+@media(max-width:760px){#cx-entry-v2 .definition-line,#cx-entry-v2 .example-grid{grid-template-columns:minmax(0,1fr) 34px}#cx-entry-v2 .definition-line>.tools,#cx-entry-v2 .example-grid>.example-side:first-child{grid-column:1/-1}}
+
+/* Optional structural view: implicit wrappers are visible without resembling disabled controls. */
+#cx-entry-v2 .structure-toolbar{display:flex;justify-content:flex-end;margin:-3px 0 1px}
+#cx-entry-v2 #structure-toggle[aria-pressed="true"]{border-color:#aabcb8;background:#edf4f2;color:#365f59;box-shadow:inset 0 0 0 1px rgba(75,111,104,.08)}
+#cx-entry-v2 .implicit-legend{display:none;align-items:center;gap:7px;margin:-4px 0 4px;padding:7px 10px;border:1px dashed #bdcbc8;border-radius:8px;background:#f7faf9;color:#667b77;font-size:12px}
+#cx-entry-v2.show-implicit-structure .implicit-legend{display:flex}
+#cx-entry-v2 .implicit-legend-mark{display:inline-flex;align-items:center;justify-content:center;min-width:27px;height:24px;padding:0 6px;border:1px dashed #9eaaa8;border-radius:7px;background:#f1f3f3;color:#788380;font-weight:800}
+#cx-entry-v2.show-implicit-structure .pos.is-single-grammar>.row>.pos-num,#cx-entry-v2.show-implicit-structure .sense.is-single-sense>.row>.sense-num{display:inline-flex;cursor:help}
+#cx-entry-v2.show-implicit-structure .pos.is-single-grammar>.row>.pos-num,#cx-entry-v2.show-implicit-structure .sense.is-implicit-empty>.row>.sense-num{border:1px dashed #9eaaa8!important;background:#eef1f1!important;color:#727d7b!important;box-shadow:none!important}
+#cx-entry-v2.show-implicit-structure .direct>.direct-implicit-marker{display:inline-flex}
+#cx-entry-v2 .direct-implicit-marker{display:none;align-items:center;justify-content:center;width:36px;height:34px;align-self:end;border:1px dashed #9eaaa8;border-radius:8px;background:#eef1f1;color:#727d7b;font-size:18px;font-weight:800;cursor:help}
+#cx-entry-v2.is-readonly:not(.show-implicit-structure) .sense.is-implicit-empty{display:none}
+#cx-entry-v2.is-readonly.show-implicit-structure .sense.is-implicit-empty{min-height:50px;border-style:dashed;background:color-mix(in srgb,#7f8b89 4%,transparent)}
+#cx-entry-v2.is-readonly.show-implicit-structure .sense.is-implicit-empty>:not(.row){display:none!important}
+#cx-entry-v2.is-readonly.show-implicit-structure .sense.is-implicit-empty>.row>.ie-slot,#cx-entry-v2.is-readonly.show-implicit-structure .sense.is-implicit-empty>.row>.remove-sense{display:none!important}
+#cx-entry-v2.is-readonly.show-implicit-structure .sense.is-implicit-empty>.row::after{content:"Sense · 义项 · implicit · 隐式 · automatically created · 自动创建";color:#788380;font-size:12px;font-weight:600}
+#cx-entry-v2:not(.has-homographs) .scope-head{display:none}
+#cx-entry-v2:not(.has-homographs) .scope-tools{display:none}
+#cx-entry-v2 #add-scope{display:none!important}
+#cx-entry-v2 .structure-choice{min-width:48px;padding:7px 13px;border-width:1px;font-size:17px;font-weight:800;line-height:1.15;letter-spacing:.01em}
+#cx-entry-v2 .structure-choice.add-homograph{border-color:#edb07f;background:#fff4eb;color:#b95b18}
+#cx-entry-v2 .structure-choice.add-pos{border-color:#e1a6a4;background:#fff0f0;color:#a82724}
+#cx-entry-v2 .structure-choice.add-direct-sense{border-color:#aaaaf2;background:#f1f1ff;color:#4b4bd2}
+#cx-entry-v2 .scope:not(:first-child) .add-homograph{display:none}
+#cx-entry-v2.has-homographs .scope:first-child .add-homograph{margin-inline-end:10px}
+#cx-entry-v2 .structure-choice:disabled{opacity:.42}
+#cx-entry-v2 .pos-select.pos-required{border-color:#d95855!important;box-shadow:0 0 0 3px rgba(213,45,40,.12)!important}
+#cx-entry-v2 .definition-point-tool{min-width:34px;font-size:17px;font-weight:800;color:#4f5fb8}
+#cx-entry-v2 .definition-point{display:block;margin:0;padding:0;text-indent:0}
+#cx-entry-v2 .definition-point-marker{display:inline-block;margin-inline-end:.32em;color:#4056bd;font-weight:750;white-space:nowrap;user-select:none}
+
+/* V5 cleanup */
+#cx-entry-v2 .ie-slot > .text-small { display:none !important; }
+#cx-entry-v2 .reference-material.is-comments.is-collapsed .comments-panel { display:none !important; }
+#cx-entry-v2 .reference-material.is-comments.is-collapsed .reference-header { display:flex; }
+
+
+/* FINAL: validation/warning messages */
+#cx-entry-v2 .status,#cx-entry-v2 [role="alert"],#cx-entry-v2 .validation-message,#cx-entry-v2 .warning-message,#cx-entry-v2 .field-error,#cx-entry-v2 .error-message{color:#c62828!important;}
+
+
+/* IDEAL V1 — four clearly aligned Style/Domain levels */
+#cx-entry-v2 .scope-head,
+#cx-entry-v2 .pos > .row{
+  flex-wrap:wrap;
+  align-items:center;
+}
+#cx-entry-v2 .scope-head .scope-tools,
+#cx-entry-v2 .pos > .row .grammar-tools{
+  display:flex;
+  flex:1 1 auto;
+  align-items:center;
+  gap:4px;
+  margin-inline-start:4px;
+  min-width:180px;
+}
+#cx-entry-v2 .scope-head .scope-tools .ie-slot,
+#cx-entry-v2 .pos > .row .grammar-tools .ie-slot{
+  flex:0 1 auto;
+  min-width:0;
+}
+#cx-entry-v2 .scope-head .remove-scope,
+#cx-entry-v2 .pos > .row .remove-pos{
+  margin-inline-start:auto;
+}
+#cx-entry-v2:not(.has-homographs) .scope-head .scope-tools{
+  display:none;
+}
+
+
+/* IDEAL V2 — improve Style/Domain visibility on Homograph and Grammar Group rows */
+#cx-entry-v2 .scope-head .scope-tools .tool,
+#cx-entry-v2 .pos > .row .grammar-tools .tool{
+  background:#fff !important;
+  border:1px solid #e3e6ea !important;
+  color:#5f6670 !important;
+  opacity:1 !important;
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+}
+#cx-entry-v2 .scope-head .scope-tools .tool:hover,
+#cx-entry-v2 .pos > .row .grammar-tools .tool:hover{
+  background:#f8f9fa !important;
+  color:#333 !important;
+}
+
+</style>
+<div class="shell"><header class="app-header"><div class="global-nav"><nav class="nav-tools" aria-label="Main tools · 主要工具"><button class="btn btn-ghost nav-icon" type="button" data-tooltip="Home · 首页"><i data-lucide="home"></i></button><button class="btn btn-ghost nav-icon" type="button" data-tooltip="Messages · 消息"><i data-lucide="mail"></i><span class="nav-badge">14</span></button><button class="btn btn-ghost nav-icon" type="button" data-tooltip="Notifications · 通知"><i data-lucide="bell"></i><span class="nav-badge">4</span></button><button class="btn btn-ghost nav-icon" type="button" data-tooltip="New Entry · 新建词条"><i data-lucide="file-plus-2"></i></button><button class="btn btn-ghost nav-icon" type="button" data-tooltip="Media · 媒体"><i data-lucide="image"></i></button><button class="btn btn-ghost nav-icon" type="button" data-tooltip="Statistics · 统计"><i data-lucide="calculator"></i></button><button class="btn btn-ghost nav-icon" type="button" data-tooltip="Editorial team · 编辑团队"><i data-lucide="users"></i></button></nav><input class="form-control global-search" aria-label="Search · 查找" placeholder="Search · 查找"><span class="role-chip" data-tooltip="Editor-in-Chief · 主编">EC</span><span class="role-chip" data-tooltip="Supervisor · 主管">SV</span><span class="user-name">Zurab M.</span><button class="btn btn-ghost nav-icon" type="button" data-tooltip="Sign out · 退出"><i data-lucide="log-out"></i></button></div><div class="editor-nav"><div class="editor-title">ENTRY EDITOR · 词目编辑</div><div class="stage-actions"><select class="form-select stage-select" id="stage-select" aria-label="Stage · 阶段"><option value="" selected disabled>Stage · 阶段</option><option value="new_entry">New Entry · 新建</option><option value="ch_review">CHT-review · 中文审核</option><option value="ge_review">GEL-review · 格文审核</option><option value="ready">Ready · 待发布</option><option value="published">Published · 已发布</option></select><div class="editor-actions"><button class="btn" id="frame-toggle" type="button" aria-pressed="true" data-tooltip="Show or hide hierarchy frames · 显示或隐藏层级边框"><i data-lucide="panels-top-left"></i> Frames · 边框</button><button class="btn" id="edit-entry" type="button">Edit · 编辑</button><button class="btn" id="cancel-edit" type="button" hidden>Cancel · 取消</button><button class="btn btn-primary" id="draft" type="button" disabled>Save · 保存</button><button id="transition" type="button" hidden aria-hidden="true" tabindex="-1"></button></div></div></div><div class="editor-meta"><span>Current editor · 当前编辑: <strong>Zurab M.</strong></span><span class="meta-separator">•</span><span>Role · 角色: <strong>Editor-in-Chief (EC) · 主编</strong></span><span class="meta-separator">•</span><span>Last edited · 最后编辑: <strong id="last-edited">2026-08-27 01:45 UTC</strong></span><button class="btn btn-ghost" id="history-toggle" type="button" aria-expanded="false"><i data-lucide="history"></i> History · 历史</button></div><div class="history-panel" id="history-panel"><div class="history-head"><strong>Editing history · 编辑历史</strong><span class="history-readonly">Read-only · 只读</span></div><table class="history-table"><thead><tr><th>Date and time · 日期和时间</th><th>Editor · 编辑</th><th>Action · 操作</th><th>Changed section · 修改部分</th><th>Summary · 摘要</th></tr></thead><tbody><tr><td>2026-08-27 01:45 UTC</td><td>Zurab M. (EC)</td><td>Entry edited · 编辑词目</td><td>Sense 2 · 义项 2</td><td>Definition clarified · 释义已澄清</td></tr><tr><td>2026-08-26 18:20 UTC</td><td>Natalia M. (CE)</td><td>Stage changed · 状态已更改</td><td>Stage · 状态</td><td>CHT-review · 中文审核 → GEL-review · 格文审核</td></tr></tbody></table></div></header>
+<div class="head"><input class="form-control headword-input" aria-label="Headword · 词目" placeholder="Headword · 词目"><div class="title-row"><div class="variants" id="pinyin"><span class="title-cell"><input class="form-control" aria-label="Pinyin · 拼音" placeholder="Pinyin · 拼音 (1–5)"><button class="btn btn-ghost remove-title" type="button" aria-label="Remove pinyin · 删除拼音"><i data-lucide="trash-2"></i></button></span></div><button class="btn btn-ghost title-add" data-repeat="pinyin" data-tooltip="Add pinyin · 添加拼音" aria-label="Add pinyin · 添加拼音" type="button"><i data-lucide="plus"></i></button></div><div class="title-row"><div class="variants" id="trad"><span class="title-cell"><input class="form-control" aria-label="Traditional form · 繁体字" placeholder="Traditional form · 繁体字 (0–3)"><button class="btn btn-ghost remove-title" type="button" aria-label="Remove traditional form · 删除繁体字"><i data-lucide="trash-2"></i></button></span></div><button class="btn btn-ghost title-add" data-repeat="trad" data-tooltip="Add traditional form · 添加繁体字" aria-label="Add traditional form · 添加繁体字" type="button"><i data-lucide="plus"></i></button></div></div>
+<div class="structure-toolbar"><button class="btn" id="structure-toggle" type="button" aria-pressed="false" data-tooltip="Show implicit structure · 显示隐式结构"><i data-lucide="braces"></i> Show structure · 显示结构</button></div><div class="implicit-legend" id="implicit-legend"><span class="implicit-legend-mark">G / S</span><span>Faded dashed markers are implicit and automatically created · 淡色虚线标记为隐式元素并自动创建</span></div><div id="scopes"></div><button class="btn" id="add-scope" type="button">+ Homograph · 添加同形词</button><div class="status text-small" id="status" aria-live="polite"></div>
+<section class="reference-material is-collapsed" id="reference-material" aria-labelledby="reference-title">
+<header class="reference-header"><div><div class="reference-heading"><span class="support-tabs"><button class="support-tab is-active" id="reference-title" type="button" role="tab" aria-selected="true" data-support-tab="reference">Reference materials · 参考资料</button><button class="support-tab" id="comments-tab" type="button" role="tab" aria-selected="false" data-support-tab="comments">Comments · 评论 <span class="comment-unread-count" id="comment-unread-count">2</span></button></span><span class="reference-badge">Internal editorial material · 仅供编辑使用</span></div><div class="reference-subtitle">Linked to this entry; excluded from the public article · 与本词目关联，不显示在公开词条中</div></div><div class="reference-actions"><span class="reference-font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost reference-font-control" id="reference-font-increase" type="button" data-tooltip="Increase text size · 放大文字">A+</button><button class="btn btn-ghost reference-font-control" id="reference-font-decrease" type="button" data-tooltip="Decrease text size · 缩小文字">A−</button></span><button class="btn" id="reference-edit" type="button"><i data-lucide="pencil"></i> Edit · 编辑</button><button class="btn" id="reference-raw-toggle" type="button"><i data-lucide="code-2"></i> Raw view · 原始文本</button><button class="btn" id="reference-pin" type="button"><i data-lucide="pin"></i> Pin · 固定</button><button class="btn btn-ghost" id="reference-collapse" type="button" aria-expanded="false"><i data-lucide="chevron-down"></i> Expand · 展开</button></div></header>
+<div class="reference-toolbar"><input class="form-control reference-search" id="reference-search" type="search" placeholder="Search within reference materials · 在参考资料中查找" aria-label="Search within reference materials · 在参考资料中查找"><nav class="reference-nav" aria-label="Reference groups · 资料分组"><button class="btn is-active" type="button" data-ref-filter="all">All · 全部</button><button class="btn" type="button" data-ref-filter="G1">G1</button><button class="btn" type="button" data-ref-filter="G2">G2</button><button class="btn" type="button" data-ref-filter="G3">G3</button><button class="btn" type="button" data-ref-filter="G4">G4</button><button class="btn" type="button" data-ref-filter="G5">G5</button></nav></div>
+<div class="reference-list" id="reference-list">
+<article class="reference-card" data-group="G1"><header class="reference-card-head"><div><span class="reference-group">G1</span> <span class="reference-card-title">Chinese–English · 汉英</span> <span class="reference-source">Source · 来源: 汉英词典</span></div><div class="reference-card-actions"><button class="btn btn-ghost reference-card-toggle" type="button" aria-label="Collapse G1"><i data-lucide="chevron-up"></i></button></div></header><div class="reference-content"><span class="han">都</span> dōu<br><span class="legacy-bullet">●</span> all; both; entirely: <span class="han">大家都来了。</span> Everyone has arrived.<br><span class="legacy-bullet">●●</span> even; already: <span class="han">都十二点了。</span> It is already twelve o’clock.</div></article>
+<article class="reference-card" data-group="G2"><header class="reference-card-head"><div><span class="reference-group">G2</span> <span class="reference-card-title">Chinese explanatory · 汉语释义</span> <span class="reference-source">Source · 来源: 现代汉语词典</span></div><div class="reference-card-actions"><button class="btn btn-ghost reference-card-toggle" type="button" aria-label="Collapse G2"><i data-lucide="chevron-up"></i></button></div></header><div class="reference-content"><span class="han">都</span> dōu<br><span class="legacy-bullet">●</span> <span class="han">表示总括全部。</span><br><span class="legacy-bullet">●●</span> <span class="han">表示“甚至、已经”等语气。</span></div></article>
+<article class="reference-card" data-group="G3"><header class="reference-card-head"><div><span class="reference-group">G3</span> <span class="reference-card-title">Chinese–Russian · 汉俄</span> <span class="reference-source">Source · 来源: 汉俄词典</span></div><div class="reference-card-actions"><button class="btn btn-ghost reference-card-toggle" type="button" aria-label="Collapse G3"><i data-lucide="chevron-up"></i></button></div></header><div class="reference-content"><span class="han">都</span> dōu<br><span class="legacy-bullet">●</span> все; оба; целиком, полностью.<br><span class="legacy-bullet">●●</span> даже; уже.</div></article>
+<article class="reference-card" data-group="G4"><header class="reference-card-head"><div><span class="reference-group">G4</span> <span class="reference-card-title">Other reference material · 其他参考资料</span></div><div class="reference-card-actions"><button class="btn btn-ghost reference-card-toggle" type="button" aria-label="Collapse G4"><i data-lucide="chevron-up"></i></button></div></header><div class="reference-content">ყველა, ორივე; მთლიანად. კონტექსტის მიხედვით შეიძლება გამოხატავდეს „უკვე“-ს ან „თუნდაც“-ს.</div></article>
+<article class="reference-card" data-group="G5"><header class="reference-card-head"><div><span class="reference-group">G5</span> <span class="reference-card-title">Additional information · 补充资料</span></div><div class="reference-card-actions"><button class="btn btn-ghost reference-card-toggle" type="button" aria-label="Collapse G5"><i data-lucide="chevron-up"></i></button></div></header><div class="reference-content">დამატებითი ინფორმაცია: შეადარეთ <span class="han">全、皆</span>.</div></article>
+</div>
+<pre class="reference-raw" id="reference-raw">都 dōu
+// all; both; entirely
+/// even; already
+**
+都 dōu
+// 表示总括全部。
+/// 表示“甚至、已经”等语气。
+***
+都 dōu
+// все; оба; целиком, полностью.
+****
+ყველა, ორივე; მთლიანად.
+*****
+დამატებითი ინფორმაცია: შეადარეთ 全、皆.</pre>
+<footer class="reference-foot"><span><span class="reference-badge">Parsed from legacy · 已从旧数据解析</span> <span class="reference-badge">G1–G5 order locked · 顺序已锁定</span></span><span id="reference-note" aria-live="polite"></span></footer>
+<section class="comments-panel" id="comments-panel" role="tabpanel" aria-labelledby="comments-tab">
+  <div class="comments-summary"><span><strong id="comment-total">4 comments · 4 条评论</strong> · chronological discussion · 按时间排列</span><span>Newest below · 最新在下</span></div>
+  <div class="comment-stream" id="comment-stream">
+    <article class="comment-item thread-start" data-comment-id="c1" data-thread-id="c1" data-author="Tamar M."><header class="comment-meta"><span class="comment-author">Tamar M.</span><span class="comment-role">CE · 汉外翻译编辑</span><time class="comment-time">27.08.2026, 21:18</time></header><div class="comment-text">გთხოვთ გადაამოწმოთ <a class="comment-entry-link" href="#" data-entry="老子">老子</a>-ს მეორე მნიშვნელობა და კავშირი <a class="comment-entry-link" href="#" data-entry="道德经">道德经</a>-თან.</div><div class="comment-actions"><button class="btn btn-ghost comment-reply" type="button">Reply · 回复</button></div></article>
+    <article class="comment-item" data-comment-id="c2" data-thread-id="c1" data-parent-id="c1" data-author="Zurab M."><header class="comment-meta"><span class="comment-author">Zurab M.</span><span class="comment-role">EC · 主编</span><span class="comment-flow-arrow">➔</span><span class="comment-recipient">Tamar M.</span><span class="comment-role">CE · 汉外翻译编辑</span><time class="comment-time">27.08.2026, 21:34</time></header><div class="comment-text">შევამოწმე. მეორე მნიშვნელობაში განმარტება უნდა დავაზუსტოთ; მაგალითი სწორია.</div><div class="comment-actions"><button class="btn btn-ghost comment-reply" type="button">Reply · 回复</button></div></article>
+    <article class="comment-item thread-start unread" data-comment-id="c3" data-thread-id="c3" data-author="Nino K."><header class="comment-meta"><span class="comment-author">Nino K.</span><span class="comment-role">GE · 格文编辑</span><time class="comment-time">28.08.2026, 09:12</time></header><div class="comment-text">ქართული განმარტების პირველი წინადადება სტილისტიკურად შესასწორებელია. სიტყვა „მამა“ აქ პირდაპირ ეკვივალენტად არ გამოდგება.</div><div class="comment-actions"><button class="btn btn-ghost comment-reply" type="button">Reply · 回复</button></div></article>
+    <article class="comment-item unread" data-comment-id="c4" data-thread-id="c3" data-parent-id="c3" data-author="Tamar M."><header class="comment-meta"><span class="comment-author">Tamar M.</span><span class="comment-role">CE · 汉外翻译编辑</span><span class="comment-flow-arrow">➔</span><span class="comment-recipient">Nino K.</span><span class="comment-role">GE · 格文编辑</span><time class="comment-time">28.08.2026, 10:06</time></header><div class="comment-text">დავამატე შენიშვნა <a class="comment-entry-link" href="#" data-entry="父亲">父亲</a>-თან შედარების შესახებ.</div><div class="comment-actions"><button class="btn btn-ghost comment-reply" type="button">Reply · 回复</button></div></article>
+  </div>
+  <div class="comment-composer"><div class="reply-banner" id="reply-banner"><span id="reply-label"></span><button class="btn btn-ghost" id="reply-cancel" type="button">Cancel reply · 取消回复</button></div><textarea class="form-control comment-input" id="comment-input" rows="2" placeholder="Write a comment · 撰写评论" aria-label="Write a comment · 撰写评论"></textarea><div class="comment-compose-actions"><span class="comment-author-note">Posting as Zurab M. · EC · 将以 Zurab M. · EC 身份发布</span><button class="btn btn-primary" id="comment-send" type="button"><i data-lucide="send"></i> Send · 发送</button></div><div class="comment-status" id="comment-status" aria-live="polite"></div></div>
+</section>
+<dialog class="private-message-dialog" id="private-message-dialog" aria-labelledby="private-message-title"><div class="private-message-head"><span id="private-message-title">Private message · 私人消息</span><button class="btn btn-ghost" id="private-message-close" type="button" aria-label="Close · 关闭">×</button></div><div class="private-message-body"><div class="private-message-recipient">To · 收件人: <strong id="private-message-recipient"></strong></div><textarea class="form-control private-message-input" id="private-message-input" placeholder="Write a private message · 撰写私人消息" aria-label="Write a private message · 撰写私人消息"></textarea><div class="private-message-actions"><button class="btn" id="private-message-cancel" type="button">Cancel · 取消</button><button class="btn btn-primary" id="private-message-send" type="button"><i data-lucide="send"></i> Send · 发送</button></div></div></dialog>
+</section>
+</div>
+<template id="scope-tpl"><section class="scope" data-scope><div class="scope-head"><span class="chip hom-index">H</span><input class="form-control hom-label grow" aria-label="Homograph label · 同形词标识" placeholder="Homograph label · 同形词标识 — Optional: character or pinyin · 可选：汉字或拼音"><div class="scope-tools"><div class="ie-slot" data-ie-slot="homograph"></div><button class="btn btn-ghost tool" data-tool="style" data-ie-target="homograph" type="button">Style · 语体</button><button class="btn btn-ghost tool" data-tool="domain" data-ie-target="homograph" type="button">Domain · 领域</button></div><button class="btn btn-ghost remove-scope" type="button"><i data-lucide="trash-2"></i></button></div><div class="mode"><span class="text-small text-muted">Start structure · 选择结构</span><button class="btn structure-choice add-homograph" type="button" data-tooltip="Add Homograph · 添加同形词">+H</button><button class="btn structure-choice add-pos" type="button" data-tooltip="Add part of speech (POS) · 添加词性">+POS</button><button class="btn structure-choice add-direct-sense" type="button" data-tooltip="Add Sense without POS · 添加无词性义项">+S</button></div><div class="content"></div></section></template>
+<template id="pos-tpl"><section class="pos" data-pos><div class="row"><span class="chip num pos-num grammar-mark" data-tooltip="Grammar group · 语法组"></span><select class="form-select pos-select grow" aria-label="Select part of speech (POS) · 请选择词性"><option value="">Select part of speech (POS) · 请选择词性</option><option value="名">名</option><option value="动">动</option><option value="形">形</option><option value="副">副</option><option value="介">介</option></select><div class="grammar-tools"><div class="ie-slot" data-ie-slot="grammar"></div><button class="btn btn-ghost tool" data-tool="style" data-ie-target="grammar" type="button">Style · 语体</button><button class="btn btn-ghost tool" data-tool="domain" data-ie-target="grammar" type="button">Domain · 领域</button></div><button class="btn btn-ghost remove-pos" type="button"><i data-lucide="trash-2"></i></button></div><div class="senses"></div><div class="actions"><button class="btn btn-ghost add-sense" type="button">+ Sense · 添加义项</button></div></section></template>
+<template id="sense-tpl"><section class="sense" data-sense><div class="row"><span class="chip num sense-num" data-tooltip="Sense · 义项"></span><div class="ie-slot grow" data-ie-slot="sense"></div><button class="btn btn-ghost remove-sense" type="button"><i data-lucide="trash-2"></i></button></div><div class="definition-line"><textarea class="form-control editable" rows="2" aria-label="Definition · 释义" placeholder="Enter definition · 请输入释义"></textarea><div class="tools"><div class="tool-row tool-row-top"><button class="btn btn-ghost tool" data-tool="style" data-ie-target="sense" type="button">Style · 语体</button><button class="btn btn-ghost tool" data-tool="domain" data-ie-target="sense" type="button">Domain · 领域</button><button class="btn btn-ghost tool definition-point-tool" data-tool="def-point" data-tooltip="Add numbered line · 添加带圈编号行" type="button">①</button></div><div class="tool-row tool-row-bottom"><button class="btn btn-ghost tool" data-tool="link" type="button">Link · 链接</button><button class="btn btn-ghost tool" data-tool="media" data-tooltip="Add media · 添加媒体" type="button"><i data-lucide="image-plus"></i></button><button class="btn btn-ghost tool" data-tool="abbr" type="button">Abbr. · 缩略语</button></div></div></div><div class="media text-small"></div><div class="examples"></div><button class="btn btn-ghost add-example" type="button">+ Example · 添加例句</button></section></template>
+<template id="example-tpl"><section class="example" data-example><div class="row"><span class="example-mark" data-tooltip="Example number (editor only) · 例句序号（仅编辑端）">E1</span><button class="btn btn-ghost remove-example" type="button"><i data-lucide="trash-2"></i></button></div><div class="example-grid"><div class="example-side"><textarea class="form-control" rows="1" aria-label="Chinese example · 中文例句" placeholder="Enter Chinese example · 请输入中文例句"></textarea><div class="tools"><button class="btn btn-ghost tool" data-tool="style" data-ie-target="example" type="button">Style · 语体</button><button class="btn btn-ghost tool" data-tool="domain" data-ie-target="example" type="button">Domain · 领域</button><button class="btn btn-ghost tool" data-tool="abbr" type="button">Abbr. · 缩略语</button><button class="btn btn-ghost tool" data-tool="link" type="button">Link · 链接</button><button class="btn btn-ghost tool" data-tool="media" data-tooltip="Add media · 添加媒体" type="button"><i data-lucide="image-plus"></i></button></div></div><div class="example-side"><div class="ie-slot" data-ie-slot="example"></div><textarea class="form-control editable" rows="1" aria-label="Georgian translation · 格文译文" placeholder="Enter Georgian translation · 请输入格文译文"></textarea></div></div><div class="media text-small"></div></section></template>
+<script>
+(()=>{
+  const r=document.getElementById('cx-entry-v2');
+  const inlineLimitStatus=r.querySelector('#status');
+  let savedInlineField=null;
+  let savedInlineRange=null;
+  document.addEventListener('selectionchange',()=>{
+    const selection=window.getSelection();
+    if(!selection||!selection.rangeCount)return;
+    const range=selection.getRangeAt(0);
+    const field=range.commonAncestorContainer.nodeType===Node.ELEMENT_NODE
+      ? range.commonAncestorContainer.closest?.('.rich-editor')
+      : range.commonAncestorContainer.parentElement?.closest('.rich-editor');
+    if(field&&r.contains(field)){
+      savedInlineField=field;
+      savedInlineRange=range.cloneRange();
+    }
+  });
+  r.addEventListener('pointerdown',event=>{
+    const button=event.target.closest('button.tool[data-tool="link"],button.tool[data-tool="abbr"]');
+    if(button)event.preventDefault();
+  },true);
+  const insertProtectedToken=(field,kind)=>{
+    const cachedRange=field===savedInlineField&&savedInlineRange&&field.contains(savedInlineRange.commonAncestorContainer)
+      ? savedInlineRange.cloneRange()
+      : null;
+    field.focus();
+    const selection=window.getSelection();
+    let range=cachedRange||(selection&&selection.rangeCount?selection.getRangeAt(0):null);
+    if(!range||!field.contains(range.commonAncestorContainer)){
+      range=document.createRange();
+      range.selectNodeContents(field);
+      range.collapse(false);
+    }
+    const before=document.createRange();
+    before.selectNodeContents(field);
+    before.setEnd(range.startContainer,range.startOffset);
+    const after=document.createRange();
+    after.selectNodeContents(field);
+    after.setStart(range.endContainer,range.endOffset);
+    const left=before.toString().slice(-1),right=after.toString().charAt(0);
+    const token=document.createElement('span');
+    token.className='inline-token '+(kind==='link'?'inline-link':'inline-abbr');
+    token.contentEditable='false';
+    token.dataset.inlineType=kind;
+    token.textContent=kind==='link'?'[link 词目]':'[abbr.]';
+    const fragment=document.createDocumentFragment();
+    if(left&&left!=='['&&!/\s/.test(left))fragment.append(document.createTextNode(' '));
+    fragment.append(token);
+    if(right&&right!==']'&&!/\s/.test(right))fragment.append(document.createTextNode(' '));
+    range.deleteContents();
+    range.insertNode(fragment);
+    range.setStartAfter(token);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    savedInlineField=field;
+    savedInlineRange=range.cloneRange();
+  };
+  r.addEventListener('click',e=>{
+    const markerRemove=e.target.closest('.ie-remove');
+    if(markerRemove){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if(r.classList.contains('is-readonly'))return;
+      markerRemove.closest('[data-ie-kind]')?.remove();
+      return;
+    }
+    const b=e.target.closest('button.tool');
+    if(!b||!['style','domain','link','abbr'].includes(b.dataset.tool))return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const kind=b.dataset.tool,block=b.closest('[data-scope],[data-pos],[data-sense],[data-example]');
+    if(kind==='link'||kind==='abbr'){
+      const f=block&&block.querySelector('.editable');
+      if(!f)return;
+      if(f.isContentEditable){insertProtectedToken(f,kind);return}
+      const start=f.selectionStart,end=f.selectionEnd,left=f.value[start-1],right=f.value[end],core=kind==='link'?'[link 词目]':'[abbr.]',prefix=left&&left!=='['&&!/\s/.test(left)?' ':'',suffix=right&&right!==']'&&!/\s/.test(right)?' ':'';
+      f.focus();
+      f.setRangeText(prefix+core+suffix,start,end,'end');
+      return;
+    }
+    const target=b.dataset.ieTarget,slot=block&&block.querySelector('[data-ie-slot="'+target+'"]');
+    if(!slot)return;
+    const kindCount=slot.querySelectorAll('[data-ie-kind="'+kind+'"]').length;
+    if(kindCount>=2){
+      inlineLimitStatus.textContent=kind==='style'
+        ? 'Maximum 2 Style markers · 最多添加2个语体标记'
+        : 'Maximum 2 Domain markers · 最多添加2个领域标记';
+      return;
+    }
+    const c=document.createElement('span');
+    c.className='chip marker-'+kind;
+    c.dataset.ieKind=kind;
+    const label=document.createElement('span');
+    const removeMarker=document.createElement('button');
+    label.textContent=kind==='style'?'〈书〉':'【数】';
+    removeMarker.className='ie-remove';
+    removeMarker.type='button';
+    removeMarker.setAttribute('aria-label',kind==='style'?'Remove style marker · 删除语体标记':'Remove domain marker · 删除领域标记');
+    removeMarker.setAttribute('title',kind==='style'?'Remove style marker · 删除语体标记':'Remove domain marker · 删除领域标记');
+    removeMarker.textContent='×';
+    c.append(label,removeMarker);
+    if(kind==='style')slot.insertBefore(c,slot.querySelector('.marker-domain'));
+    else slot.append(c);
+  },true);
+})();
+</script>
+<script>(()=>{const r=document.getElementById('cx-entry-v2'),S=r.querySelector('#scopes'),status=r.querySelector('#status'),clone=id=>r.querySelector(id).content.firstElementChild.cloneNode(true),icons=()=>window.lucide&&window.lucide.createIcons({attrs:{width:16,height:16}}),roman=n=>{const values=[[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];let out='';for(const [value,symbol] of values)while(n>=value){out+=symbol;n-=value}return out};let timer;const note=t=>{status.textContent=t;clearTimeout(timer);timer=setTimeout(()=>status.textContent='',2600)};function index(){[...S.querySelectorAll('[data-scope]')].forEach((s,k)=>{s.querySelector('.hom-index').textContent='H'+(k+1);const ps=[...s.querySelectorAll(':scope>.content>[data-pos]')];ps.forEach((p,i)=>{p.classList.toggle('numbered',ps.length>1);p.querySelector('.pos-num').textContent=roman(i+1);const ss=[...p.querySelectorAll(':scope>.senses>[data-sense]')];ss.forEach((x,j)=>{x.classList.toggle('numbered',ss.length>1);x.querySelector('.sense-num').textContent=j+1;[...x.querySelectorAll(':scope>.examples>[data-example]')].forEach((example,exampleIndex)=>example.querySelector('.example-mark').textContent='E'+(exampleIndex+1))})})});icons()}function addSense(p){const s=clone('#sense-tpl');p.querySelector('.senses').append(s);index();return s}function addPos(s){const p=clone('#pos-tpl');s.querySelector('.content').append(p);addSense(p);p.querySelector('select').focus()}function addScope(){const s=clone('#scope-tpl');S.append(s);index();return s}addScope();r.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='add-scope'){addScope().querySelector('.hom-label').focus();return}if(b.dataset.repeat){const py=b.dataset.repeat==='pinyin',list=r.querySelector(py?'#pinyin':'#trad'),max=py?5:3;if(list.children.length>=max){note('Maximum reached · 已达到上限');return}const x=document.createElement('input');x.className='form-control';x.placeholder=py?'pīnyīn '+(list.children.length+1):'繁体字 '+(list.children.length+1);list.append(x);x.focus();return}const scope=b.closest('[data-scope]'),pos=b.closest('[data-pos]'),sense=b.closest('[data-sense]');if(b.classList.contains('add-pos')){if(scope.querySelector('.direct'))note('Remove direct definition first · 请先删除直接释义');else addPos(scope)}if(b.classList.contains('add-direct')){if(scope.querySelector('[data-pos]'))note('Direct definition cannot be combined with POS · 直接释义不能与词性并用');else if(!scope.querySelector('.direct'))scope.querySelector('.content').append(clone('#direct-tpl'));index()}if(b.classList.contains('add-sense'))addSense(pos).querySelector('textarea').focus();if(b.classList.contains('add-example')){sense.querySelector('.examples').append(clone('#example-tpl'));index()}if(b.classList.contains('remove-example')){b.closest('[data-example]').remove();index()}if(b.classList.contains('remove-sense')){if(pos.querySelectorAll('[data-sense]').length===1)note('One implicit sense remains · 保留一个隐含义项');else b.closest('[data-sense]').remove();index()}if(b.classList.contains('remove-pos')){b.closest('[data-pos]').remove();index()}if(b.classList.contains('remove-direct')){b.closest('.direct').remove();index()}if(b.classList.contains('remove-scope')){if(S.children.length===1)note('At least one structure must remain · 至少保留一个结构');else{scope.remove();index()}}if(b.classList.contains('tool')){const block=b.closest('[data-sense],[data-example]'),kind=b.dataset.tool;if(kind==='style'||kind==='domain'){const c=document.createElement('span');c.className='chip';c.textContent=kind==='style'?'〈本〉':'【领域】';block.querySelector('.ie-slot').append(c)}else if(kind==='media')block.querySelector('.media').textContent='◉ Media attached · 已添加媒体';else{const f=block.querySelector('.editable'),v=kind==='abbr'?'[abbr.]':'[იხ. 词目]';f.focus();f.setRangeText(v,f.selectionStart,f.selectionEnd,'end')}}});r.querySelector('#draft').onclick=()=>{const now=new Date().toISOString().slice(0,16).replace('T',' ')+' UTC';r.querySelector('#last-edited').textContent=now;note('Saved without changing stage · 已保存，阶段未更改')};r.querySelector('#transition').onclick=()=>{const labels=[...r.querySelectorAll('.hom-label')].filter(x=>x.value.trim());if(labels.length===1){note('Add at least one more homograph · 请至少再添加一个同形词');labels[0].focus();return}if([...r.querySelectorAll('.direct-target')].some(x=>!x.value.trim())){note('Enter target entry · 请输入目标词目');return}note('Structure validated; stage may change · 结构验证通过，可以更改阶段')};r.querySelector('#history-toggle').onclick=()=>r.querySelector('#history-panel').classList.toggle('is-open');index()})();</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+  const inlineStatus=root.querySelector('#status');
+  const icons=()=>window.lucide&&window.lucide.createIcons({attrs:{width:16,height:16}});
+  const wrapLast=button=>queueMicrotask(()=>{
+    const list=root.querySelector(button.dataset.repeat==='pinyin'?'#pinyin':'#trad');
+    const input=list.lastElementChild;
+    if(!input||input.classList.contains('title-cell'))return;
+    const cell=document.createElement('span');
+    const remove=document.createElement('button');
+    cell.className='title-cell';
+    remove.className='btn btn-ghost remove-title';
+    remove.type='button';
+    remove.setAttribute('aria-label','Remove · 删除');
+    remove.innerHTML='<i data-lucide="trash-2"></i>';
+    list.insertBefore(cell,input);
+    cell.append(input,remove);
+    icons();
+  });
+  root.addEventListener('click',event=>{
+    const markerRemove=event.target.closest('.ie-remove');
+    if(markerRemove){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if(root.classList.contains('is-readonly'))return;
+      markerRemove.closest('[data-ie-kind]')?.remove();
+      return;
+    }
+    const remove=event.target.closest('.remove-title');
+    if(remove){event.preventDefault();remove.closest('.title-cell').remove();return;}
+    const repeat=event.target.closest('button[data-repeat]');
+    if(repeat){wrapLast(repeat);return;}
+    const tool=event.target.closest('button.tool');
+    if(!tool||!['style','domain'].includes(tool.dataset.tool))return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const owner=tool.closest('[data-scope],[data-pos],[data-sense],[data-example]');
+    const target=tool.dataset.ieTarget;
+    const slot=owner.querySelector('[data-ie-slot="'+target+'"]');
+    const kindCount=slot.querySelectorAll('[data-ie-kind="'+tool.dataset.tool+'"]').length;
+    if(kindCount>=2){
+      inlineStatus.textContent=tool.dataset.tool==='style'
+        ? 'Maximum 2 Style markers · 最多添加2个语体标记'
+        : 'Maximum 2 Domain markers · 最多添加2个领域标记';
+      return;
+    }
+    const chip=document.createElement('span');
+    chip.className='chip';
+    chip.dataset.ieKind=tool.dataset.tool;
+    const label=document.createElement('span');
+    const removeMarker=document.createElement('button');
+    label.textContent=tool.dataset.tool==='style'?'〈书〉':'【数】';
+    removeMarker.className='ie-remove';
+    removeMarker.type='button';
+    removeMarker.setAttribute('aria-label',tool.dataset.tool==='style'?'Remove style marker · 删除语体标记':'Remove domain marker · 删除领域标记');
+    removeMarker.setAttribute('title',tool.dataset.tool==='style'?'Remove style marker · 删除语体标记':'Remove domain marker · 删除领域标记');
+    removeMarker.textContent='×';
+    chip.append(label,removeMarker);
+    if(tool.dataset.tool==='style')slot.insertBefore(chip,slot.querySelector('[data-ie-kind="domain"]'));
+    else slot.append(chip);
+  },true);
+  root.addEventListener('change',event=>{
+    if(event.target.classList.contains('pos-select'))event.target.classList.toggle('has-value',Boolean(event.target.value));
+  });
+  icons();
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+  const status=root.querySelector('#status');
+  const normalizeLabel=value=>value.trim().replace(/\s+/gu,' ').replace(/(\S)\s*(\d+)$/u,'$1 $2');
+  const syncHomographs=()=>{
+    const scopes=[...root.querySelectorAll('[data-scope]')];
+    const counts=new Map();
+    scopes.forEach(scope=>{
+      const input=scope.querySelector('.hom-label');
+      const normalized=normalizeLabel(input.value);
+      input.value=normalized;
+      if(normalized){
+        const key=normalized.toLocaleLowerCase();
+        counts.set(key,(counts.get(key)||0)+1);
+      }
+    });
+    let hasDuplicates=false;
+    scopes.forEach((scope,index)=>{
+      const badge=scope.querySelector('.hom-index');
+      const input=scope.querySelector('.hom-label');
+      const label=input.value;
+      const number=index+1;
+      const duplicate=Boolean(label)&&counts.get(label.toLocaleLowerCase())>1;
+      hasDuplicates=hasDuplicates||duplicate;
+      input.classList.toggle('is-duplicate',duplicate);
+      input.setAttribute('aria-invalid',String(duplicate));
+      scope.classList.toggle('has-hom-label',Boolean(label)&&!duplicate);
+      badge.textContent=label||'H'+number;
+      badge.title=label
+        ? 'Homograph '+number+': '+label+' · 同形词 '+number+'（Click to edit · 点击修改）'
+        : 'Homograph '+number+' · 同形词 '+number+' — same written form with a separate lexical identity · 相同书写形式的独立词汇单位';
+    });
+    if(hasDuplicates)status.textContent='Duplicate homograph label · 同形词标识重复';
+    else if(status.textContent==='Duplicate homograph label · 同形词标识重复')status.textContent='';
+    return hasDuplicates;
+  };
+  root.addEventListener('focusout',event=>{
+    if(event.target.classList.contains('hom-label'))syncHomographs();
+  });
+  root.addEventListener('keydown',event=>{
+    if(event.target.classList.contains('hom-label')&&event.key==='Enter'){
+      event.preventDefault();
+      event.target.blur();
+    }
+  });
+  root.addEventListener('click',event=>{
+    const badge=event.target.closest('.hom-index');
+    if(badge){
+      const scope=badge.closest('[data-scope]');
+      const input=scope.querySelector('.hom-label');
+      if(input.value.trim()){
+        scope.classList.remove('has-hom-label');
+        requestAnimationFrame(()=>{input.focus();input.select()});
+      }
+      return;
+    }
+    queueMicrotask(syncHomographs);
+  });
+  root.addEventListener('change',event=>{
+    if(event.target.classList.contains('pos-select')){
+      event.target.title=event.target.value
+        ? 'Part of speech: '+event.target.value+' · 词性（Click to edit · 点击修改）'
+        : 'Select part of speech · 请选择词性';
+    }
+  });
+  root.addEventListener('click',event=>{
+    const saveAction=event.target.closest('#draft');
+    if(!saveAction)return;
+    if(syncHomographs()){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      root.querySelector('.hom-label.is-duplicate')?.focus();
+    }
+  },true);
+  syncHomographs();
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+  const makeControls=scope=>{
+    const controls=document.createElement('span');
+    controls.className='font-controls';
+    controls.dataset.fontScope=scope;
+    controls.innerHTML='<button class="btn btn-ghost font-control" type="button" data-font-delta="-1" title="Decrease text size · 缩小字号">A−</button><button class="btn btn-ghost font-control" type="button" data-font-delta="1" title="Increase text size · 放大字号">A+</button>';
+    return controls;
+  };
+  const upgradeRichField=textarea=>{
+    const editor=document.createElement('div');
+    editor.className=textarea.className+' rich-editor '+(textarea.closest('.definition-line')?'definition-editor':'example-translation-editor');
+    editor.contentEditable='true';
+    editor.setAttribute('role','textbox');
+    editor.setAttribute('aria-multiline','true');
+    editor.setAttribute('aria-label',textarea.getAttribute('aria-label')||'');
+    editor.dataset.placeholder=textarea.getAttribute('placeholder')||'';
+    editor.textContent=textarea.value;
+    textarea.replaceWith(editor);
+  };
+  const autoGrow=textarea=>{
+    textarea.rows=1;
+    textarea.style.height='auto';
+    textarea.style.height=textarea.scrollHeight+'px';
+  };
+  const upgradeAll=()=>{
+    root.querySelectorAll('.definition-line textarea.editable,.example textarea.editable').forEach(upgradeRichField);
+    root.querySelectorAll('.example textarea').forEach(autoGrow);
+    root.querySelectorAll('.definition-line').forEach(line=>{
+      if(!line.querySelector(':scope>.font-controls'))line.insertBefore(makeControls('definition'),line.querySelector(':scope>.tools'));
+    });
+    root.querySelectorAll('[data-example]>.example-grid').forEach(grid=>{
+      if(!grid.querySelector(':scope>.font-controls'))grid.append(makeControls('example'));
+    });
+  };
+  root.addEventListener('input',event=>{
+    if(event.target.matches('.example textarea'))autoGrow(event.target);
+  });
+  root.addEventListener('click',event=>{
+    const button=event.target.closest('.font-control');
+    if(!button)return;
+    event.preventDefault();
+    const controls=button.closest('.font-controls');
+    const owner=controls.dataset.fontScope==='definition'?button.closest('[data-sense]'):button.closest('[data-example]');
+    const fields=controls.dataset.fontScope==='definition'
+      ? owner.querySelectorAll('.definition-editor')
+      : owner.querySelectorAll('textarea,.rich-editor');
+    fields.forEach(field=>{
+      const current=parseFloat(getComputedStyle(field).fontSize);
+      const next=Math.min(40,Math.max(12,current+Number(button.dataset.fontDelta)));
+      field.style.fontSize=next+'px';
+      if(field.tagName==='TEXTAREA')autoGrow(field);
+    });
+  });
+  const observer=new MutationObserver(upgradeAll);
+  observer.observe(root.querySelector('#scopes'),{childList:true,subtree:true});
+  upgradeAll();
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+  const header=root.querySelector('.app-header');
+  const stickyBar=root.querySelector('.editor-nav');
+  const editorMeta=root.querySelector('.editor-meta');
+  const historyPanel=root.querySelector('.history-panel');
+  header.after(stickyBar,editorMeta,historyPanel);
+  const editButton=root.querySelector('#edit-entry');
+  const cancelButton=root.querySelector('#cancel-edit');
+  const saveButton=root.querySelector('#draft');
+  const stageSelect=root.querySelector('#stage-select');
+  const status=root.querySelector('#status');
+  let editing=false;
+  let snapshot=null;
+
+  const cleanEmptyRichEditor=editor=>{
+    if(!editor.matches('.rich-editor'))return;
+    const hasToken=Boolean(editor.querySelector('.inline-token'));
+    if(!hasToken&&!editor.textContent.replace(/\u200B/g,'').trim())editor.innerHTML='';
+  };
+
+  const editableControls=()=>[
+    ...root.querySelectorAll('.head input,.head button,#scopes input,#scopes select,#scopes textarea,#scopes button,#add-scope')
+  ];
+
+  const setEditing=value=>{
+    editing=value;
+    root.classList.toggle('is-readonly',!value);
+    editButton.hidden=value;
+    cancelButton.hidden=!value;
+    saveButton.disabled=!value;
+    stageSelect.disabled=!value;
+    editableControls().forEach(control=>control.disabled=!value);
+    root.querySelectorAll('.rich-editor').forEach(editor=>editor.contentEditable=String(value));
+  };
+
+  editButton.addEventListener('click',()=>{
+    snapshot={
+      head:root.querySelector('.head').innerHTML,
+      scopes:root.querySelector('#scopes').innerHTML,
+      stage:stageSelect.value
+    };
+    setEditing(true);
+    root.querySelector('.headword-input')?.focus();
+  });
+
+  cancelButton.addEventListener('click',()=>{
+    if(!window.confirm('Discard unsaved changes? · 放弃未保存的更改吗？'))return;
+    if(snapshot){
+      root.querySelector('.head').innerHTML=snapshot.head;
+      root.querySelector('#scopes').innerHTML=snapshot.scopes;
+      stageSelect.value=snapshot.stage;
+    }
+    setEditing(false);
+    status.textContent='Unsaved changes cancelled · 未保存的更改已取消';
+  });
+
+  root.addEventListener('input',event=>cleanEmptyRichEditor(event.target));
+  root.addEventListener('blur',event=>cleanEmptyRichEditor(event.target),true);
+
+  root.addEventListener('click',event=>{
+    if(!event.target.closest('#draft'))return;
+    queueMicrotask(()=>{
+      if(event.defaultPrevented)return;
+      const selectedStage=stageSelect.value;
+      setEditing(false);
+      snapshot=null;
+      status.textContent=selectedStage
+        ? 'Changes and selected stage saved · 更改及所选阶段已保存'
+        : 'Changes saved; stage unchanged · 更改已保存，阶段未改变';
+    });
+  });
+
+  const observer=new MutationObserver(()=>{
+    if(!editing)setEditing(false);
+  });
+  observer.observe(root.querySelector('#scopes'),{childList:true,subtree:true});
+  setEditing(false);
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+
+  const caretOffset=editor=>{
+    const selection=window.getSelection();
+    if(!selection||!selection.rangeCount||!editor.contains(selection.anchorNode))return null;
+    const range=document.createRange();
+    range.selectNodeContents(editor);
+    try{range.setEnd(selection.anchorNode,selection.anchorOffset)}catch{return null}
+    return range.toString().length;
+  };
+
+  const restoreCaret=(editor,offset)=>{
+    if(offset===null)return;
+    const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);
+    let node,remaining=offset;
+    while((node=walker.nextNode())){
+      if(remaining<=node.data.length){
+        const range=document.createRange();
+        range.setStart(node,remaining);
+        range.collapse(true);
+        const selection=window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return;
+      }
+      remaining-=node.data.length;
+    }
+  };
+
+  const formatBracketText=(editor,preserveCaret=true)=>{
+    if(!editor?.classList.contains('definition-editor'))return;
+    const offset=preserveCaret?caretOffset(editor):null;
+    editor.querySelectorAll('.bracket-italic').forEach(span=>span.replaceWith(...span.childNodes));
+    editor.normalize();
+    const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT,{
+      acceptNode:node=>node.parentElement.closest('.inline-token')
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT
+    });
+    const nodes=[];
+    while(walker.nextNode())nodes.push(walker.currentNode);
+    let insideBrackets=false;
+    nodes.forEach(node=>{
+      const text=node.data;
+      const startedInside=insideBrackets;
+      const fragment=document.createDocumentFragment();
+      let buffer='';
+      let changed=startedInside;
+      const flush=()=>{
+        if(!buffer)return;
+        if(insideBrackets){
+          const italic=document.createElement('span');
+          italic.className='bracket-italic';
+          italic.textContent=buffer;
+          fragment.append(italic);
+        }else fragment.append(document.createTextNode(buffer));
+        buffer='';
+      };
+      for(const character of text){
+        if(character==='['){
+          flush();
+          fragment.append(document.createTextNode('['));
+          insideBrackets=true;
+          changed=true;
+        }else if(character===']'){
+          flush();
+          fragment.append(document.createTextNode(']'));
+          insideBrackets=false;
+          changed=true;
+        }else buffer+=character;
+      }
+      flush();
+      if(changed)node.replaceWith(fragment);
+    });
+    restoreCaret(editor,offset);
+  };
+
+  root.addEventListener('input',event=>{
+    if(!event.isComposing)formatBracketText(event.target);
+  });
+  root.addEventListener('compositionend',event=>formatBracketText(event.target));
+  root.addEventListener('blur',event=>formatBracketText(event.target,false),true);
+})();
+</script>
+</div>
+
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+  const scopes=root.querySelector('#scopes');
+  const status=root.querySelector('#status');
+  const circled=['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+  let savedDefinitionField=null;
+  let savedDefinitionRange=null;
+
+  const syncDefinitionPoints=editor=>{
+    if(!editor)return;
+    [...editor.querySelectorAll('.definition-point-marker')].forEach((marker,index)=>{
+      const label=circled[index]||String(index+1);
+      if(marker.textContent!==label)marker.textContent=label;
+      marker.dataset.pointNumber=String(index+1);
+    });
+  };
+
+  document.addEventListener('selectionchange',()=>{
+    const selection=window.getSelection();
+    if(!selection||!selection.rangeCount)return;
+    const range=selection.getRangeAt(0);
+    const node=range.commonAncestorContainer.nodeType===Node.ELEMENT_NODE
+      ? range.commonAncestorContainer
+      : range.commonAncestorContainer.parentElement;
+    const editor=node?.closest?.('.definition-editor');
+    if(editor&&root.contains(editor)){
+      savedDefinitionField=editor;
+      savedDefinitionRange=range.cloneRange();
+    }
+  });
+
+  root.addEventListener('pointerdown',event=>{
+    if(event.target.closest('.definition-point-tool'))event.preventDefault();
+  },true);
+
+  root.addEventListener('click',event=>{
+    const button=event.target.closest('.definition-point-tool');
+    if(!button)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if(root.classList.contains('is-readonly'))return;
+    const sense=button.closest('[data-sense]');
+    const editor=sense?.querySelector('.definition-editor');
+    if(!editor)return;
+    const existing=editor.querySelectorAll('.definition-point').length;
+    if(existing>=20){
+      status.textContent='Maximum 20 numbered lines · 最多添加20个带圈编号行';
+      return;
+    }
+    const selection=window.getSelection();
+    let range=savedDefinitionField===editor&&savedDefinitionRange&&editor.contains(savedDefinitionRange.commonAncestorContainer)
+      ? savedDefinitionRange.cloneRange()
+      : null;
+    if(!range){
+      range=document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+    }
+    const block=document.createElement('div');
+    block.className='definition-point';
+    block.dataset.definitionPoint='true';
+    const marker=document.createElement('span');
+    marker.className='definition-point-marker';
+    marker.contentEditable='false';
+    marker.textContent=circled[existing];
+    const typingSpace=document.createTextNode('\u00A0');
+    block.append(marker,typingSpace);
+    range.deleteContents();
+    range.insertNode(block);
+    syncDefinitionPoints(editor);
+    const caret=document.createRange();
+    caret.setStart(typingSpace,1);
+    caret.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(caret);
+    savedDefinitionField=editor;
+    savedDefinitionRange=caret.cloneRange();
+    editor.focus();
+    editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertParagraph'}));
+  },true);
+
+  const markMissingPos=()=>{
+    scopes.querySelectorAll('.pos-select').forEach(select=>select.classList.toggle('pos-required',!select.value));
+  };
+
+  root.addEventListener('change',event=>{
+    if(event.target.classList.contains('pos-select'))event.target.classList.toggle('pos-required',!event.target.value);
+  });
+
+  root.addEventListener('click',event=>{
+    if(!event.target.closest('#draft'))return;
+    const missing=[...scopes.querySelectorAll('.pos-select')].filter(select=>!select.value);
+    if(!missing.length)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    missing.forEach(select=>select.classList.add('pos-required'));
+    status.textContent='Select POS for this grammar group · 请选择该语法组的词性';
+    missing[0].focus();
+  },true);
+
+  new MutationObserver(()=>queueMicrotask(()=>{
+    markMissingPos();
+    scopes.querySelectorAll('.definition-editor').forEach(syncDefinitionPoints);
+  })).observe(scopes,{childList:true,subtree:true});
+  markMissingPos();
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+  const scopes=root.querySelector('#scopes');
+  const senseTemplate=root.querySelector('#sense-tpl');
+  const status=root.querySelector('#status');
+
+  const syncDirectSensesAndExamples=()=>{
+    scopes.querySelectorAll('[data-scope]').forEach(scope=>{
+      const directSenses=[...scope.querySelectorAll(':scope>.content>.direct-sense[data-sense]')];
+      directSenses.forEach((sense,index)=>{
+        const single=directSenses.length===1;
+        sense.classList.toggle('is-single-sense',single);
+        sense.classList.toggle('numbered',!single);
+        const mark=sense.querySelector('.sense-num');
+        const label=single?'S':String(index+1);
+        if(mark.textContent!==label)mark.textContent=label;
+        mark.dataset.tooltip='Sense · 义项';
+      });
+    });
+    scopes.querySelectorAll('[data-sense]').forEach(sense=>{
+      const examples=[...sense.querySelectorAll(':scope>.examples>[data-example]')];
+      examples.forEach((example,index)=>{
+        const mark=example.querySelector('.example-mark');
+        const label=examples.length===1?'E':'E'+(index+1);
+        if(mark.textContent!==label)mark.textContent=label;
+      });
+    });
+  };
+
+  root.addEventListener('click',event=>{
+    const addSenseButton=event.target.closest('.add-direct-sense');
+    if(addSenseButton){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const scope=addSenseButton.closest('[data-scope]');
+      if(scope.querySelector(':scope>.content>[data-pos]')){
+        status.textContent='POS structure already exists · 已存在词性结构';
+        return;
+      }
+      const sense=senseTemplate.content.firstElementChild.cloneNode(true);
+      sense.classList.add('direct-sense');
+      scope.querySelector(':scope>.content').append(sense);
+      queueMicrotask(()=>{
+        syncDirectSensesAndExamples();
+        sense.querySelector('textarea,.rich-editor')?.focus();
+      });
+      return;
+    }
+
+    const addPosButton=event.target.closest('.add-pos');
+    if(addPosButton&&addPosButton.closest('[data-scope]')?.querySelector(':scope>.content>.direct-sense')){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      status.textContent='Remove POS-less Senses first · 请先删除无词性义项';
+      return;
+    }
+
+    const removeDirectSense=event.target.closest('.direct-sense .remove-sense');
+    if(removeDirectSense){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      removeDirectSense.closest('.direct-sense').remove();
+      queueMicrotask(syncDirectSensesAndExamples);
+    }
+  },true);
+
+  root.addEventListener('input',syncDirectSensesAndExamples);
+  new MutationObserver(()=>queueMicrotask(syncDirectSensesAndExamples)).observe(scopes,{childList:true,subtree:true});
+  syncDirectSensesAndExamples();
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+  const scopes=root.querySelector('#scopes');
+  const legacyAdd=root.querySelector('#add-scope');
+  const status=root.querySelector('#status');
+
+  const syncHomographMode=()=>{
+    const count=scopes.querySelectorAll(':scope>[data-scope]').length;
+    root.classList.toggle('has-homographs',count>=2);
+    scopes.querySelectorAll('.add-homograph').forEach(button=>{
+      button.disabled=count>=10||root.classList.contains('is-readonly');
+      button.dataset.tooltip=count>=10
+        ? 'Maximum 10 Homographs · 最多10个同形词'
+        : 'Add Homograph · 添加同形词';
+    });
+  };
+
+  root.addEventListener('click',event=>{
+    const button=event.target.closest('.add-homograph');
+    if(!button)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const count=scopes.querySelectorAll(':scope>[data-scope]').length;
+    if(count>=10){
+      status.textContent='Maximum 10 Homographs · 最多10个同形词';
+      return;
+    }
+    legacyAdd.click();
+    queueMicrotask(syncHomographMode);
+  },true);
+
+  new MutationObserver(()=>queueMicrotask(syncHomographMode)).observe(scopes,{childList:true});
+  new MutationObserver(syncHomographMode).observe(root,{attributes:true,attributeFilter:['class']});
+  syncHomographMode();
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+  const button=root.querySelector('#structure-toggle');
+  const scopes=root.querySelector('#scopes');
+  let visible=false;
+
+  const hasSenseContent=sense=>{
+    const editor=sense.querySelector('.definition-editor,.rich-editor,textarea.editable');
+    const definition=editor
+      ? ('value' in editor ? editor.value : editor.textContent).replace(/\u200B/g,'').trim()
+      : '';
+    return Boolean(
+      definition ||
+      sense.querySelector('[data-example]') ||
+      sense.querySelector('.media')?.textContent.trim()
+    );
+  };
+
+  const refresh=()=>{
+    scopes.querySelectorAll('[data-scope]').forEach(scope=>{
+      const groups=[...scope.querySelectorAll(':scope>.content>[data-pos]')];
+      groups.forEach(group=>{
+        const singleGroup=groups.length===1;
+        group.classList.toggle('is-single-grammar',singleGroup);
+        const groupMark=group.querySelector('.pos-num');
+        if(singleGroup){
+          if(groupMark.textContent!=='G')groupMark.textContent='G';
+          groupMark.dataset.tooltip='Implicit grammar group · 隐含语法组';
+        }else groupMark.dataset.tooltip='Grammar group · 语法组';
+        const senses=[...group.querySelectorAll(':scope>.senses>[data-sense]')];
+        senses.forEach(sense=>{
+          const singleSense=senses.length===1;
+          const implicitEmpty=singleSense&&!hasSenseContent(sense);
+          sense.classList.toggle('is-single-sense',singleSense);
+          sense.classList.toggle('is-implicit-empty',implicitEmpty);
+          const senseMark=sense.querySelector('.sense-num');
+          if(singleSense){
+            if(senseMark.textContent!=='S')senseMark.textContent='S';
+            senseMark.dataset.tooltip=implicitEmpty?'Implicit Sense · 隐含义项':'Sense · 义项';
+          }else senseMark.dataset.tooltip='Sense · 义项';
+        });
+      });
+    });
+  };
+
+  const apply=()=>{
+    root.classList.toggle('show-implicit-structure',visible);
+    button.setAttribute('aria-pressed',String(visible));
+    button.innerHTML=visible
+      ? '<i data-lucide="braces"></i> Hide structure · 隐藏结构'
+      : '<i data-lucide="braces"></i> Show structure · 显示结构';
+    button.dataset.tooltip=visible
+      ? 'Hide implicit structure · 隐藏隐式结构'
+      : 'Show implicit structure · 显示隐式结构';
+    refresh();
+    window.lucide&&window.lucide.createIcons({attrs:{width:16,height:16}});
+  };
+
+  button.addEventListener('click',()=>{visible=!visible;apply()});
+  root.addEventListener('input',refresh);
+  root.addEventListener('change',refresh);
+  new MutationObserver(()=>queueMicrotask(refresh)).observe(scopes,{childList:true,subtree:true});
+  apply();
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2'),button=root.querySelector('#frame-toggle'),storageKey='cx-entry-editor-hierarchy-frames';
+  let visible=true;
+  try{visible=localStorage.getItem(storageKey)!=='off'}catch{}
+  const apply=()=>{root.classList.toggle('frames-hidden',!visible);button.setAttribute('aria-pressed',String(visible));button.setAttribute('data-tooltip',visible?'Hide hierarchy frames · 隐藏层级边框':'Show hierarchy frames · 显示层级边框')};
+  button.addEventListener('click',()=>{visible=!visible;apply();try{localStorage.setItem(storageKey,visible?'on':'off')}catch{}});
+  apply();
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2'),panel=root.querySelector('#reference-material'),cards=[...panel.querySelectorAll('.reference-card')],note=panel.querySelector('#reference-note');
+  const activeGroups=new Set();
+  let noteTimer,referenceFontSize=15;
+  const say=text=>{note.textContent=text;clearTimeout(noteTimer);noteTimer=setTimeout(()=>note.textContent='',2200)};
+  const clearSearchMarks=()=>{panel.querySelectorAll('.reference-search-mark').forEach(mark=>mark.replaceWith(document.createTextNode(mark.textContent)));panel.querySelectorAll('.reference-content').forEach(content=>content.normalize())};
+  const markMatches=(card,query)=>{const content=card.querySelector('.reference-content'),walker=document.createTreeWalker(content,NodeFilter.SHOW_TEXT),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);nodes.forEach(node=>{const text=node.data,lower=text.toLocaleLowerCase(),fragment=document.createDocumentFragment();let cursor=0,index=lower.indexOf(query);if(index<0)return;while(index>=0){fragment.append(document.createTextNode(text.slice(cursor,index)));const mark=document.createElement('mark');mark.className='reference-search-mark';mark.textContent=text.slice(index,index+query.length);fragment.append(mark);cursor=index+query.length;index=lower.indexOf(query,cursor)}fragment.append(document.createTextNode(text.slice(cursor)));node.replaceWith(fragment)})};
+  const refresh=()=>{clearSearchMarks();const query=panel.querySelector('#reference-search').value.trim().toLocaleLowerCase();cards.forEach(card=>{const groupMatch=activeGroups.size===0||activeGroups.has(card.dataset.group);const textMatch=!query||card.textContent.toLocaleLowerCase().includes(query);card.hidden=!(groupMatch&&textMatch);if(groupMatch&&textMatch&&query)markMatches(card,query)});panel.querySelectorAll('[data-ref-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.refFilter==='all'?activeGroups.size===0:activeGroups.has(button.dataset.refFilter)))};
+  panel.querySelector('#reference-search').addEventListener('input',refresh);
+  panel.querySelector('.reference-nav').addEventListener('click',event=>{const button=event.target.closest('[data-ref-filter]');if(!button)return;const group=button.dataset.refFilter;if(group==='all')activeGroups.clear();else if(activeGroups.has(group))activeGroups.delete(group);else activeGroups.add(group);refresh()});
+  const setReferenceFontSize=next=>{referenceFontSize=Math.max(11,Math.min(27,next));panel.querySelectorAll('.reference-content').forEach(content=>content.style.fontSize=referenceFontSize+'px');panel.querySelector('#reference-raw').style.fontSize=Math.max(11,referenceFontSize-2)+'px';panel.querySelectorAll('.comment-text,.comment-input').forEach(content=>content.style.fontSize=referenceFontSize+'px');say((panel.classList.contains('is-comments')?'Comments text: ':'Reference text: ')+referenceFontSize+' px · '+(panel.classList.contains('is-comments')?'评论字号':'参考资料字号'))};
+  panel.querySelector('#reference-font-increase').addEventListener('click',()=>setReferenceFontSize(referenceFontSize+2));
+  panel.querySelector('#reference-font-decrease').addEventListener('click',()=>setReferenceFontSize(referenceFontSize-2));
+  panel.querySelector('#reference-pin').addEventListener('click',event=>{const pinned=panel.classList.toggle('is-pinned');root.classList.toggle('reference-pinned',pinned);event.currentTarget.innerHTML=pinned?'<i data-lucide="pin-off"></i> Unpin · 取消固定':'<i data-lucide="pin"></i> Pin · 固定';window.lucide&&window.lucide.createIcons({attrs:{width:16,height:16}})});
+  panel.querySelector('#reference-collapse').addEventListener('click',event=>{const collapsed=panel.classList.toggle('is-collapsed');event.currentTarget.setAttribute('aria-expanded',String(!collapsed));event.currentTarget.innerHTML=collapsed?'<i data-lucide="chevron-down"></i> Expand · 展开':'<i data-lucide="chevron-up"></i> Collapse · 收起';window.lucide&&window.lucide.createIcons({attrs:{width:16,height:16}})});
+  panel.querySelector('#reference-raw-toggle').addEventListener('click',event=>{const raw=panel.classList.toggle('is-raw');event.currentTarget.innerHTML=raw?'<i data-lucide="layout-list"></i> Card view · 分组视图':'<i data-lucide="code-2"></i> Raw view · 原始文本';window.lucide&&window.lucide.createIcons({attrs:{width:16,height:16}})});
+  panel.querySelector('#reference-edit').addEventListener('click',event=>{const editing=event.currentTarget.dataset.editing!=='true';event.currentTarget.dataset.editing=String(editing);if(editing){panel.querySelector('#reference-search').value='';refresh()}cards.forEach(card=>card.querySelector('.reference-content').contentEditable=String(editing));event.currentTarget.innerHTML=editing?'<i data-lucide="check"></i> Finish editing · 完成编辑':'<i data-lucide="pencil"></i> Edit · 编辑';say(editing?'Reference editing enabled · 已开启资料编辑':'Reference edits kept in prototype · 编辑内容已保留');window.lucide&&window.lucide.createIcons({attrs:{width:16,height:16}})});
+  panel.addEventListener('click',event=>{const toggle=event.target.closest('.reference-card-toggle');if(!toggle)return;const card=toggle.closest('.reference-card'),collapsed=card.classList.toggle('is-collapsed');toggle.innerHTML=collapsed?'<i data-lucide="chevron-down"></i>':'<i data-lucide="chevron-up"></i>';window.lucide&&window.lucide.createIcons({attrs:{width:16,height:16}})});
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2'),workspace=root.querySelector('#reference-material'),referenceTab=root.querySelector('[data-support-tab="reference"]'),commentsTab=root.querySelector('[data-support-tab="comments"]'),unreadBadge=root.querySelector('#comment-unread-count'),stream=root.querySelector('#comment-stream'),composer=root.querySelector('.comment-composer'),input=root.querySelector('#comment-input'),send=root.querySelector('#comment-send'),replyBanner=root.querySelector('#reply-banner'),replyLabel=root.querySelector('#reply-label'),replyCancel=root.querySelector('#reply-cancel'),status=root.querySelector('#comment-status'),total=root.querySelector('#comment-total'),messageDialog=root.querySelector('#private-message-dialog'),messageRecipient=root.querySelector('#private-message-recipient'),messageInput=root.querySelector('#private-message-input'),messageClose=root.querySelector('#private-message-close'),messageCancel=root.querySelector('#private-message-cancel'),messageSend=root.querySelector('#private-message-send');
+  const dictionaryTerms=['道德经','ლექსიკონი','словарь','父亲','老子','მამა'];
+  let replyTarget=null,statusTimer;
+  const say=text=>{status.textContent=text;clearTimeout(statusTimer);statusTimer=setTimeout(()=>status.textContent='',3200)};
+  const updateUnread=()=>{const count=stream.querySelectorAll('.comment-item.unread').length;unreadBadge.textContent=String(count);unreadBadge.classList.toggle('is-zero',count===0)};
+  const markRead=item=>{if(!item?.classList.contains('unread'))return;item.classList.remove('unread');updateUnread()};
+  const prepareMessageNames=scope=>scope.querySelectorAll('.comment-author,.comment-recipient').forEach(name=>{name.setAttribute('role','button');name.setAttribute('tabindex','0');name.setAttribute('title','Private message · 私人消息')});
+  const openPrivateMessage=name=>{messageRecipient.textContent=name;messageInput.value='';messageDialog.showModal();queueMicrotask(()=>messageInput.focus())};
+  const setTab=tab=>{const comments=tab==='comments';workspace.classList.toggle('is-comments',comments);if(comments)workspace.classList.remove('is-collapsed');referenceTab.classList.toggle('is-active',!comments);commentsTab.classList.toggle('is-active',comments);referenceTab.setAttribute('aria-selected',String(!comments));commentsTab.setAttribute('aria-selected',String(comments));if(comments)queueMicrotask(()=>{stream.scrollTop=stream.scrollHeight})};
+  referenceTab.addEventListener('click',()=>setTab('reference'));
+  commentsTab.addEventListener('click',()=>setTab('comments'));
+  const clearReply=()=>{replyTarget=null;replyBanner.classList.remove('is-open');replyLabel.textContent='';composer.classList.remove('is-inline-reply');stream.after(composer)};
+  replyCancel.addEventListener('click',clearReply);
+  stream.addEventListener('click',event=>{const item=event.target.closest('.comment-item');markRead(item);const person=event.target.closest('.comment-author,.comment-recipient');if(person){openPrivateMessage(person.textContent.trim());return}const reply=event.target.closest('.comment-reply');if(reply){replyTarget={id:item.dataset.commentId,threadId:item.dataset.threadId||item.dataset.commentId,author:item.dataset.author,role:item.querySelector('.comment-role')?.textContent||''};replyLabel.textContent='Replying to '+replyTarget.author+' · 正在回复 '+replyTarget.author;replyBanner.classList.add('is-open');const sameThread=[...stream.querySelectorAll('.comment-item')].filter(entry=>entry.dataset.threadId===replyTarget.threadId),last=sameThread.at(-1)||item;last.after(composer);composer.classList.add('is-inline-reply');composer.scrollIntoView({block:'nearest'});input.focus();return}const link=event.target.closest('.comment-entry-link');if(link){event.preventDefault();say('Dictionary entry link · 词目链接: '+link.dataset.entry)}});
+  stream.addEventListener('keydown',event=>{const person=event.target.closest('.comment-author,.comment-recipient');if(person&&(event.key==='Enter'||event.key===' ')){event.preventDefault();markRead(person.closest('.comment-item'));openPrivateMessage(person.textContent.trim())}});
+  const appendLinkedText=(container,text)=>{const escaped=dictionaryTerms.map(term=>term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length),pattern=new RegExp('('+escaped.join('|')+')','giu');let cursor=0,match;while((match=pattern.exec(text))){container.append(document.createTextNode(text.slice(cursor,match.index)));const link=document.createElement('a');link.href='#';link.className='comment-entry-link';link.dataset.entry=match[0];link.textContent=match[0];container.append(link);cursor=match.index+match[0].length}container.append(document.createTextNode(text.slice(cursor)))};
+  const timeLabel=()=>{const date=new Date(),pad=value=>String(value).padStart(2,'0');return `${pad(date.getDate())}.${pad(date.getMonth()+1)}.${date.getFullYear()}, ${pad(date.getHours())}:${pad(date.getMinutes())}`};
+  const submit=()=>{const text=input.value.trim();if(!text){say('Write a comment first · 请先撰写评论');input.focus();return}const id='c'+Date.now(),threadId=replyTarget?replyTarget.threadId:id,article=document.createElement('article');article.className=replyTarget?'comment-item':'comment-item thread-start';article.dataset.commentId=id;article.dataset.threadId=threadId;article.dataset.author='Zurab M.';if(replyTarget)article.dataset.parentId=replyTarget.id;const meta=document.createElement('header');meta.className='comment-meta';meta.innerHTML='<span class="comment-author">Zurab M.</span><span class="comment-role">EC · 主编</span>'+(replyTarget?'<span class="comment-flow-arrow">➔</span><span class="comment-recipient"></span><span class="comment-role comment-recipient-role"></span>':'')+'<time class="comment-time"></time>';if(replyTarget){meta.querySelector('.comment-recipient').textContent=replyTarget.author;meta.querySelector('.comment-recipient-role').textContent=replyTarget.role}meta.querySelector('time').textContent=timeLabel();article.append(meta);const body=document.createElement('div');body.className='comment-text';appendLinkedText(body,text);article.append(body);const actions=document.createElement('div');actions.className='comment-actions';actions.innerHTML='<button class="btn btn-ghost comment-reply" type="button">Reply · 回复</button>';article.append(actions);if(replyTarget){const targetComment=stream.querySelector('[data-comment-id="'+replyTarget.id+'"]');targetComment?targetComment.after(article):stream.append(article)}else stream.append(article);input.value='';const notified=replyTarget&&replyTarget.author;clearReply();const count=stream.querySelectorAll('.comment-item').length;total.textContent=count+' comments · '+count+' 条评论';article.scrollIntoView({block:'nearest'});say(notified?'Comment added; notification sent to '+notified+' · 评论已添加并已通知对方':'Comment added · 评论已添加')};
+  send.addEventListener('click',submit);
+  input.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();submit()}});
+  const closePrivateMessage=()=>messageDialog.close();
+  messageClose.addEventListener('click',closePrivateMessage);
+  messageCancel.addEventListener('click',closePrivateMessage);
+  messageDialog.addEventListener('click',event=>{if(event.target===messageDialog)closePrivateMessage()});
+  messageSend.addEventListener('click',()=>{const text=messageInput.value.trim();if(!text){messageInput.focus();return}const recipient=messageRecipient.textContent;messageDialog.close();say('Private message sent to '+recipient+' · 私人消息已发送给 '+recipient)});
+  messageInput.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();messageSend.click()}});
+  prepareMessageNames(stream);
+  new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{if(node.nodeType===1)prepareMessageNames(node.matches('.comment-item')?node:node)}))).observe(stream,{childList:true,subtree:true});
+  updateUnread();
+})();
+</script>
+<script>
+(()=>{
+  const root=document.getElementById('cx-entry-v2');
+  const scopes=root.querySelector('#scopes');
+  const workspace=root.querySelector('#reference-material');
+  const commentsTab=root.querySelector('#comments-tab');
+  const collapseButton=root.querySelector('#reference-collapse');
+
+  const syncExampleLabels=()=>{
+    scopes.querySelectorAll('[data-sense]').forEach(sense=>{
+      const examples=[...sense.querySelectorAll(':scope>.examples>[data-example]')];
+      examples.forEach((example,index)=>{
+        const marker=example.querySelector('.example-mark');
+        const label=examples.length===1?'E':'E'+(index+1);
+        if(marker&&marker.textContent!==label)marker.textContent=label;
+      });
+    });
+  };
+
+  commentsTab.addEventListener('click',()=>queueMicrotask(()=>{
+    if(workspace.classList.contains('is-collapsed'))return;
+    collapseButton.setAttribute('aria-expanded','true');
+    collapseButton.innerHTML='<i data-lucide="chevron-up"></i> Collapse · 收起';
+    window.lucide&&window.lucide.createIcons({attrs:{width:16,height:16}});
+  }));
+
+  root.addEventListener('click',()=>queueMicrotask(syncExampleLabels));
+  new MutationObserver(()=>queueMicrotask(syncExampleLabels)).observe(scopes,{childList:true,subtree:true});
+  syncExampleLabels();
+})();
+</script>
+<script id="codex-visualization-floating-ui-core" src="https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js"></script>
+<script id="codex-visualization-floating-ui-dom" src="https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js"></script>
+<script id="codex-visualization-lucide" async src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js"></script>
+<script id="codex-visualization-tooltip">/* oxlint-disable typescript/no-unsafe-argument, typescript/no-unsafe-call, typescript/no-unsafe-return */
+// Runs inside the visualization sandbox, not the host webview.
+(() => {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set(["top", "right", "bottom", "left"]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =>
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest("[data-tooltip]")
+      : null;
+  const containsTarget = (trigger, target) =>
+    target?.nodeType != null && trigger.contains(target);
+  const getContent = (trigger) =>
+    trigger.getAttribute("data-tooltip")?.trim() ?? "";
+  const getPlacement = (trigger) => {
+    const placement = trigger.getAttribute("data-tooltip-placement");
+    return tooltipPlacements.has(placement) ? placement : "top";
+  };
+  const getTooltip = () => {
+    if (tooltip == null) {
+      tooltip = document.createElement("div");
+      tooltip.id = tooltipId;
+      tooltip.className = "tooltip";
+      tooltip.setAttribute("role", "tooltip");
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) => {
+    const ids = new Set(
+      (trigger.getAttribute("aria-describedby") ?? "")
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute("aria-describedby");
+    } else {
+      trigger.setAttribute("aria-describedby", [...ids].join(" "));
+    }
+  };
+  const clearOpenTimeout = () => {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) => {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) => {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              "--tooltip-available-width",
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              "--tooltip-available-height",
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: "fixed",
+    })
+      .then(({ x, y }) => {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = "visible";
+      })
+      .catch(() => {
+        if (activeTrigger === trigger && request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) => {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = "hidden";
+    floating.style.transform = "translate(0, 0)";
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () => {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) => {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() < skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() => {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) => {
+    if (event.pointerType === "touch") {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) => {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) => {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(":focus-visible")) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) => {
+    if (event.key === "Escape") {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) => {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () => {
+    closeTooltip(false);
+    document.removeEventListener("pointerover", handlePointerOpen);
+    document.removeEventListener("pointerout", handleLeave);
+    document.removeEventListener("focusin", handleFocusIn);
+    document.removeEventListener("focusout", handleLeave);
+    document.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("contextmenu", handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener("pointerover", handlePointerOpen);
+  document.addEventListener("pointerout", handleLeave);
+  document.addEventListener("focusin", handleFocusIn);
+  document.addEventListener("focusout", handleLeave);
+  document.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("contextmenu", handleContextMenu);
+  window.addEventListener("pagehide", destroy, { once: true });
+})();
+</script>
+<script id="codex-visualization-lucide-initialization">(() => {
+  const initialize = () => {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById("codex-visualization-lucide")
+    ?.addEventListener("load", initialize, { once: true });
+})();
+</script>
+</body>
+</html>

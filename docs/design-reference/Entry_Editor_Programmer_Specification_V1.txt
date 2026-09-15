@@ -1,0 +1,743 @@
+CHINESE.GE
+Entry Editor Core Data Model & Programmer Specification — ძირითადი Data Model და Programmer Specification
+რედაქტორის ახალი სტრუქტურული მოდელი — პროგრამისტების სამუშაო სპეციფიკაცია
+Version 1.0  |  30 August 2026
+დოკუმენტის სტატუსი: შეთანხმებული Phase 1 core specification. UI baseline: CHINESE_GE_Entry_Editor_IDEAL_V2.html. 
+ეს დოკუმენტი განსაზღვრავს მონაცემთა მოდელს, კარდინალურობას, ვალიდაციას, მემკვიდრეობას, UI-ის სავალდებულო ქცევას და migration/parser საზღვრებს.
+
+ძირითადი პრინციპი: AI ან პროგრამა არ იღებს ლექსიკოგრაფიულ გადაწყვეტილებას რედაქტორის ნაცვლად. სისტემა ასრულებს მხოლოდ განსაზღვრულ, დეტერმინისტულ სტრუქტურულ წესებს.
+
+1. მიზანი და ფარგლები
+ეს სპეციფიკაცია აღწერს CHINESE.GE-ის ახალი Entry Editor-ის Phase 1 core lexical data model-ს. მისი მიზანია არსებული დაახლოებით 77,000 სტატიის მიგრაციისა და შემდგომი რედაქტირებისათვის ერთიანი, მკაცრად სტრუქტურირებული მონაცემთა არქიტექტურის შექმნა, ისე რომ legacy parser-ის ტექნიკური segmentation არ გადაიქცეს ახალ semantic schema-დ.
+Scope-ში შედის: Entry, Pronunciation, Traditional Form, Homograph, Grammar Group/POS, Sense, Definition, XR, Example, Style/Domain, ordering, stable IDs, validation და inheritance.
+Scope-ს გარეთ, Phase 2-ში რჩება: Example Pinyin, Example audio/TTS, Entry pronunciation audio upgrade, media/image subsystem-ის საბოლოო დიზაინი (ეს მომავალი ეტაპის მიზანია).
+POS, Style, Domain და XR type გამოიყენებს უკვე არსებულ fixed controlled vocabularies-ს; free-text კატეგორიები დაუშვებელია.
+2. არქიტექტურული პრინციპები
+№
+პრინციპი
+სავალდებულო შედეგი
+2.1
+Semantic structure ≠ parser segmentation სემანტიკური სტრუქტურა ≠ პარსერის მიერ შესრულებული სეგმენტაცია
+ZH_RUN, KA_RUN, ZH_SEGMENT, KA_SEGMENT, DBL_ZH_RUN, LINKISH_RUN არ იქმნება ახალ semantic entities-ად.
+2.2
+Stable identity ობიექტის მუდმივი იდენტობა
+Reorderable object-ს აქვს stable ID; პოზიცია ინახება ცალკე order-ით.
+2.3
+Display numbering ≠ identity ეკრანზე ნაჩვენები ნუმერაცია ≠ ობიექტის იდენტობა
+Homograph 2 / Grammar Group II / Sense 3 არის UI display, არა persistent identifier.
+2.4
+Editor decides semantics სემანტიკურ სტრუქტურას რედაქტორი განსაზღვრავს
+პროგრამა არ განსაზღვრავს, სჭირდება თუ არა Entry-ს Homographs, რომელ POS-ს ან Style-ს ეკუთვნის მნიშვნელობა და სხვ.
+2.5
+Derived UI values are not duplicated in DB UI-ში გამოთვლილი მნიშვნელობები მონაცემთა ბაზაში არ დუბლირდება
+Homograph display label და inherited Style/Domain გამოითვლება runtime-ში.
+2.6
+New Entry stage is permissive, stage transition is strict New Entry · 新建 ეტაპზე მოქმედებს მოქნილი წესები, ხოლო შემდეგ ეტაპზე გადასვლისას — მკაცრი ვალიდაცია.
+New Entry新建-ში structural incompleteness უმეტესად WARNING + Save allowed; New Entry 新建  → CHT-review中文审核-ზე full validation და blocking ERROR. 
+
+3. Core lexical hierarchy — ძირითადი ლექსიკური იერარქია
+ENTRY├── PRONUNCIATION [0..6]├── TRADITIONAL_FORM [0..n]├── HOMOGRAPH [0 or 2..n]│   ├── Style [0..2]│   ├── Domain [0..2]│   ├── GRAMMAR_GROUP [0..n]│   │   └── SENSE [1..n]│   └── SENSE [0..n]└── OR DIRECT CONTENT    ├── GRAMMAR_GROUP [0..n]    │   └── SENSE [1..n]    └── SENSE [0..n]
+SENSE├── Style [0..2]├── Domain [0..2]├── DEFINITION [0..1]├── XR [0..n]│   └── XR_TARGET [1..n]└── EXAMPLE [0..n]    ├── source_text    ├── target_text    ├── Style [0..2]    └── Domain [0..2]
+
+4. Entity summary — Entity-ების შეჯამება
+Entity
+Parent
+Cardinality
+Stable ID
+order
+ENTRY
+—
+1
+entry_id
+—
+PRONUNCIATION
+ENTRY
+0..6
+pronunciation_id
+Yes
+TRADITIONAL_FORM
+ENTRY
+0..n
+traditional_form_id
+Yes
+HOMOGRAPH
+ENTRY
+0 or 2..n
+homograph_id
+Yes
+GRAMMAR_GROUP
+ENTRY or HOMOGRAPH
+0..n
+grammar_group_id
+Yes
+SENSE
+ENTRY / HOMOGRAPH / GRAMMAR_GROUP
+0..n; Grammar Group requires ≥1 when complete
+sense_id
+Yes
+DEFINITION
+SENSE
+0..1
+definition_id
+No ordering needed
+XR
+SENSE
+0..n
+xr_id
+Yes
+XR_TARGET
+XR
+1..n when XR complete
+xr_target_id
+Yes
+EXAMPLE
+SENSE
+0..n
+example_id
+Yes
+
+5. ENTRY
+Field
+Type / relation
+სავალდებულო
+წესი
+entry_id
+PK
+Yes
+Stable unique ID.
+headword
+text
+Yes
+Global unique. Duplicate headword = ERROR.
+pronunciations
+1:n relation
+Conditionally
+0 დასაშვებია მხოლოდ New Entry新建-ში; CHT-review中文审核 საჭიროა 1..6.
+traditional_forms
+1:n relation
+No
+0..n.
+homographs
+1:n relation
+No
+Either 0 or ≥2; exactly 1 is invalid.
+direct lexical content
+relations
+No
+შეიძლება არსებობდეს მხოლოდ მაშინ, როდესაც Homograph mode არ გამოიყენება.
+
+5.1 Entry mode
+Homograph mode XOR Direct lexical mode
+Entry შეიძლება შეიცავდეს Homograph-ებს ან Direct Grammar Group/Sense-ებს, მაგრამ დასრულებულ სტატიაში ეს ორი Lexical mode ერთდროულად არ უნდა არსებობდეს.
+Context
+Condition
+Severity
+Action
+New Entry新建
+Mixed direct + Homograph structure
+WARNING
+Save allowed.
+New Entry新建→ CHT-review中文审核
+Mixed direct + Homograph structure
+ERROR
+Transition blocked.
+Any
+Duplicate headword
+ERROR
+Duplicate Entry Valid new Entry-დ არ უნდა შეინახოს.
+
+6. PRONUNCIATION
+PRONUNCIATION├── pronunciation_id├── entry_id├── pinyin└── order
+წესი
+ქცევა
+Maximum
+თითო Entry-ზე მაქსიმუმ 6 განსხვავებული Pronunciation.
+Duplicate pronunciation
+ერთ Entry-ში ერთი და იგივე Pinyin ორჯერ = ERROR.
+Storage
+თითოეული განსხვავებული Pronunciation ერთხელ ინახება. რამდენიმე Homograph შეიძლება ერთსა და იმავე pronunciation_id-ს უკავშირდებოდეს.
+Draft
+0 Pronunciation = WARNING; Save allowed.
+Transition
+New Entry新建→ CHT-review中文审核-ზე 0 Pronunciation = ERROR; Transition blocked.
+
+7. TRADITIONAL_FORM
+TRADITIONAL_FORM├── traditional_form_id├── entry_id├── text├── order└── homograph_id [nullable]
+Condition
+მნიშვნელობა / Validation
+homograph_id = NULL
+Traditional Form მთლიან Entry-ს ეხება.
+homograph_id = specific ID
+Traditional Form კონკრეტულ Homograph-ს ეხება.
+0 forms
+დასაშვებია.
+1+ forms
+დასაშვებია; Fixed technical maximum არ არის.
+Empty added field
+WARNING/Reminder; Save allowed; Empty object/value არ უნდა შეინახოს.
+Traditional form = headword
+WARNING.
+Duplicate traditional form within same Entry
+ERROR.
+
+8. HOMOGRAPH
+HOMOGRAPH├── homograph_id├── entry_id├── pronunciation_id├── order├── Style [0..2]├── Domain [0..2]├── GRAMMAR_GROUP [0..n]└── SENSE [0..n]
+წესი
+ქცევა
+Cardinality
+0 ან 2..n. ზუსტად ერთი Homograph დაუშვებელია.
+First Add Homograph action
+System ერთდროულად ქმნის ორ Homograph block-ს.
+Subsequent Add Homograph
+ამატებს ერთ დამატებით Homograph-ს.
+Who decides Homograph structure
+მხოლოდ Editor. Application არასოდეს გამოიცნობს, სჭირდება თუ არა Entry-ს Homograph-ები.
+Missing pronunciation in New Entry · 新建
+WARNING; Save allowed. (როცა ფინინ მითითებული არ არის)
+Missing pronunciation at transition
+ERROR; Transition blocked.
+No Sense/Grammar Group in  New Entry · 新建
+WARNING; Save allowed.
+No Sense/Grammar Group at transition
+ERROR, transition blocked. (Agreed B variant.)
+
+9. Homograph display label — Live derived UI value
+Homograph label Editing-ის დროს გენერირდება, Editor-ის მიერ მინიჭებული Pronunciation-ის შეცვლისთანავე. Save საჭირო არ არის. Label ცალკე DB field-ად არ ინახება.
+Input
+Source
+headword
+ENTRY. headword
+pronunciation
+HOMOGRAPH.pronunciation_id → PRONUNCIATION.pinyin
+whole Entry order
+HOMOGRAPH.order
+sibling distribution
+All sibling Homographs and their pronunciation_id values
+
+9.1 Algorithm ალგორითმი
+IF  (თუ)
+any Homograph has no pronunciation assigned (რომელიმე Homograph-ს გამოთქმა არ აქვს მინიჭებული:):
+show neutral working label (e.g. Homograph 2) for that block; do not guess.  (ამ ბლოკისთვის აჩვენე ნეიტრალური სამუშაო წარწერა, მაგალითად, Homograph 2; გამოთქმა ვარაუდით არ განსაზღვრო.)
+ELSE IF all Homographs use the same pronunciation: (სხვა შემთხვევაში, თუ ყველა Homograph-ს ერთი და იგივე გამოთქმა აქვს:)
+ label = headword + sequential Homograph number  (წარწერა = სათაური + Homograph-ის რიგითი ნომერი)
+ELSE: (სხვა შემთხვევაში:)
+FOR each Homograph: (თითოეული Homograph-ისთვის:)
+IF its pronunciation occurs once among sibling Homographs: (თუ მისი გამოთქმა იმავე Entry-ში შემავალ Homograph-ებს შორის მხოლოდ ერთხელ გვხვდება:)
+label = pronunciation (წარწერა = გამოთქმა)
+ ELSE:  (სხვა შემთხვევაში:)
+label = pronunciation + sequence number within that pronunciation subgroup (წარწერა = გამოთქმა + რიგითი ნომერი ამავე გამოთქმის მქონე Homograph-ების ქვეჯგუფში)
+9.2 მაგალითები
+和     -----     H1→hé  H2→hé  H3→hé  H4→hè  H5→hú  H6→huó  H7→huò  H8→huò                      Display: hé 1 | hé 2 | hé 3 | hè | hú | huó | huò 1 | huò 2从     --------       H1→cóng  H2→cóng
+                      Display: 从 1 | 从 2
+Important: display label may change live when another Homograph is added or its pronunciation changes. This changes only presentation; stable homograph_id and lexical content remain unchanged. - მნიშვნელოვანია: ეკრანზე ნაჩვენები წარწერა შეიძლება ავტომატურად შეიცვალოს სხვა Homograph-ის დამატებისას ან მისი გამოთქმის შეცვლისას. ეს ცვლილება ეხება მხოლოდ ეკრანზე წარმოდგენას; მუდმივი homograph_id და სალექსიკონო შინაარსი უცვლელი რჩება.
+
+10. GRAMMAR_GROUP / POS
+GRAMMAR_GROUP├── grammar_group_id├── parent (ENTRY or HOMOGRAPH)├── POS [exactly 1 when complete]├── Style [0..2]├── Domain [0..2]├── order└── SENSE [1..n when complete]
+წესი
+ქცევა
+Creation
+UI action: Add part of speech (POS) · 添加词性 creates one Grammar Group.
+POS cardinality
+Exactly one POS per Grammar Group.
+Multiple POS values
+გამოყენებულ იქნეს ცალკე Grammar Group-ები; ერთ Group-ში POS = 名, 动 დაუშვებელია.
+Multiple meanings under same POS
+ერთ Grammar Group-ში გამოყენებულ იქნეს რამდენიმე Sense.
+Missing POS in New Entry · 新建
+WARNING; Save allowed.
+Missing POS at transition
+ERROR; Transition blocked.
+No Sense in New Entry · 新建
+WARNING; Save allowed.
+No Sense at transition
+ERROR; Transition blocked.
+Duplicate same POS under same immediate parent
+ERROR; Save blocked. Duplicate POS groups must be merged and their meanings divided into separate Senses. (შეცდომა; შენახვა იბლოკება. განმეორებული POS-ჯგუფები უნდა გაერთიანდეს, ხოლო მათი მნიშვნელობები ცალკეულ Sense-ებად დაიყოს.)
+Same POS in different Homographs
+ნორმალურია; WARNING არ არის.
+Roman numbering
+მიიღება order-იდან; თუ მხოლოდ ერთი Grammar Group-ია, Roman numeral შეიძლება დაიმალოს.
+
+11. SENSE
+SENSE├── sense_id├── parent (ENTRY / HOMOGRAPH / GRAMMAR_GROUP)├── order├── Style [0..2]├── Domain [0..2]├── DEFINITION [0..1]├── XR [0..n]└── EXAMPLE [0..n]
+წესი
+ქცევა
+Sense exists structurally
+მაშინაც კი, როდესაც სტატიას მხოლოდ ერთი მნიშვნელობა აქვს.
+Direct Sense
+დასაშვებია პირდაპირ Entry-ის ან Homograph-ის ქვეშ, როდესაც POS არ არსებობს, მაგრამ მნიშვნელობას Style აკლასიფიცირებს.
+Numbering
+მიიღება order-იდან; ერთი Sense შეიძლება ნომრის გარეშე გამოჩნდეს. Numbering ყოველ შესაბამის Parent-ში თავიდან იწყება.
+Completed content
+Sense უნდა შეიცავდეს Definition-ს ან XR-ს.
+Example-only Sense
+Incomplete. (ეს დაუშვებელია და სტადიის შეცვლისას იბლოკება)
+Empty Sense in New Entry · 新建
+WARNING; Save allowed.
+Empty / Example-only Sense at transition
+ERROR; Transition blocked.
+
+12. DEFINITION
+DEFINITION├── definition_id├── sense_id└── text
+ერთი Sense არასოდეს შეიცავს რამდენიმე დამოუკიდებელ Definition-ს. რამდენიმე სინონიმური ქართული ეკვივალენტი, მაგალითად „გრძელი; ხანგრძლივი; დიდხნიანი“, წარმოადგენს ერთ Definition text-ს.
+წესი
+ქცევა
+Cardinality
+Sense → Definition [0..1].
+Empty Definition text
+დაუშვებელია, თუ Completed state-ში Definition object არსებობს.
+Style/Domain on Definition
+დაუშვებელია; ისინი Structural parent level-ებს ეკუთვნის.
+Definition-bearing Sense
+უნდა ჰქონდეს Effective POS ან Effective Style.
+Domain only
+Classification requirement-ს არ აკმაყოფილებს.
+
+12.1 Effective POS / Style rule
+IF Definition exists (თუ Definition არსებობს)
+AND effective_POS is absent  (და მოქმედი POS არ არის განსაზღვრული)
+AND effective_Style is absent (და მოქმედი Style არ არის განსაზღვრული)
+THEN validation fails  (მაშინ ვალიდაცია არ მოხდება)
+Structure
+შედეგი
+POS + Definition
+OK
+Style + Definition
+OK
+POS + Style + Definition
+OK
+POS + Domain + Definition
+OK
+Style + Domain + Definition
+OK
+Definition only
+დაუშვებელია
+Domain + Definition only
+დაუშვებელია
+
+effective_POS მიიღება შესაბამისი Grammar Group-იდან. Direct Sense-ს Inherited POS არ აქვს, ამიტომ ასეთ Sense-ში Definition-ს სჭირდება Effective Style.
+13. XR — Cross-reference model
+XR├── xr_id├── sense_id├── type├── order└── XR_TARGET [1..n]XR_TARGET├── xr_target_id├── xr_id├── display_text├── target_entry_id [nullable]├── refinement [optional]└── order
+type
+Derived label
+equivalent
+იგივეა, რაც
+see
+იხ.
+seeAlso
+ასევე
+antonym
+იხ. ანტ.
+illustration
+იხ. სურ.
+
+Validation
+Severity
+XR type missing
+ERROR
+type outside fixed five
+ERROR
+XR has no target
+ERROR
+target display_text empty
+ERROR
+Multiple Target
+Allowed
+XR-only Sense
+დასაშვებია; Definition სავალდებულო არ არის
+Definition + XR
+დასაშვებია; Definition მაინც უნდა აკმაყოფილებდეს POS/Style rule-ს
+
+13.1 Legacy neutralized-link migration
+Legacy concept: equivalent phrase contains refinement X, but only Y is clickable.New model:XR.type = equivalentXR.refinement = XXR_TARGET.display_text = YXR_TARGET.target_entry_id = Y entry ID
+ახალ Editor-ში Clickable ელემენტის დასადგენად Underscore-ის ხერხები ან Arbitrary text scanning არ უნდა გამოიყენებოდეს. Persistent link-ებმა, Target-ის Resolution-ის შემთხვევაში, Stable ID-ები უნდა გამოიყენოს.
+14. EXAMPLE
+EXAMPLE├── example_id├── sense_id├── source_text REQUIRED when complete├── target_text REQUIRED when complete├── Style [0..2]├── Domain [0..2]└── order
+Chinese-Ge-ში source_text არის Chinese Example, ხოლო target_text — მისი ქართული თარგმანი. Chinese text ცალკე Dedicated field-ში უნდა იყოს იზოლირებული; Legacy ZH_RUN/KA_RUN segmentation ახალ Editor-ში აღარ მეორდება.
+Context
+Condition
+Severity / Action
+New Entry · 新建
+source present, target empty
+WARNING; Save allowed
+New Entry · 新建
+source empty, target present
+WARNING; Save allowed
+New Entry · 新建→ CHT-review中文审核
+source empty
+ERROR; transition blocked
+New Entry · 新建→ CHT-review中文审核
+target empty
+ERROR; transition blocked
+Any
+Multiple Examples under one Sense
+Allowed
+Any
+Example order
+Persistent order field; Reordering-ისას example_id Stable რჩება
+
+Future audio/TTS ცალკე Service layer-ია. მას შეუძლია EXAMPLE.source_text პირდაპირ წაიკითხოს. ამ მექანიზმისთვის Example Pinyin საჭირო არ არის და Phase 1-ში არ შედის.
+
+15. STYLE / DOMAIN
+Level
+Style
+Domain
+დასაშვებია?
+ENTRY
+—
+—
+No
+HOMOGRAPH
+0..2
+0..2
+Yes
+GRAMMAR_GROUP
+0..2
+0..2
+Yes
+SENSE
+0..2
+0..2
+Yes
+DEFINITION
+—
+—
+No
+XR
+—
+—
+No
+EXAMPLE
+0..2
+0..2
+Yes
+
+15.1 Inheritance
+Homograph → Grammar Group → Sense → Example
+Inherited Style/Domain value-ები მოქმედებს Descendant დონეებზე, მაგრამ Child record-ებში ფიზიკურად არ უნდა დაკოპირდეს. შეინახოს მხოლოდ ის Value-ები, რომლებიც კონკრეტულ დონეზე Explicitly არის მინიჭებული. (თუ Style ან Domain ზედა დონეზეა მითითებული, იგი ამ დონის ყველა შვილობილ ელემენტზე მოქმედებს და ქვედა დონეებზე მისი ხელახლა ჩაწერა საჭირო არ არის.)
+Condition
+შედეგი
+Parent Style = 〈书〉, child Style empty
+Child-ის Effective Style შეიცავს 〈书〉-ს.
+Child explicitly repeats inherited 〈书〉
+WARNING; Save allowed.
+Same principle for Domain
+WARNING; Save allowed.
+Placement rule
+Style/Domain შეინახოს ყველაზე მაღალ Structural level-ზე, რომელსაც Value სრულად ეხება.
+
+16. Stable ID-ები, Ordering და Display numbering
+Object
+Stable ID
+order სავალდებულოა
+Pronunciation
+pronunciation_id
+Yes
+Traditional Form
+traditional_form_id
+Yes
+Homograph
+homograph_id
+Yes
+Grammar Group
+grammar_group_id
+Yes
+Sense
+sense_id
+Yes
+XR
+xr_id
+Yes
+XR Target
+xr_target_id
+Yes
+Example
+example_id
+Yes
+
+Reordering ცვლის მხოლოდ order-ს. მან არასოდეს უნდა დააგენერიროს ხელახლა ან შეცვალოს Object ID. ეს საჭიროა Comments, Notifications, Edit history, Internal reference-ები, Export stability და მომავალი API-ებისთვის.
+17. რეკომენდებული Relational Database Schema
+Implementation-ისას თავიდან უნდა იქნეს აცილებული Untyped polymorphic parent_id. გამოყენებულ იქნეს Explicit nullable Foreign Key-ები და CHECK constraint-ები, რათა Database-მა Valid parent relation-ის კონტროლი შეძლოს.
+Table
+Core column-ები / Constraint-ები
+entries
+entry_id PK; headword UNIQUE NOT NULL; workflow/editorial metadata separate from lexical fields.
+pronunciations
+pronunciation_id PK; entry_id FK NOT NULL; pinyin NOT NULL; order NOT NULL; UNIQUE(entry_id, pinyin); max 6 enforced in service/constraint layer.
+traditional_forms
+traditional_form_id PK; entry_id FK NOT NULL; text NOT NULL; homograph_id FK NULL; order NOT NULL; uniqueness within Entry for non-empty text.
+homographs
+homograph_id PK; entry_id FK NOT NULL; pronunciation_id FK NULL in draft; order NOT NULL.
+grammar_groups
+grammar_group_id PK; entry_id FK NULL; homograph_id FK NULL; pos_id FK NULL in draft; order NOT NULL; CHECK exactly one parent is non-null.
+senses
+sense_id PK; entry_id FK NULL; homograph_id FK NULL; grammar_group_id FK NULL; order NOT NULL; CHECK exactly one parent is non-null.
+definitions
+definition_id PK; sense_id FK UNIQUE NOT NULL; text NOT NULL when persisted as complete object.
+xrs
+xr_id PK; sense_id FK NOT NULL; type controlled enum/FK; order NOT NULL.
+xr_targets
+xr_target_id PK; xr_id FK NOT NULL; display_text NOT NULL when complete; target_entry_id FK NULL; refinement NULL; order NOT NULL.
+examples
+example_id PK; sense_id FK NOT NULL; source_text / target_text may be NULL in draft, both required for transition; order NOT NULL.
+style_assignments
+level/object relation or normalized junction table; controlled style_id; max 2 per allowed object.
+domain_assignments
+level/object relation or normalized junction table; controlled domain_id; max 2 per allowed object.
+
+17.1 Parent integrity
+GRAMMAR_GROUP: CHECK ((entry_id IS NOT NULL)::int + (homograph_id IS NOT NULL)::int = 1)SENSE: CHECK ((entry_id IS NOT NULL)::int + (homograph_id IS NOT NULL)::int + (grammar_group_id IS NOT NULL)::int = 1)
+Equivalent syntax შეიძლება DBMS-ის მიხედვით განსხვავდებოდეს. Logical requirement ასეთია: ზუსტად ერთი Parent უნდა არსებობდეს.
+18. Validation engine და Workflow gating
+Validation უნდა გაეშვას სულ მცირე Save-ისას და ყოველი Stage transition-ის მცდელობისას. 新建-ში Save განზრახ Permissive-ია; 中文审核-ზე Transition სრულ Blocking rule set-ს უშვებს.
+Rule ID
+Condition
+New Entry · 新建Save 
+New Entry · 新建 → CHT-review · 中文审核
+V-001
+headword missing
+ERROR
+ERROR
+V-002
+duplicate headword
+ERROR
+ERROR
+V-003
+0 pronunciations
+WARNING
+ERROR
+V-004
+>6 pronunciations
+ERROR
+ERROR
+V-005
+duplicate pronunciation
+ERROR
+ERROR
+V-006
+exactly 1 Homograph
+WARNING while structure is being edited
+ERROR
+V-007
+Homograph missing pronunciation
+WARNING
+ERROR
+V-008
+Homograph has no Sense/Grammar Group
+WARNING
+ERROR
+V-009
+Direct + Homograph lexical structure mixed
+WARNING
+ERROR
+V-010
+Grammar Group missing POS
+WARNING
+ERROR
+V-011
+Grammar Group has no Sense
+WARNING
+ERROR
+V-012
+Duplicate same POS under same immediate parent
+WARNING
+WARNING / transition allowed
+V-013
+Sense has neither Definition nor XR
+WARNING
+ERROR
+V-014
+Definition exists but no effective POS/Style
+WARNING
+ERROR
+V-015
+XR type missing/invalid
+WARNING if incomplete object is retained in draft
+ERROR
+V-016
+XR has no valid target
+WARNING if incomplete object is retained in draft
+ERROR
+V-017
+Example source or target missing
+WARNING
+ERROR
+V-018
+Redundant inherited Style/Domain repeated
+WARNING
+WARNING / transition allowed
+V-019
+Traditional form = headword
+WARNING
+WARNING / transition allowed
+V-020
+Duplicate Traditional form
+ERROR
+ERROR
+
+Validation messages must identify the exact structural path, not only say “Article contains errors”.(ვალიდაციის შეტყობინებამ ზუსტად უნდა მიუთითოს შეცდომის სტრუქტურული მდებარეობა და არ უნდა შემოიფარგლოს მხოლოდ ზოგადი ფრაზით — „სტატია შეიცავს შეცდომებს“.) Example: “Homograph 2 → missing pronunciation” or “名 → Sense 3 → Definition has no POS or Style”. (მაგალითად: „Homograph 2 → გამოთქმა არ არის მითითებული“ ან „名 → Sense 3 → Definition-ს არ აქვს არც POS და არც Style“.)
+
+
+19. Validation UI behavior
+Severity
+Color / behavior
+Blocks Save?
+Blocks transition?
+ERROR
+Red; exact field/object highlighted
+Yes for intrinsic hard errors; otherwise may coexist only while draft object is not yet committed, according to implementation
+Yes
+WARNING
+Visible warning; non-blocking
+No
+No unless the same condition becomes ERROR under transition rules
+
+UI-მ უნდა განასხვაოს Intrinsic data-integrity error-ები (მაგ., Duplicate headword, Duplicate pronunciation, >6 Pronunciation) Draft incompleteness-ისგან. Intrinsic integrity error-ები Valid record-ებად ჩუმად არ უნდა შეინახოს.
+20. დამტკიცებული Entry Editor UI mapping
+დამტკიცებული Interaction baseline არის CHINESE_GE_Entry_Editor_IDEAL_V2.html. ქვემოთ მოცემული Mapping Core structure-ისთვის სავალდებულოა:
+UI level
+Data entity / ქცევა
+Headword area
+ENTRY + PRONUNCIATION + TRADITIONAL_FORM
+Add Homograph
+Creates Homograph mode; first action creates two blocks.
+Homograph header
+Live derived display label + Homograph Style/Domain.
+Add part of speech (POS) · 添加词性
+Creates GRAMMAR_GROUP.
+Grammar Group row
+Roman order display + POS + Style/Domain ერთ Structural row-ზე.
+Sense block
+SENSE; number derived from order; hidden when only one Sense exists.
+Definition editor
+DEFINITION.text; one Definition max per Sense.
+XR editor
+XR.type + one or more XR_TARGETs.
+Example block
+EXAMPLE.source_text + target_text + optional Style/Domain.
+Comments view
+A+/A−, Pin/Unpin, Collapse; Edit/Raw hidden in Comments.
+
+Visible technical „ie“ Label-ები საჭირო არ არის. Style/Domain ხელმისაწვდომია მხოლოდ Homograph, Grammar Group, Sense და Example დონეებზე.
+21. Migration Legacy data-იდან
+Legacy workbook/Parser rule-ები Migration aid-ებად რჩება. ისინი განსაზღვრავს, როგორ Segment/Recognize-დება ისტორიული Plain/Semi-structured article text, მაგრამ Final Schema არ უნდა განსაზღვროს.
+Legacy parser concept
+New model destination / interpretation
+ZH_RUN / ZH_SEGMENT
+Used only to identify Chinese segments during import; Example Chinese goes to EXAMPLE.source_text where applicable.
+KA_RUN / KA_SEGMENT
+Used only to identify Georgian segments; Example translation goes to EXAMPLE.target_text where applicable.
+LINKISH_RUN
+Temporary parser state normalized into XR / XR_TARGET.
+DBL_ZH_RUN
+Parser boundary concept only; no dedicated semantic table by default.
+Sense boundaries
+Become stable SENSE entities.
+Definition text
+Becomes DEFINITION.text.
+Homograph markers
+Parser may recognize Pinyin/Pinyin+digit/character+digit; new UI display labels are derived, not imported as permanent names unless needed for migration diagnostics.
+
+22. Export/API implications
+Core model შექმნილია ისე, რომ მხარი დაუჭიროს TEI/XML და JSON Export-ს Presentation text-იდან Semantics-ის ხელახლა აღდგენის გარეშე.
+Object
+Export-ის მოსალოდნელი პრინციპი
+ENTRY
+Stable entry identifier and headword.
+HOMOGRAPH
+Structured division with stable ID/order; display label may be generated during serialization if needed.
+GRAMMAR_GROUP
+POS as controlled value; Style/Domain as controlled annotations.
+SENSE
+Stable sense identifier and order.
+DEFINITION
+Maps conceptually to definition element/text.
+XR
+Explicit typed cross-reference with one or more structured targets.
+EXAMPLE
+Separate source and target fields; no reparsing needed.
+Style/Domain
+Export explicit assigned values; inheritance may be materialized only at serialization if a target format requires it, never duplicated in canonical DB.
+
+23. Editorial metadata separation
+Workflow status, Editor attribution, Scores, Comments, Notifications და History ეკუთვნის Editorial/Workflow layer-ს და Canonical lexical content-ისგან ლოგიკურად განცალკევებული უნდა დარჩეს. ამ System-ებმა უნდა გამოიყენოს Stable lexical ID-ები და არა Positional label-ების, მაგალითად „Sense 2“, ჩაშენება.
+Entry-level History · 历史 control-ის ქცევა და Access rule-ები განსაზღვრულია Editorial Panel Functional Specification v1.1-ის მოთხოვნებით EP-HIST-001–EP-HIST-005 და AC-24.
+24. Phase 2-ისთვის დატოვებული საკითხები
+Future feature
+Phase 1 compatibility requirement
+Entry pronunciation audio
+PRONUNCIATION already provides distinct reading records and order.
+Example TTS
+EXAMPLE.source_text is isolated and can be sent directly to TTS.
+Example Pinyin
+May be added as a presentation/service feature without changing Example identity.
+Images/media
+Use stable media/image IDs; final media subsystem design deferred.
+Intra-entry links
+Stable IDs make precise internal targets possible later.
+
+25. Minimum Acceptance test-ები
+ID
+Acceptance test
+A-01
+Create normal Entry with one pronunciation, one POS, one Sense, one Definition; transition succeeds.
+A-02
+Try duplicate headword; application blocks duplicate valid Entry.
+A-03
+Save New entry新建 with no Pinyin; warning shown; then transition blocked.
+A-04
+Add first Homograph; two blocks are created automatically.
+A-05
+Assign hé/hé/hè; labels update live to hé 1 / hé 2 / hè.
+A-06
+Create two Homographs both cóng; labels display headword + number.
+A-07
+Leave second Homograph empty; New entry新建 Save succeeds with warning; transition is blocked.
+A-08
+Create Grammar Group without POS; draft Save succeeds with warning; transition blocked.
+A-09
+Create duplicate 名 Grammar Groups under same parent; warning only, Save and transition otherwise allowed.
+A-10
+Definition under direct Sense with Style 〈成〉 and no POS; transition succeeds.
+A-11
+Definition with Domain only and no effective POS/Style; transition blocked.
+A-12
+XR-only Sense with valid type and target; transition succeeds.
+A-13
+Example with Chinese only; draft Save succeeds with warning; transition blocked until Georgian target exists.
+A-14
+Set Style on Grammar Group and leave child Sense empty; child effective Style is inherited without DB duplication.
+A-15
+Repeat same inherited Style explicitly on child; warning only.
+A-16
+Reorder Senses; order changes, sense_id does not.
+A-17
+Add blank Traditional field; reminder shown and empty record is not stored.
+A-18
+Add duplicate Traditional form; ERROR.
+A-19
+Attempt mixed direct content and Homograph mode; warning in draft, transition blocked.
+A-20
+Export structured article; Definition/XR/Example do not require parsing of combined free text.
+
+26. Programmer Implementation checklist
+Database table-ები და Foreign Key-ები განხორციელებულია Stable ID-ებით.
+Grammar Group-ისა და Sense-ისთვის განხორციელებულია Explicit parent integrity constraint-ები.
+Entry headword-ის Unique constraint განხორციელებულია.
+თითო Entry-ზე Pronunciation uniqueness და Max-6 rule განხორციელებულია.
+Homograph-ის First-create action ქმნის ზუსტად ორ Block-ს.
+Homograph live label algorithm განხორციელებულია მხოლოდ Derived UI value-ის სახით.
+Direct mode / Homograph mode Conflict validation განხორციელებულია.
+Draft warning layer და Stage-transition error layer განცალკევებულია.
+Definition-bearing Sense-ისთვის POS/Style Effective classification rule განხორციელებულია.
+Style/Domain inheritance Runtime/Effective-ია და Child-ებში არ კოპირდება.
+XR იყენებს Fixed controlled type-ებსა და Structured target-ებს.
+Example-ის Chinese/Georgian text-ები ცალკე Field-ებში ინახება.
+Reordering ინარჩუნებს Stable ID-ებს.
+Validation message-ები შეიცავს ზუსტ Structural path-ს.
+Legacy Parser construct-ები მხოლოდ Migration/Import layer-ში რჩება.
+TEI/XML და JSON Serializer-ები იყენებს Structured object-ებს და არა Combined article text-ს.
+27. Final implementation status
+ეს დოკუმენტი ასრულებს ახალი CHINESE.GE Entry Editor-ის Phase 1 Core lexical data model-ის განსაზღვრას. ნებისმიერი Implementation change, რომელიც აქ აღწერილ Cardinality-ს, Validation severity-ს, Inheritance rule-ებს, Homograph naming logic-ს ან Semantic entity boundary-ებს ცვლის, უნდა ჩაითვალოს Specification change-ად და Coding-მდე განხილულ იქნეს.
+Normative baseline: this specification + approved IDEAL V2 Entry Editor UI. Where the UI mockup and database implementation differ in presentation detail, the semantic and validation rules in this specification take precedence; where this document intentionally leaves presentation flexible, the approved UI baseline controls. თუ UI-მაკეტსა და მონაცემთა ბაზის იმპლემენტაციას შორის წარმოდგენის დეტალებში განსხვავებაა, უპირატესობა ენიჭება ამ სპეციფიკაციაში განსაზღვრულ სემანტიკურ და ვალიდაციის წესებს; ხოლო იქ, სადაც წინამდებარე დოკუმენტი წარმოდგენის ფორმას განზრახ ტოვებს მოქნილს, გადაწყვეტილება მიიღება დამტკიცებული UI-ის საბაზისო ვარიანტის შესაბამისად
+

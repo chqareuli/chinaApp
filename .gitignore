@@ -50,3 +50,5 @@ Thumbs.db
 *.db
 *.db-shm
 *.db-wal
+
+src/Chiniseapp.Api/App_Data/

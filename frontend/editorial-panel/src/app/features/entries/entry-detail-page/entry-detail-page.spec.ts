@@ -110,54 +110,138 @@ describe('EntryDetailPage status confirmation', () => {
     expect(component.entry()?.status).toBe('ZhReview');
   });
 
-  it('starts the full homonym structure with one grammar group and sense', () => {
+  it('starts exactly two empty homographs and lets the editor choose POS or direct sense', () => {
     component.startStructure('homonym');
-
-    expect(component.structureKind()).toBe('homonym');
-    expect(component.homonyms.length).toBe(1);
-    expect(component.homonyms.at(0).get('text')?.value).toBe('');
-    expect(component.formArrayAt(component.homonyms.at(0), 'gramGroups').length).toBe(1);
-    expect(
-      component.formArrayAt(component.formArrayAt(component.homonyms.at(0), 'gramGroups').at(0), 'senses').length,
-    ).toBe(1);
+    expect(component.homonyms.length).toBe(2);
+    const first=component.homonyms.at(0);
+    expect(component.formArrayAt(first,'gramGroups').length).toBe(0);
+    component.addSenseTo(component.formArrayAt(first,'directSenses'));
+    expect(component.formArrayAt(first,'directSenses').length).toBe(1);
+    component.addGroupTo(component.formArrayAt(component.homonyms.at(1),'gramGroups'));
+    expect(component.formArrayAt(component.homonyms.at(1),'gramGroups').length).toBe(1);
+    component.removeHomonym(0);
+    expect(component.homonyms.length).toBe(2);
   });
-
   it('includes the entered homonym text in the save request', () => {
     component.startStructure('homonym');
     component.homonyms.at(0).get('text')?.setValue('同形词');
 
     const request = (
-      component as unknown as { toSaveRequest: (rowVersion: number) => { homonyms: Array<{ text: string }> } }
+      component as unknown as {
+        toSaveRequest: (rowVersion: number) => { homonyms: Array<{ text: string }> };
+      }
     ).toSaveRequest(entry.rowVersion);
 
     expect(request.homonyms[0].text).toBe('同形词');
   });
 
-  it('builds the public preview from unsaved form values', () => {
-    component.entryForm.controls.lemma.setValue('预览');
-    component.startStructure('sense');
-    component.rootSenses.at(0).get('definition')?.setValue('შეუნახავი განმარტება');
-    component.vocabularies.set([
-      { id: 1, category: 'style', code: '古', label: '〈古〉', sortOrder: 1 },
-    ]);
-    component.formArrayAt(component.rootSenses.at(0), 'markers').push(
-      new FormBuilder().group({ id: [null], category: ['Style'], value: ['古'] }),
-    );
-
-    component.openPreview();
-
-    expect(component.previewEntry()?.lemma).toBe('预览');
-    expect(component.previewEntry()?.senses[0].definition).toBe('შეუნახავი განმარტება');
-    expect(component.previewEntry()?.senses[0].markers).toEqual([
-      { category: 'Style', value: '古', label: '〈古〉' },
-    ]);
-
-    component.closePreview();
-    expect(component.previewEntry()).toBeNull();
+  it('cancels unsaved nested changes and returns to read-only', () => {
+    expect(component.canEditFields()).toBe(false);
+    component.startEditing();
+    expect(component.canEditFields()).toBe(true);
+    component.entryForm.controls.lemma.setValue('unsaved');
+    component.startStructure('homonym');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    component.cancelEditing();
+    expect(component.entryForm.controls.lemma.value).toBe(entry.lemma);
+    expect(component.homonyms.length).toBe(entry.homonyms.length);
+    expect(component.canEditFields()).toBe(false);
   });
 
-  it('opens the embedded notes panel on comments by default', () => {
-    expect(component.notesTab()).toBe('comments');
+  it('toggles frames without modifying entry content', () => {
+    const before = component.entryForm.getRawValue();
+    const visible = component.framesVisible();
+    component.toggleFrames();
+    expect(component.framesVisible()).toBe(!visible);
+    expect(component.entryForm.getRawValue()).toEqual(before);
+    component.toggleFrames();
+  });
+
+  it('limits homographs and prevents mixed direct-sense/POS structures', () => {
+    component.startStructure('homonym');
+    for (let i=0; i<12; i++) component.addHomonym();
+    expect(component.homonyms.length).toBe(10);
+    const h = component.homonyms.at(0);
+    const groups = component.formArrayAt(h, 'gramGroups');
+    const senses = component.formArrayAt(h, 'directSenses');
+    component.addSenseTo(senses);
+    component.addGroupTo(groups);
+    expect(groups.length).toBe(0);
+    component.removeSenseFrom(senses, 0);
+    component.addGroupTo(groups);
+    component.addSenseTo(senses);
+    expect(senses.length).toBe(0);
+    const childSenses = component.formArrayAt(groups.at(0), 'senses');
+    component.removeSenseFrom(childSenses, 0);
+    expect(childSenses.length).toBe(1);
+  });
+
+  it('preserves existing POS and sense controls when adding homographs', () => {
+    component.startStructure('grammar');
+    const group = component.rootGramGroups.at(0);
+    group.get('pos')?.setValue('名');
+    component.addHomonym();
+    expect(component.homonyms.length).toBe(2);
+    expect(component.rootGramGroups.length).toBe(0);
+    expect(component.formArrayAt(component.homonyms.at(0), 'gramGroups').at(0)).toBe(group);
+  });
+
+  it('uploads media with the selected block placement and shows the returned asset', () => {
+    component.startEditing();
+    component.startStructure('sense');
+    const sense = component.rootSenses.at(0);
+    sense.get('id')?.setValue(71);
+    component.openNodeMedia('sense', sense);
+    const file = new File(['image'], 'image.png', {type:'image/png'});
+    const asset = {id:19, placement:'sense:71', storageUrl:'/media/19/content'};
+    const upload = vi.fn().mockReturnValue(of(asset));
+    Object.assign(TestBed.inject(MediaService), {upload, getContent: () => of(new Blob(['image']))});
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
+    component.selectedMedia.set(file);
+    component.uploadMedia();
+    expect(upload).toHaveBeenCalledWith(entry.id, file, 'sense:71');
+    expect(component.nodeMedia('sense', sense)).toEqual([asset]);
+    expect(component.selectedMedia()).toBeNull();
+    expect(component.mediaSaving()).toBe(false);
+  });
+
+  it('targets media by stable block id and blocks unsaved-block uploads', () => {
+    component.startEditing();
+    component.startStructure('sense');
+    const sense = component.rootSenses.at(0);
+    component.openNodeMedia('sense', sense);
+    component.selectedMedia.set(new File(['x'], 'image.png', {type:'image/png'}));
+    component.uploadMedia();
+    expect(component.mediaSaving()).toBe(false);
+    sense.get('id')?.setValue(71);
+    component.openNodeMedia('sense', sense);
+    expect(component.mediaPlacement()).toBe('sense:71');
+    component.media.set([
+      {id:1, placement:'sense:71'}, {id:2, placement:'example:71'},
+    ] as any);
+    expect(component.nodeMedia('sense', sense).map(x => x.id)).toEqual([1]);
+  });
+
+  it('resizes paired example text within reference limits without editing content', () => {
+    const first = document.createElement('textarea');
+    const second = document.createElement('textarea');
+    first.style.fontSize = '16px'; second.style.fontSize = '16px';
+    first.value = '中文'; second.value = 'ქართული';
+    document.body.append(first, second);
+    component.resizeEditorText([first, second], 1);
+    expect(first.style.fontSize).toBe('17px');
+    expect(second.style.fontSize).toBe('17px');
+    component.resizeEditorText([first], 100);
+    component.resizeEditorText([second], -100);
+    expect(first.style.fontSize).toBe('40px');
+    expect(second.style.fontSize).toBe('12px');
+    expect(first.value).toBe('中文');
+    expect(second.value).toBe('ქართული');
+    first.remove(); second.remove();
+  });
+
+  it('opens the embedded notes panel on reference material by default', () => {
+    expect(component.notesTab()).toBe('reference');
 
     component.setNotesTab('support');
 
@@ -199,9 +283,9 @@ describe('EntryDetailPage status confirmation', () => {
 
   it('keeps inline elements on the grammar group where they were added', () => {
     component.startStructure('grammar');
-    component.formArrayAt(component.rootGramGroups.at(0), 'markers').push(
-      new FormBuilder().group({ id: [null], category: ['Style'], value: ['bookish'] }),
-    );
+    component
+      .formArrayAt(component.rootGramGroups.at(0), 'markers')
+      .push(new FormBuilder().group({ id: [null], category: ['Style'], value: ['bookish'] }));
     component.addGroupTo(component.rootGramGroups);
 
     const request = (

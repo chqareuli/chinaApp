@@ -67,6 +67,9 @@ public class AccountingService(ChiniseDbContext db) : IAccountingService
             CountsFor(ScoreType.Additional));
 
         return new EditorAccountingDetail(
-            editor.Id, editor.DisplayName, editor.Email, editor.Role.ToString(), editor.CreatedAtUtc, scoresByStatus);
+            editor.Id, editor.DisplayName, editor.Email, editor.Role.ToString(), editor.CreatedAtUtc, scoresByStatus)
+        { EntriesByStatus = await db.Entries.Where(e=>e.Status!=EntryStatus.Archived &&
+            (e.CreatedByEditorId==editorId || db.ScoreEntries.Any(s=>s.EntryId==e.Id && s.EditorId==editorId)))
+            .GroupBy(e=>e.Status).Select(g=>new {Status=g.Key,Count=g.Count()}).ToDictionaryAsync(x=>x.Status.ToString(),x=>x.Count,ct) };
     }
 }

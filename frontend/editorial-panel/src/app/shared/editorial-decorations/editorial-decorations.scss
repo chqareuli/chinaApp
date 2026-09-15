@@ -1,30 +1,74 @@
-.decorations { display:grid; gap:7px; margin-top:8px; }
-.inline-tools { display:flex; flex-wrap:wrap; align-items:center; gap:5px; min-height:30px; }
-.inline-tools__label { margin-right:3px; color:#87908a; font-size:.62rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
-button { padding:5px 8px; color:var(--forest); border:1px solid #d9e3dc; border-radius:999px; background:#f7faf8; font-size:.65rem; font-weight:800; }
-button:hover { border-color:#9eb5a6; background:#edf5f0; }
-.xr-trigger { color:#9d3844; border-color:#ecd6d9; background:#fff7f8; }
-.chips { display:flex; flex-wrap:wrap; gap:5px; }
-.chip { display:inline-flex; align-items:center; gap:3px; max-width:100%; padding:5px 8px; color:#604420; border-radius:999px; background:#f3eadc; overflow-wrap:anywhere; font-size:.68rem; }
-.chip.xr { color:#254d42; background:#e4efea; }
-.chip button { padding:0 2px; border:0; background:transparent; }
-.chip button:last-child { color:var(--danger); }
-.link-state { margin-left:4px; padding:2px 5px; color:#6c746f; border-radius:999px; background:#eef0ee; font-size:.58rem; font-weight:800; }
-.link-state.linked,.lookup-note.linked { color:#1f6847; background:#dbefe3; }
-.link-state.unresolved,.lookup-note.unresolved { color:#994044; background:#f7e5e5; }
-.mini-form { display:grid; grid-template-columns:minmax(150px,.7fr) minmax(220px,1.3fr); gap:8px; padding:10px; border:1px solid #d9e3dc; border-radius:10px; background:#f8faf8; }
-.xr-form { grid-template-columns:minmax(150px,.42fr) minmax(260px,1fr); }
-.mini-form label { display:grid; gap:4px; color:var(--ink-soft); font-size:.65rem; font-weight:800; }
-.mini-form input,.mini-form select { min-width:0; min-height:39px; padding:7px 9px; border:1px solid var(--line-strong); border-radius:7px; background:#fff; }
-.mini-form input[lang='zh'] { font-family:'Microsoft YaHei',sans-serif; font-size:1rem; }
-.target-field { position:relative; }
-.lookup-note { padding:4px 6px; color:var(--ink-soft); border-radius:6px; background:#edf1ee; font-size:.6rem; font-weight:700; }
-.xr-suggestions { position:absolute; top:100%; right:0; left:0; z-index:5; display:grid; max-height:210px; overflow-y:auto; border:1px solid var(--line-strong); border-radius:8px; background:#fff; box-shadow:0 10px 24px rgb(30 52 43 / 16%); }
-.xr-suggestions button { display:flex; min-height:42px; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; text-align:left; border:0; border-bottom:1px solid var(--line); border-radius:0; background:#fff; }
-.xr-suggestions button:last-child { border-bottom:0; }
-.xr-suggestions strong { color:var(--ink); font-size:.76rem; }
-.xr-suggestions small { color:var(--ink-soft); font-size:.6rem; }
-.mini-actions { display:flex; grid-column:1/-1; justify-content:flex-end; gap:5px; }
-.mini-actions .primary { color:#fff; border-color:var(--forest); background:var(--forest); }
-.mini-actions .primary:disabled { cursor:not-allowed; opacity:.45; }
-@media (max-width:720px) { .mini-form,.xr-form { grid-template-columns:1fr; } .inline-tools__label { flex-basis:100%; } }
+:host {
+  display: block;
+  min-width: 0;
+}
+.decorations {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  background: none;
+}
+.inline-tools,
+.chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.inline-tools__label {
+  display: none;
+}
+.tool-select {
+  width: auto;
+  max-width: 200px;
+  min-height: 28px;
+  padding: 4px 25px 4px 8px;
+  border: 1px solid #dce3e8;
+  border-radius: 11px;
+  background-color: white;
+  color: #586777;
+  font: inherit;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e5f2ff;
+  border: 1px solid #d2e2ef;
+}
+.marker-style {
+  color: #8a2be2;
+  font-weight: 600;
+}
+.marker-domain {
+  color: #63c6de;
+  font-weight: 600;
+}
+.chip button {
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 0 2px;
+  cursor: pointer;
+}
+.mini-form {
+  flex-basis: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+.mini-form label {
+  display: grid;
+  gap: 4px;
+}
+.mini-actions {
+  display: flex;
+  gap: 6px;
+}

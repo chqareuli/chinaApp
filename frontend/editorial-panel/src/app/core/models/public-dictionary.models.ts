@@ -39,6 +39,7 @@ export interface PublicDictionarySense {
 }
 
 export interface PublicDictionaryHomonym {
+  directSenses?: PublicDictionarySense[];
   text: string | null;
   markers: PublicDictionaryMarker[];
   crossReferences: PublicDictionaryCrossReference[];

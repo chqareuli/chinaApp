@@ -17,6 +17,7 @@ public class Notification
     /// <summary>Short machine-readable reason, e.g. "content_edited", "status_changed".</summary>
     public string Type { get; set; } = string.Empty;
 
+    public string? Detail { get; set; }
     public bool IsRead { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }

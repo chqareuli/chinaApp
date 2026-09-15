@@ -1,156 +1,124 @@
-<div class="app-frame">
-  <header class="mobile-header">
-    <button
-      class="menu-button"
-      type="button"
-      (click)="menuOpen.set(true)"
-      aria-label="მენიუს გახსნა"
-    >
-      ☰
-    </button>
-    <a class="mobile-logo" routerLink="/adminpanel/dashboard"><span>中</span> Chinese.ge</a>
-    <div class="mobile-actions">
-      <a class="header-action" routerLink="/adminpanel/notifications" aria-label="ნოტიფიკაციები">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-        </svg>
-        @if (unreadNotifications()) {
-          <span class="header-badge">{{
-            unreadNotifications() > 99 ? '99+' : unreadNotifications()
-          }}</span>
-        }
-      </a>
-      <a class="header-action" routerLink="/adminpanel/messages" aria-label="წერილები">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-        </svg>
-        @if (unreadMessages()) {
-          <span class="header-badge">{{ unreadMessages() > 99 ? '99+' : unreadMessages() }}</span>
-        }
-      </a>
-      <a class="mobile-avatar" routerLink="/adminpanel/profile" aria-label="პროფილი">{{
-        initials()
-      }}</a>
-    </div>
-  </header>
-
-  @if (menuOpen()) {
-    <button
-      class="menu-backdrop"
-      type="button"
-      (click)="closeMenu()"
-      aria-label="მენიუს დახურვა"
-    ></button>
-  }
-
-  <aside class="sidebar" [class.sidebar-open]="menuOpen()">
-    <div class="sidebar-head">
-      <a class="logo" routerLink="/adminpanel/dashboard" (click)="closeMenu()"
-        ><span class="logo-mark" aria-hidden="true">中</span
-        ><span><strong>Chinese.ge</strong><small>Editorial panel</small></span></a
-      >
-      <button class="close-button" type="button" (click)="closeMenu()" aria-label="მენიუს დახურვა">
-        ×
-      </button>
-    </div>
-
-    <nav class="main-nav" aria-label="მთავარი ნავიგაცია">
-      <p class="nav-label">სამუშაო სივრცე</p>
-      <a routerLink="/adminpanel/dashboard" routerLinkActive="active" (click)="closeMenu()"
-        ><span class="nav-icon">მ</span><span>მთავარი</span></a
-      >
+<div class="handoff-ui panel-shell" [style.--panel-font-size]="appearance.fontSize() + 'px'">
+  <nav class="cge-top" aria-label="Main navigation · 主导航">
+    <div class="cge-actions">
       <a
+        class="btn btn-ghost"
+        routerLink="/adminpanel/dashboard"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        aria-label="Home · 主页"
+        title="Home · 主页"
+        ><app-panel-icon name="home"
+      /></a>
+      <a
+        class="btn btn-ghost"
+        routerLink="/adminpanel/messages"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        aria-label="Messages · 站内消息"
+        title="Messages · 站内消息"
+        ><app-panel-icon name="messages" />
+        @if (unreadMessages()) {
+          <span class="cge-unread">{{ unreadMessages() }}</span>
+        }
+      </a>
+      <a
+        class="btn btn-ghost"
+        routerLink="/adminpanel/notifications"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        aria-label="Notifications · 通知"
+        title="Notifications · 通知"
+        ><app-panel-icon name="notifications" />
+        @if (unreadNotifications()) {
+          <span class="cge-unread">{{ unreadNotifications() }}</span>
+        }
+      </a>
+      @if (canCreateEntry()) {
+        <a
+          class="btn btn-ghost"
+          routerLink="/adminpanel/entries/new"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          aria-label="New Entry · 新建词条"
+          title="New Entry · 新建词条"
+          ><app-panel-icon name="new"
+        /></a>
+      }
+      <a
+        class="btn btn-ghost"
         routerLink="/adminpanel/entries"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
-        (click)="closeMenu()"
-        ><span class="nav-icon">ს</span><span>სტატიები</span></a
-      >
-      @if (canCreateEntry()) {
-        <a routerLink="/adminpanel/entries/new" routerLinkActive="active" (click)="closeMenu()"
-          ><span class="nav-icon">＋</span><span>ახალი სტატია</span></a
-        >
-      }
-      <a routerLink="/adminpanel/notifications" routerLinkActive="active" (click)="closeMenu()"
-        ><span class="nav-icon">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-          </svg> </span
-        ><span>ნოტიფიკაციები</span>
-        @if (unreadNotifications()) {
-          <span class="nav-pill">{{ unreadNotifications() }}</span>
-        }
-      </a>
-      <a routerLink="/adminpanel/messages" routerLinkActive="active" (click)="closeMenu()"
-        ><span class="nav-icon">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-          </svg> </span
-        ><span>წერილები</span>
-        @if (unreadMessages()) {
-          <span class="nav-pill">{{ unreadMessages() }}</span>
-        }
-      </a>
-
-      <p class="nav-label nav-label-spaced">მონაცემები</p>
-      <a routerLink="/adminpanel/accounting" routerLinkActive="active" (click)="closeMenu()"
-        ><span class="nav-icon">ა</span><span>აღრიცხვა</span></a
-      >
+        aria-label="All entries · 全部词目"
+        title="All entries · 全部词目"
+        ><app-panel-icon name="media"
+      /></a>
+      <a
+        class="btn btn-ghost"
+        routerLink="/adminpanel/accounting"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        aria-label="Statistics · 统计"
+        title="Statistics · 统计"
+        ><app-panel-icon name="statistics"
+      /></a>
       @if (isSuperAdmin()) {
-        <a routerLink="/adminpanel/users" routerLinkActive="active" (click)="closeMenu()"
-          ><span class="nav-icon">მ</span><span>მომხმარებლები</span></a
-        >
+        <a
+          class="btn btn-ghost"
+          routerLink="/adminpanel/users"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          aria-label="Editorial team · 编辑团队"
+          title="Editorial team · 编辑团队"
+          ><app-panel-icon name="team"
+        /></a>
       }
-    </nav>
-
-    <div class="sidebar-foot">
-      <a class="profile" routerLink="/adminpanel/profile" (click)="closeMenu()">
-        <span class="avatar">{{ initials() }}</span
-        ><span class="profile-copy"
-          ><strong>{{ editor()?.displayName }}</strong
-          ><small>{{ roleLabel() }}</small></span
-        >
-      </a>
-      <button class="logout-button" type="button" (click)="logout()" [disabled]="loggingOut()">
-        {{ loggingOut() ? 'გამოსვლა…' : 'გასვლა' }}
+    </div>
+    <form class="cge-search" (submit)="search($event, searchInput.value)">
+      <label class="sr-only" for="global-search">Search · 查找</label
+      ><input
+        #searchInput
+        id="global-search"
+        class="form-control"
+        type="search"
+        placeholder="Search · 查找"
+        (input)="searchChanged(searchInput.value)"
+        (keydown.escape)="searchResults.set([])"
+        autocomplete="off"
+      />
+      @if (searchResults().length) {
+        <div class="search-results" aria-label="Search results · 搜索结果">
+          @for (result of searchResults(); track result.id) {
+            <a
+              [routerLink]="['/adminpanel/entries', result.id]"
+              (click)="searchResults.set([]); searchInput.value = ''"
+              ><strong lang="zh">{{ result.lemma }}</strong
+              ><span>{{ result.pinyin }}</span></a
+            >
+          }
+        </div>
+      }
+    </form>
+    <div class="cge-account">
+      <a
+        class="btn btn-ghost"
+        routerLink="/adminpanel/profile"
+        aria-label="My account · 我的账户"
+        title="My account · 我的账户"
+        ><span class="viz-badge">{{ roleCode() }}</span
+        >{{ editor()?.displayName }}</a
+      ><button
+        class="btn btn-ghost"
+        type="button"
+        (click)="logout()"
+        [disabled]="loggingOut()"
+        aria-label="Log out · 退出登录"
+        title="Log out · 退出登录"
+      >
+        <app-panel-icon name="logout" />
       </button>
     </div>
-  </aside>
-
-  <div class="workspace">
-    <header class="desktop-toolbar">
-      <div class="toolbar-copy">
-        <strong>სარედაქციო სივრცე</strong>
-        <span>სტატიები, გუნდი და მიმოწერა</span>
-      </div>
-      <nav class="toolbar-actions" aria-label="სწრაფი შეტყობინებები">
-        <a class="header-action" routerLink="/adminpanel/notifications" aria-label="ნოტიფიკაციები">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-          </svg>
-          @if (unreadNotifications()) {
-            <span class="header-badge">{{
-              unreadNotifications() > 99 ? '99+' : unreadNotifications()
-            }}</span>
-          }
-        </a>
-        <a class="header-action" routerLink="/adminpanel/messages" aria-label="წერილები">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-          </svg>
-          @if (unreadMessages()) {
-            <span class="header-badge">{{ unreadMessages() > 99 ? '99+' : unreadMessages() }}</span>
-          }
-        </a>
-        <a class="toolbar-profile" routerLink="/adminpanel/profile">
-          <span class="toolbar-avatar">{{ initials() }}</span>
-          <span
-            ><strong>{{ editor()?.displayName }}</strong
-            ><small>{{ roleLabel() }}</small></span
-          >
-        </a>
-      </nav>
-    </header>
-    <main class="content"><router-outlet /></main>
-  </div>
+  </nav>
+  <main class="panel-content"><router-outlet /></main>
 </div>

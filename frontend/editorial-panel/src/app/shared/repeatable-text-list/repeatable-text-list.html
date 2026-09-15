@@ -1,25 +1,65 @@
 <section class="repeatable-list">
   <div class="repeatable-head">
-    <strong>{{ label }}</strong>
+    <strong class="sr-only">{{ label }}</strong>
     @if (!readonly) {
-      <button type="button" class="compact-add" (click)="openAdd()">＋ {{ addLabel }}</button>
+      <button type="button" class="compact-add" (click)="openAdd()">＋</button>
     }
   </div>
 
+  @if (!items.length && !readonly) {
+    <input
+      #inlineAdd
+      class="inline-value"
+      [placeholder]="placeholder"
+      [attr.aria-label]="label"
+      [attr.lang]="inputLang || null"
+      [maxLength]="maxLength"
+      (input)="queueInline(null, inlineAdd.value)"
+      (blur)="flushInline()"
+      (keydown.enter)="$event.preventDefault(); flushInline()"
+    />
+  }
+  @if (duplicateError()) {
+    <small class="error">ეს მნიშვნელობა უკვე დამატებულია.</small>
+  }
   @if (items.length) {
-  <div class="saved-items" role="list">
-    @for (item of items.controls; track item.get('id')?.value ?? $index; let i = $index) {
-      <div class="saved-item" role="listitem">
-        <span>{{ itemValue(i) }}</span>
-        @if (!readonly) {
-          <span class="item-actions">
-            <button type="button" (click)="openEdit(i)" [attr.aria-label]="itemValue(i) + ' — რედაქტირება'" title="რედაქტირება">✎</button>
-            <button type="button" class="danger" (click)="remove(i)" [attr.aria-label]="itemValue(i) + ' — წაშლა'" title="წაშლა">×</button>
-          </span>
-        }
-      </div>
-    }
-  </div>
+    <div class="saved-items" role="list">
+      @for (item of items.controls; track item.get('id')?.value ?? $index; let i = $index) {
+        <div class="saved-item" role="listitem">
+          <input
+            class="inline-value"
+            [attr.lang]="inputLang || null"
+            [value]="itemValue(i)"
+            [readOnly]="readonly"
+            [attr.aria-label]="label + ' ' + (i + 1)"
+            [maxLength]="maxLength"
+            (input)="queueInline(i, $any($event.target).value)"
+            (blur)="flushInline()"
+          />
+          @if (!readonly) {
+            <span class="item-actions">
+              <button
+                type="button"
+                (click)="openEdit(i)"
+                [attr.aria-label]="itemValue(i) + ' — რედაქტირება'"
+                title="რედაქტირება"
+              >
+                ✎
+              </button>
+              <button
+                type="button"
+                class="danger"
+                (click)="remove(i)"
+                [attr.aria-label]="itemValue(i) + ' — წაშლა'"
+                title="წაშლა"
+              >
+                ×
+              </button>
+            </span>
+          }
+        </div>
+      }
+    </div>
   }
 
   @if (!readonly && editorOpen()) {
@@ -36,7 +76,9 @@
             <small>{{ editingIndex() === null ? 'ახალი მნიშვნელობა' : 'რედაქტირება' }}</small>
             <h2 [id]="'repeatable-title-' + label">{{ dialogTitle || label }}</h2>
           </div>
-          <button type="button" class="modal-close" (click)="cancel()" aria-label="დახურვა">×</button>
+          <button type="button" class="modal-close" (click)="cancel()" aria-label="დახურვა">
+            ×
+          </button>
         </div>
         <label [for]="'repeatable-value-' + label">{{ label }}</label>
         <input

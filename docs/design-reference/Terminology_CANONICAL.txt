@@ -1,0 +1,722 @@
+CHINESE.GE — HTML UI Terminology
+Entry Editor — 131 term pairs
+№
+English
+中文
+1
+Abbr.
+缩略语
+2
+Add at least one more homograph
+请至少再添加一个同形词
+3
+Add Example
+添加例句
+4
+Add Homograph
+添加同形词
+5
+Add media
+添加媒体
+6
+Add numbered line
+添加带圈编号行
+7
+Add part of speech (POS)
+添加词性
+8
+Add pinyin
+添加拼音
+9
+Add Sense
+添加义项
+10
+Add Sense without POS
+添加无词性义项
+11
+Add traditional form
+添加繁体字
+12
+Additional information
+补充资料
+13
+All
+全部
+14
+At least one structure must remain
+至少保留一个结构
+15
+Cancel
+取消
+16
+Cancel reply
+取消回复
+17
+Card view
+分组视图
+18
+CE (Chinese–X Translation Editor)
+汉外翻译编辑
+19
+Changes and selected stage saved
+更改及所选阶段已保存
+20
+Chinese example
+中文例句
+21
+Chinese explanatory
+汉语释义
+22
+Chinese–English
+汉英
+23
+Chinese–Russian
+汉俄
+24
+CHT-review
+中文审核
+25
+Close
+关闭
+26
+Collapse
+收起
+27
+Comment added
+评论已添加
+28
+Comments
+评论
+29
+Current editor
+当前编辑
+30
+Decrease text size
+缩小文字
+31
+Definition
+释义
+32
+Dictionary entry link
+词目链接
+33
+Direct definition cannot be combined with POS
+直接释义不能与词性并用
+34
+Domain
+领域
+35
+Duplicate homograph label
+同形词标识重复
+36
+EC (Editor-in-Chief)
+主编
+37
+Edit
+编辑
+38
+Editing history
+编辑历史
+39
+Editorial team
+编辑团队
+40
+Enter Chinese example
+请输入中文例句
+41
+Enter definition
+请输入释义
+42
+Enter Georgian translation
+请输入格文译文
+43
+Enter target entry
+请输入目标词目
+44
+Entry Editor
+词目编辑
+45
+ENTRY EDITOR
+词目编辑
+46
+Example number (editor only)
+例句序号（仅编辑端）
+47
+Expand
+展开
+48
+Finish editing
+完成编辑
+49
+Frames
+边框
+50
+GE (Georgian Language Editor)
+格文编辑
+51
+GEL-review
+格文审核
+52
+Georgian translation
+格文译文
+53
+Grammar group
+语法组
+54
+Headword
+词目
+55
+Hide hierarchy frames
+隐藏层级边框
+56
+Hide implicit structure
+隐藏隐式结构
+57
+Hide structure
+隐藏结构
+58
+History
+历史
+59
+Home
+首页
+60
+Homograph label
+同形词标识
+61
+Implicit grammar group
+隐含语法组
+62
+Implicit Sense
+隐含义项
+63
+Increase text size
+放大文字
+64
+Internal editorial material
+仅供编辑使用
+65
+Last edited
+最后编辑
+66
+Link
+链接
+67
+Main tools
+主要工具
+68
+Maximum 10 Homographs
+最多10个同形词
+69
+Maximum 2 Domain markers
+最多添加2个领域标记
+70
+Maximum 2 Style markers
+最多添加2个语体标记
+71
+Maximum 20 numbered lines
+最多添加20个带圈编号行
+72
+Maximum reached
+已达到上限
+73
+Media
+媒体
+74
+Media attached
+已添加媒体
+75
+Messages
+消息
+76
+New Entry (navigation action)
+新建词条
+77
+New Entry (stage)
+新建
+78
+Newest below
+最新在下
+79
+Notifications
+通知
+80
+One implicit sense remains
+保留一个隐含义项
+81
+Other reference material
+其他参考资料
+82
+Parsed from legacy
+已从旧数据解析
+83
+Pin
+固定
+84
+Pinyin
+拼音
+85
+Pinyin
+拼音 (1–5)
+86
+POS structure already exists
+已存在词性结构
+87
+Private message
+私人消息
+88
+Published
+已发布
+89
+Raw view
+原始文本
+90
+Ready
+待发布
+91
+Reference editing enabled
+已开启资料编辑
+92
+Reference groups
+资料分组
+93
+Reference materials
+参考资料
+94
+Remove
+删除
+95
+Remove direct definition first
+请先删除直接释义
+96
+Remove domain marker
+删除领域标记
+97
+Remove pinyin
+删除拼音
+98
+Remove POS-less Senses first
+请先删除无词性义项
+99
+Remove style marker
+删除语体标记
+100
+Remove traditional form
+删除繁体字
+101
+Reply
+回复
+102
+Role
+角色
+103
+Save
+保存
+104
+Saved without changing stage
+已保存，阶段未更改
+105
+Search
+查找
+106
+Search within reference materials
+在参考资料中查找
+107
+Select part of speech
+请选择词性
+108
+Select part of speech (POS)
+请选择词性
+109
+Select POS for this grammar group
+请选择该语法组的词性
+110
+Send
+发送
+111
+Sense
+义项
+112
+Show hierarchy frames
+显示层级边框
+113
+Show implicit structure
+显示隐式结构
+114
+Show or hide hierarchy frames
+显示或隐藏层级边框
+115
+Show structure
+显示结构
+116
+Sign out
+退出
+117
+Source
+来源
+118
+Stage
+阶段
+119
+Start structure
+选择结构
+120
+Statistics
+统计
+121
+Style
+语体
+122
+Supervisor
+主管
+123
+Text size
+文字大小
+124
+To
+收件人
+125
+Traditional form
+繁体字
+126
+Traditional form
+繁体字 (0–3)
+127
+Unpin
+取消固定
+128
+Unsaved changes cancelled
+未保存的更改已取消
+129
+Write a comment
+撰写评论
+130
+Write a comment first
+请先撰写评论
+131
+Write a private message
+撰写私人消息
+Editorial Panel — 106 term pairs
+№
+English
+中文
+1
+Access issues? Contact your supervisor
+无法登录？请联系主管
+2
+Account status
+账户状态
+3
+Active
+启用
+4
+Add editor
+添加编辑
+5
+All editors
+全部编辑
+6
+All eligible
+全部可导出
+7
+Approved pages
+已确认页面
+8
+Assistant Editor
+助理编辑
+9
+At least 8 characters
+至少 8 个字符
+10
+Author
+作者
+11
+Blocked
+已封锁
+12
+Cancel
+取消
+13
+Cancelled
+已注销
+14
+Chinese example and translation revised
+已修改中文例句及译文
+15
+Chinese name
+中文姓名
+16
+CHT-review
+中文审核
+17
+Chinese–X Translation Editor
+汉外翻译编辑
+18
+Clear filters
+清除筛选
+19
+Comment added
+已添加评论
+20
+Confirm new password
+确认新密码
+21
+Conversations
+会话列表
+22
+Current password
+当前密码
+23
+Database download
+数据库下载
+24
+Decrease font
+缩小字体
+25
+Deputy Editor
+副主编
+26
+Edit
+修改
+27
+Edit editor
+修改编辑
+28
+Editor
+编辑
+29
+Editor login
+编辑登录
+30
+Editor-in-Chief
+主编
+31
+EDITORIAL PANEL
+编辑平台
+32
+Editorial team
+编辑团队
+33
+Email address
+电子邮箱
+34
+English source added
+已添加英文参考资料
+35
+Enter at least 1 Chinese character or 2 letters
+至少输入1个汉字或2个字母
+36
+Enter your password
+请输入密码
+37
+Entry content search
+词目全文检索
+38
+Entry text updated
+词目内容已修改
+39
+Example checked
+例句已核对
+40
+Final approved page prototypes
+最终确认的页面交互原型
+41
+First name
+名
+42
+First page
+首页
+43
+Font size
+字号
+44
+From
+起始日期
+45
+Georgian Language Editor
+格文编辑
+46
+GEL-review
+格文审核
+47
+Georgian translation revised
+已修改格文译文
+48
+Group
+群聊
+49
+Helper Materials
+辅助资料
+50
+Hide password
+隐藏密码
+51
+Home
+主页
+52
+Increase font
+放大字体
+53
+Invalid username
+用户名格式不正确
+54
+Last name
+姓
+55
+Last page
+末页
+56
+Log in
+登录
+57
+Log out
+退出登录
+58
+Main navigation
+主导航
+59
+Media
+媒体
+60
+Messages
+消息
+61
+My account
+我的账户
+62
+New Entry (stage)
+新建
+63
+New message
+新消息
+64
+New Entry (navigation action)
+新建词条
+65
+New password
+新密码
+66
+Next page
+下一页
+67
+Notifications
+通知
+68
+Notifications list
+通知列表
+69
+Only unread
+仅未读
+70
+Optional
+选填
+71
+Password
+密码
+72
+Password changed
+密码已修改
+73
+Passwords do not match
+两次密码不一致
+74
+Personal information
+个人信息
+75
+Previous page
+上一页
+76
+Private
+私人
+77
+Published
+已发布
+78
+Quick view
+快速查看
+79
+Ready
+待发布
+80
+Reference material updated
+参考资料已修改
+81
+Remember me
+记住我
+82
+Role
+角色
+83
+Russian source added
+已添加俄文参考资料
+84
+Save
+保存
+85
+Search
+查找
+86
+Security
+安全
+87
+Select
+请选择
+88
+Select editor
+选择编辑
+89
+Selected conversation
+当前会话
+90
+Send
+发送
+91
+Sent
+已发送
+92
+Show password
+显示密码
+93
+Stage
+状态
+94
+Statistics
+统计
+95
+Status
+状态
+96
+Status changed
+状态已更改
+97
+Supervisor
+主管
+98
+Temporary password
+临时密码
+99
+Temporary password must be changed after first sign-in
+首次登录后须修改临时密码
+100
+To
+截止日期
+101
+Total
+合计
+102
+Unread
+未读
+103
+Username
+用户名
+104
+WeChat account
+微信账号
+105
+Word
+词语
+106
+Write a message
+输入消息
+Total: 237 canonical English–Chinese pairs
+

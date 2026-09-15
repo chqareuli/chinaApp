@@ -21,6 +21,8 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
             .HasColumnType("media_file_type")
             .IsRequired();
 
+        builder.HasOne<Entry>().WithMany().HasForeignKey(m => m.EntryId).OnDelete(DeleteBehavior.Cascade);
+
         builder.HasOne<Segment>().WithMany()
             .HasForeignKey(m => m.InsertedIntoSegmentId)
             .OnDelete(DeleteBehavior.SetNull);

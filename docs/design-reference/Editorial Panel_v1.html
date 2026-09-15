@@ -1,0 +1,2434 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>CHINESE.GE — Editorial Panel UI/UX | FINAL Programmer Handoff</title>
+<style>:root {
+  color-scheme: light dark;
+  background-color: transparent !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --main-surface-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --red: light-dark(rgb(186 38 35), rgb(250 66 62));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 10px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 17 17'%3E%3Cpath d='M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z'/%3E%3C/svg%3E");
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-visualize-standalone] {
+  background-color: var(--background) !important;
+}
+
+/* Generic mobile code-block hosts provide light/dark mode but no series palette.
+   AppBlock hosts set all six variables themselves. */
+:root:not([data-app-block-surface]) {
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(#f3883b, #f59a56);
+  --viz-series-3: light-dark(#5dc977, #74d58b);
+  --viz-series-4: light-dark(#eb77b1, #f08fc0);
+  --viz-series-5: light-dark(#9b79ec, #aa91ef);
+  --viz-series-6: light-dark(#3ab9b1, #5acbc2);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html > body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface]) > body {
+  padding: 12px;
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive > .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align="right"]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align="center"]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget > :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The bundled tooltip runtime owns [data-tooltip]. AppBlock's CSS-only
+   pseudo-tooltip can widen dense grids even while hidden. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls > .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls > .form-label > :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--interactive-label-primary-default, var(--primary-foreground));
+  background: var(--interactive-bg-primary-default, var(--foreground));
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(
+    in srgb,
+    var(--interactive-label-primary-default, var(--primary-foreground)) 50%,
+    transparent
+  );
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type="file"] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type="file"]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type="file"]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type="color"] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type="checkbox"] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type="checkbox"]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type="checkbox"]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: "";
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type="radio"]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: "";
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed="true"],
+    [aria-selected="true"],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed="true"], [aria-selected="true"], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget > svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+</style>
+</head>
+<body>
+<div id="cge-programmer-handoff-prototype">
+  <style>
+    #cge-programmer-handoff-prototype { --font-size-base: 16px; max-width: 1260px; margin-inline: auto; padding: 24px clamp(12px, 3vw, 36px) 48px; color: var(--foreground); }
+    #cge-programmer-handoff-prototype .handoff-header { display: grid; gap: 8px; margin-bottom: 18px; }
+    #cge-programmer-handoff-prototype .handoff-kicker { color: var(--muted-foreground); }
+    #cge-programmer-handoff-prototype .handoff-nav { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 12px 18px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+    #cge-programmer-handoff-prototype [data-handoff-page][hidden] { display: none; }
+  </style>
+  <header class="handoff-header"><h2>CHINESE.GE — Editorial Panel UI/UX</h2><div class="handoff-kicker">Final approved page prototypes · 最终确认的页面交互原型</div></header>
+  <nav class="handoff-nav" aria-label="Approved pages · 已确认页面">
+    <button type="button" class="btn btn-primary" data-handoff-target="login" aria-pressed="true">Log in · 登录</button>
+    <button type="button" class="btn" data-handoff-target="home" aria-pressed="false">Home · 主页</button>
+    <button type="button" class="btn" data-handoff-target="team" aria-pressed="false">Editorial team · 编辑团队</button>
+    <button type="button" class="btn" data-handoff-target="account" aria-pressed="false">My account · 我的账户</button>
+    <button type="button" class="btn" data-handoff-target="statistics" aria-pressed="false">Statistics · 统计</button>
+    <button type="button" class="btn" data-handoff-target="notifications" aria-pressed="false">Notifications · 通知</button>
+    <button type="button" class="btn" data-handoff-target="messages" aria-pressed="false">Messages · 站内消息</button>
+  </nav>
+  <section data-handoff-page="login">
+<div id="cge-editorial-login-preview">
+  <style>
+    #cge-editorial-login-preview { --font-size-base: 18px; position: relative; display: grid; align-items: center; padding-block: 34px; }
+    #cge-editorial-login-preview .login-shell { display: grid; justify-items: center; gap: 24px; }
+    #cge-editorial-login-preview .login-brand { display: grid; justify-items: center; gap: 6px; }
+    #cge-editorial-login-preview .login-brand-line { display: flex; align-items: center; gap: 10px; }
+    #cge-editorial-login-preview .login-brand-line strong { font-weight: 500; }
+    #cge-editorial-login-preview .login-card { display: grid; gap: 19px; width: min(100%, 440px); }
+    #cge-editorial-login-preview .login-title { display: grid; justify-items: center; gap: 3px; }
+    #cge-editorial-login-preview .login-form { display: grid; gap: 17px; }
+    #cge-editorial-login-preview .login-field { display: grid; gap: 6px; }
+    #cge-editorial-login-preview .login-password-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; }
+    #cge-editorial-login-preview .login-note { text-align: center; }
+    #cge-editorial-login-preview .login-feedback { min-height: 1.2em; text-align: center; }
+    #cge-editorial-login-preview .login-overlay { position: absolute; inset: 0; display: grid; align-items: center; justify-items: center; padding: 12px; background: color-mix(in srgb, var(--background) 84%, transparent); }
+    #cge-editorial-login-preview .login-overlay[hidden] { display: none; }
+    #cge-editorial-login-preview .login-modal { display: grid; gap: 17px; width: min(100%, 410px); }
+    #cge-editorial-login-preview .login-modal-title { display: grid; justify-items: center; gap: 4px; text-align: center; }
+    #cge-editorial-login-preview .login-modal-form { display: grid; gap: 14px; }
+    @media (max-width: 420px) {
+      #cge-editorial-login-preview { --font-size-base: 16px; padding-block: 20px; }
+      #cge-editorial-login-preview .login-shell { gap: 17px; }
+    }
+  </style>
+
+  <main class="login-shell" aria-label="Editor login · 编辑登录">
+    <div class="login-brand" aria-label="Chinese.ge editorial panel">
+      <div class="login-brand-line"><span class="viz-badge" aria-hidden="true">中</span><strong>Chinese.ge</strong></div>
+      <span class="text-small">EDITORIAL PANEL · 编辑平台</span>
+    </div>
+
+    <section class="card login-card" aria-labelledby="cge-login-heading">
+      <div class="login-title">
+        <h2 id="cge-login-heading">LOG IN</h2>
+        <span>登录</span>
+      </div>
+
+      <form id="cge-login-form" class="login-form" novalidate>
+        <div class="login-field">
+          <label class="form-label" for="cge-login-username">Username · 用户名</label>
+          <input id="cge-login-username" class="form-control" type="text" value="zuramzl" autocomplete="username" minlength="6" maxlength="30" autocapitalize="none" spellcheck="false" aria-describedby="cge-login-username-hint" required>
+          <span id="cge-login-username-hint" class="text-small">6–30 Latin letters, digits, . or _ · 6–30 位拉丁字母、数字、. 或 _</span>
+        </div>
+
+        <div class="login-field">
+          <label class="form-label" for="cge-login-password">Password · 密码</label>
+          <div class="login-password-row">
+            <input id="cge-login-password" class="form-control" type="password" value="Temp2026!" autocomplete="current-password" required>
+            <button id="cge-login-toggle-password" type="button" class="btn btn-ghost" aria-label="Show password · 显示密码" data-tooltip="Show password · 显示密码">
+              <span id="cge-login-eye-open"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>
+              <span id="cge-login-eye-closed" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 2 20 20M10.7 10.7a2 2 0 0 0 2.6 2.6M6.3 6.3C3.5 8 2 12 2 12s3.5 7 10 7a10.8 10.8 0 0 0 5.7-1.6M9.9 5.2A12.2 12.2 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.4 3.4"/></svg></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-check">
+          <input id="cge-login-remember" class="form-check-input" type="checkbox" checked>
+          <label class="form-check-label" for="cge-login-remember">Remember me · 记住我</label>
+        </div>
+
+        <button class="btn btn-primary btn-block" type="submit">Log in · 登录</button>
+        <div id="cge-login-feedback" class="login-feedback text-small" role="status" aria-live="polite"></div>
+      </form>
+
+      <p class="login-note text-small">Access issues? Contact your supervisor · 无法登录？请联系主管</p>
+    </section>
+  </main>
+
+  <div id="cge-login-overlay" class="login-overlay" hidden>
+    <section class="card login-modal" role="dialog" aria-modal="true" aria-labelledby="cge-login-modal-heading">
+      <div class="login-modal-title">
+        <h3 id="cge-login-modal-heading">Change temporary password</h3>
+        <span>修改临时密码</span>
+      </div>
+
+      <form id="cge-login-change-form" class="login-modal-form" novalidate>
+        <div class="login-field">
+          <label class="form-label" for="cge-login-new-password">New password · 新密码</label>
+          <input id="cge-login-new-password" class="form-control" type="password" minlength="8" autocomplete="new-password" aria-describedby="cge-login-password-hint" required>
+          <span id="cge-login-password-hint" class="text-small">At least 8 characters · 至少 8 个字符</span>
+        </div>
+        <div class="login-field">
+          <label class="form-label" for="cge-login-confirm-password">Confirm new password · 确认新密码</label>
+          <input id="cge-login-confirm-password" class="form-control" type="password" minlength="8" autocomplete="new-password" required>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Save · 保存</button>
+        <div id="cge-login-change-feedback" class="login-feedback text-small" role="status" aria-live="polite"></div>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById("cge-editorial-login-preview");
+      if (!root) return;
+      const loginForm = root.querySelector("#cge-login-form");
+      const username = root.querySelector("#cge-login-username");
+      const password = root.querySelector("#cge-login-password");
+      const passwordToggle = root.querySelector("#cge-login-toggle-password");
+      const openEye = root.querySelector("#cge-login-eye-open");
+      const closedEye = root.querySelector("#cge-login-eye-closed");
+      const feedback = root.querySelector("#cge-login-feedback");
+      const overlay = root.querySelector("#cge-login-overlay");
+      const changeForm = root.querySelector("#cge-login-change-form");
+      const nextPassword = root.querySelector("#cge-login-new-password");
+      const confirmPassword = root.querySelector("#cge-login-confirm-password");
+      const changeFeedback = root.querySelector("#cge-login-change-feedback");
+      const usernamePattern = /^[A-Za-z][A-Za-z0-9._]{5,29}$/;
+
+      passwordToggle.addEventListener("click", () => {
+        const show = password.type === "password";
+        password.type = show ? "text" : "password";
+        openEye.hidden = show;
+        closedEye.hidden = !show;
+        const label = show ? "Hide password · 隐藏密码" : "Show password · 显示密码";
+        passwordToggle.setAttribute("aria-label", label);
+        passwordToggle.setAttribute("data-tooltip", label);
+      });
+
+      loginForm.addEventListener("submit", event => {
+        event.preventDefault();
+        feedback.classList.remove("text-destructive");
+        if (!usernamePattern.test(username.value.trim())) {
+          feedback.textContent = "Invalid username · 用户名格式不正确";
+          feedback.classList.add("text-destructive");
+          username.focus();
+          return;
+        }
+        if (!password.value) {
+          feedback.textContent = "Enter your password · 请输入密码";
+          feedback.classList.add("text-destructive");
+          password.focus();
+          return;
+        }
+        feedback.textContent = "";
+        overlay.hidden = false;
+        nextPassword.focus();
+      });
+
+      changeForm.addEventListener("submit", event => {
+        event.preventDefault();
+        changeFeedback.classList.remove("text-destructive");
+        if (nextPassword.value.length < 8) {
+          changeFeedback.textContent = "At least 8 characters · 至少 8 个字符";
+          changeFeedback.classList.add("text-destructive");
+          nextPassword.focus();
+          return;
+        }
+        if (nextPassword.value !== confirmPassword.value) {
+          changeFeedback.textContent = "Passwords do not match · 两次密码不一致";
+          changeFeedback.classList.add("text-destructive");
+          confirmPassword.focus();
+          return;
+        }
+        overlay.hidden = true;
+        feedback.textContent = "Password changed · 密码已修改";
+        changeForm.reset();
+      });
+    })();
+  </script>
+</div>
+  </section>
+  <section data-handoff-page="home" hidden>
+<div id="cge-home-final">
+  <style>
+    #cge-home-final { --font-size-base: 15px; display: grid; gap: 15px; color: var(--foreground); padding-block: 6px; }
+    #cge-home-final .cge-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    #cge-home-final .cge-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; color: var(--muted-foreground); }
+    #cge-home-final .cge-search { display: flex; flex: 1 1 190px; min-width: 160px; }
+    #cge-home-final .cge-account { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    #cge-home-final .cge-header { background: color-mix(in srgb, var(--green) 6%, var(--background)); }
+    #cge-home-final .cge-row:nth-child(odd) { background: color-mix(in srgb, var(--muted) 52%, transparent); }
+    #cge-home-final .cge-row:nth-child(even) { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+    #cge-home-final .cge-unread { display: inline-flex; align-items: center; justify-content: center; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--red) 12%, var(--background)); color: var(--red); font-weight: 500; }
+    #cge-home-final .cge-table-area { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 6px; }
+    #cge-home-final .cge-font-control { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    #cge-home-final .cge-font-label { writing-mode: vertical-rl; }
+    #cge-home-final .cge-person { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    #cge-home-final .cge-stage { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+    #cge-home-final .cge-mark { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: 0 0 8px; }
+    #cge-home-final .cge-red { color: color-mix(in srgb, var(--foreground) 34%, var(--red) 66%); }
+    #cge-home-final .cge-blue { color: color-mix(in srgb, var(--foreground) 36%, var(--ring) 64%); }
+    #cge-home-final .cge-green { color: color-mix(in srgb, var(--foreground) 36%, var(--green) 64%); }
+    #cge-home-final .cge-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 9px; }
+    #cge-home-final .cge-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    @media (max-width: 610px) { #cge-home-final .cge-search { order: 3; flex-basis: 100%; } }
+  </style>
+
+  <nav class="cge-top" aria-label="Main navigation · 主导航">
+    <div class="cge-actions">
+      <button type="button" class="btn btn-ghost" aria-label="Home · 主页" data-tooltip="Home · 主页"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Messages · 站内消息 · 12 unread" data-tooltip="Messages · 站内消息"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></svg><span class="cge-unread">12</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="Notifications · 通知 · 4 unread" data-tooltip="Notifications · 通知"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 20a2 2 0 0 0 4 0"/></svg><span class="cge-unread">4</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="New Entry · 新建词条" data-tooltip="New Entry · 新建词条"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H5v18h14V9l-6-6v6h6M12 12v6M9 15h6"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Media · 媒体" data-tooltip="Media · 媒体"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m21 15-5-5L5 20"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Statistics · 统计" data-tooltip="Statistics · 统计"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="0.7"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Editorial team · 编辑团队" data-tooltip="Editorial team · 编辑团队"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5.3a3 3 0 0 1 0 5.4M18 14a5 5 0 0 1 3 4.6V20"/></svg></button>
+    </div>
+    <label class="form-label cge-search" for="cge-home-search"><span class="sr-only">Search · 查找</span><input id="cge-home-search" class="form-control" type="search" placeholder="Search · 查找"></label>
+    <div class="cge-account"><button type="button" class="btn btn-ghost" aria-label="My account · 我的账户" data-tooltip="My account · 我的账户"><span class="viz-badge">SV</span> Zurab M.</button><button type="button" class="btn btn-ghost" aria-label="Log out · 退出登录" data-tooltip="Log out · 退出登录"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17v4H3V3h7v4M8 12h13m-5-5 5 5-5 5"/></svg></button></div>
+  </nav>
+
+  <div class="cge-table-area">
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead class="cge-header"><tr>
+        <th><label class="form-label" for="cge-home-author"><span class="sr-only">Author · 作者</span><select id="cge-home-author" class="form-select"><option value="">Author · 作者</option><option>Zurab M.</option><option>Natalia M.</option><option>Tamar M.</option></select></label></th>
+        <th><label class="form-label" for="cge-home-editor"><span class="sr-only">Editor · 编辑</span><select id="cge-home-editor" class="form-select"><option value="">Editor · 编辑</option><option>Zurab M.</option><option>Darejan K.</option><option>Natalia M.</option></select></label></th>
+        <th><label class="form-label" for="cge-content-search"><span class="sr-only">Entry content search · 词目全文检索</span><input id="cge-content-search" class="form-control" type="search" placeholder="Word · 词语" aria-describedby="cge-content-search-rule"><span id="cge-content-search-rule" class="sr-only">Enter at least 1 Chinese character or 2 letters · 至少输入1个汉字或2个字母</span></label></th>
+        <th><label class="form-label" for="cge-home-stage"><span class="sr-only">Stage · 状态</span><select id="cge-home-stage" class="form-select"><option value="">Stage · 状态</option><option>Published</option><option>Ready</option><option>CHT-review</option><option>GEL-review</option></select></label></th>
+        <th class="text-nowrap">Last modified<br><span class="text-small">最后修改时间</span></th>
+        <th><button id="cge-home-clear" type="button" class="btn btn-ghost" aria-label="Clear filters · 清除筛选" data-tooltip="Clear filters · 清除筛选"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h18l-7 8v5l-4 3v-8zM17 17l4 4m0-4-4 4"/></svg></button></th>
+      </tr></thead>
+      <tbody id="cge-home-rows">
+        <tr class="cge-row" data-author="Zurab M." data-editor="Zurab M." data-entry="轴" data-content="轴 车轴 转轴 ღერძი ბორბლის ღერძი" data-stage="Published"><td><span class="cge-person"><span class="viz-badge">SV</span> Zurab M.</span></td><td><span class="cge-person"><span class="viz-badge">SV</span> Zurab M.</span></td><td>轴</td><td><span class="cge-stage"><span class="cge-mark"></span>Published · 已发布</span></td><td class="text-nowrap">2026-08-22 09:50</td><td></td></tr>
+        <tr class="cge-row" data-author="Zurab M." data-editor="Darejan K." data-entry="三个和尚没水吃" data-content="三个和尚没水吃 水 水源 წყალი თანამშრომლობა" data-stage="CHT-review"><td><span class="cge-person"><span class="viz-badge">SV</span> Zurab M.</span></td><td><span class="cge-person"><span class="viz-badge">GE</span> Darejan K.</span></td><td class="cge-red">三个和尚没水吃</td><td><span class="cge-stage cge-red"><span class="cge-mark"></span>CHT-review · 中文审核</span></td><td class="text-nowrap">2026-08-22 09:42</td><td></td></tr>
+        <tr class="cge-row" data-author="Tamar M." data-editor="Darejan K." data-entry="老牛吃嫩草" data-content="老牛吃嫩草 比喻 年龄 ასაკი ურთიერთობა" data-stage="Ready"><td><span class="cge-person"><span class="viz-badge">AE</span> Tamar M.</span></td><td><span class="cge-person"><span class="viz-badge">GE</span> Darejan K.</span></td><td class="cge-green">老牛吃嫩草</td><td><span class="cge-stage cge-green"><span class="cge-mark"></span>Ready · 待发布</span></td><td class="text-nowrap">2026-08-22 09:34</td><td></td></tr>
+        <tr class="cge-row" data-author="Natalia M." data-editor="Darejan K." data-entry="垂" data-content="垂 下垂 垂直 ჩამოშვება ვერტიკალური" data-stage="GEL-review"><td><span class="cge-person"><span class="viz-badge">CE</span> Natalia M.</span></td><td><span class="cge-person"><span class="viz-badge">GE</span> Darejan K.</span></td><td class="cge-blue">垂</td><td><span class="cge-stage cge-blue"><span class="cge-mark"></span>GEL-review · 格鲁吉亚语审核</span></td><td class="text-nowrap">2026-08-22 09:21</td><td></td></tr>
+        <tr class="cge-row" data-author="Zurab M." data-editor="Natalia M." data-entry="薄酒" data-content="薄酒 酒 淡酒 ღვინო მსუბუქი" data-stage="Ready"><td><span class="cge-person"><span class="viz-badge">SV</span> Zurab M.</span></td><td><span class="cge-person"><span class="viz-badge">CE</span> Natalia M.</span></td><td class="cge-green">薄酒</td><td><span class="cge-stage cge-green"><span class="cge-mark"></span>Ready · 待发布</span></td><td class="text-nowrap">2026-08-22 09:12</td><td></td></tr>
+        <tr class="cge-row" data-author="Zurab M." data-editor="Darejan K." data-entry="王炸" data-content="王炸 扑克 王牌 კარტი კომბინაცია" data-stage="CHT-review"><td><span class="cge-person"><span class="viz-badge">SV</span> Zurab M.</span></td><td><span class="cge-person"><span class="viz-badge">GE</span> Darejan K.</span></td><td class="cge-red">王炸</td><td><span class="cge-stage cge-red"><span class="cge-mark"></span>CHT-review · 中文审核</span></td><td class="text-nowrap">2026-08-22 08:57</td><td></td></tr>
+        <tr class="cge-row" data-author="Natalia M." data-editor="Zurab M." data-entry="时光" data-content="时光 时间 光阴 დრო ხანი" data-stage="Published"><td><span class="cge-person"><span class="viz-badge">CE</span> Natalia M.</span></td><td><span class="cge-person"><span class="viz-badge">SV</span> Zurab M.</span></td><td>时光</td><td><span class="cge-stage"><span class="cge-mark"></span>Published · 已发布</span></td><td class="text-nowrap">2026-08-22 08:46</td><td></td></tr>
+        <tr class="cge-row" data-author="Tamar M." data-editor="Darejan K." data-entry="难题" data-content="难题 困难 问题 რთული საკითხი" data-stage="GEL-review"><td><span class="cge-person"><span class="viz-badge">AE</span> Tamar M.</span></td><td><span class="cge-person"><span class="viz-badge">GE</span> Darejan K.</span></td><td class="cge-blue">难题</td><td><span class="cge-stage cge-blue"><span class="cge-mark"></span>GEL-review · 格鲁吉亚语审核</span></td><td class="text-nowrap">2026-08-21 17:35</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <aside class="cge-font-control" aria-label="Font size · 字号"><span class="cge-font-label text-small">Font size · 字号</span><button id="cge-font-increase" type="button" class="btn btn-ghost" aria-label="Increase font · 放大字体" data-tooltip="Increase font · 放大字体">+</button><button id="cge-font-decrease" type="button" class="btn btn-ghost" aria-label="Decrease font · 缩小字体" data-tooltip="Decrease font · 缩小字体">−</button></aside>
+  </div>
+
+  <div class="cge-footer"><span id="cge-home-count" class="text-small text-muted">8 entries · 8 词目</span><div class="cge-pages"><button type="button" class="btn btn-ghost" aria-label="First page · 首页" data-tooltip="First page · 首页">«</button><button type="button" class="btn btn-ghost" aria-label="Previous page · 上一页" data-tooltip="Previous page · 上一页">‹</button><button type="button" class="btn" aria-pressed="true">1</button><button type="button" class="btn btn-ghost">2</button><button type="button" class="btn btn-ghost">3</button><button type="button" class="btn btn-ghost">4</button><span aria-hidden="true">…</span><button type="button" class="btn btn-ghost" aria-label="Next page · 下一页" data-tooltip="Next page · 下一页">›</button><button type="button" class="btn btn-ghost" aria-label="Last page · 末页" data-tooltip="Last page · 末页">»</button></div></div>
+
+  <script>
+    (() => {
+      const root = document.getElementById("cge-home-final");
+      const search = root.querySelector("#cge-home-search");
+      const author = root.querySelector("#cge-home-author");
+      const editor = root.querySelector("#cge-home-editor");
+      const stage = root.querySelector("#cge-home-stage");
+      const contentSearch = root.querySelector("#cge-content-search");
+      const rows = Array.from(root.querySelectorAll("#cge-home-rows tr"));
+      const count = root.querySelector("#cge-home-count");
+      const increaseFont = root.querySelector("#cge-font-increase");
+      const decreaseFont = root.querySelector("#cge-font-decrease");
+      const fontSizes = [14, 15, 16, 17, 18, 19];
+      let fontIndex = 1;
+      function adjustFont(direction) {
+        fontIndex = Math.max(0, Math.min(fontSizes.length - 1, fontIndex + direction));
+        root.style.setProperty("--font-size-base", fontSizes[fontIndex] + "px");
+        decreaseFont.disabled = fontIndex === 0;
+        increaseFont.disabled = fontIndex === fontSizes.length - 1;
+      }
+      function contentQueryIsValid(value) {
+        const characters = Array.from(value.trim());
+        const hanCount = characters.filter(character => /\p{Script=Han}/u.test(character)).length;
+        const letterCount = characters.filter(character => /\p{Letter}/u.test(character) && !/\p{Script=Han}/u.test(character)).length;
+        return hanCount >= 1 || letterCount >= 2;
+      }
+      function update() {
+        const needle = search.value.trim().toLocaleLowerCase();
+        const contentNeedle = contentSearch.value.trim().toLocaleLowerCase();
+        const contentSearchActive = contentQueryIsValid(contentNeedle);
+        contentSearch.setAttribute("aria-invalid", contentNeedle && !contentSearchActive ? "true" : "false");
+        let visible = 0;
+        for (const row of rows) {
+          const matches = (!needle || row.dataset.entry.toLocaleLowerCase().includes(needle)) && (!contentSearchActive || row.dataset.content.toLocaleLowerCase().includes(contentNeedle)) && (!author.value || row.dataset.author === author.value) && (!editor.value || row.dataset.editor === editor.value) && (!stage.value || row.dataset.stage === stage.value);
+          row.hidden = !matches;
+          if (matches) visible += 1;
+        }
+        count.textContent = visible + " entries · " + visible + " 词目";
+      }
+      increaseFont.addEventListener("click", () => adjustFont(1));
+      decreaseFont.addEventListener("click", () => adjustFont(-1));
+      search.addEventListener("input", update);
+      contentSearch.addEventListener("input", update);
+      for (const control of [author, editor, stage]) control.addEventListener("change", update);
+      root.querySelector("#cge-home-clear").addEventListener("click", () => { search.value = ""; contentSearch.value = ""; author.value = ""; editor.value = ""; stage.value = ""; update(); });
+    })();
+  </script>
+</div>
+  </section>
+  <section data-handoff-page="team" hidden>
+<div id="cge-editorial-team-refined">
+  <style>
+    #cge-editorial-team-refined { --font-size-base: 15px; display: grid; gap: 16px; color: var(--foreground); padding-block: 6px; }
+    #cge-editorial-team-refined .cge-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    #cge-editorial-team-refined .cge-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; color: var(--muted-foreground); }
+    #cge-editorial-team-refined .cge-search { display: flex; flex: 1 1 190px; min-width: 160px; }
+    #cge-editorial-team-refined .cge-account { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    #cge-editorial-team-refined .cge-unread { display: inline-flex; align-items: center; justify-content: center; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--red) 12%, var(--background)); color: var(--red); font-weight: 500; }
+    #cge-editorial-team-refined .cge-heading { text-align: center; color: color-mix(in srgb, var(--muted-foreground) 54%, var(--green) 46%); }
+    #cge-editorial-team-refined .cge-heading h2 { margin-block: 4px; font-weight: 700; }
+    #cge-editorial-team-refined .cge-table-area { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 6px; }
+    #cge-editorial-team-refined .cge-header { background: color-mix(in srgb, var(--green) 6%, var(--background)); }
+    #cge-editorial-team-refined .cge-row:nth-child(odd) { background: color-mix(in srgb, var(--muted) 52%, transparent); }
+    #cge-editorial-team-refined .cge-row:nth-child(even) { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+    #cge-editorial-team-refined .cge-person { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    #cge-editorial-team-refined .cge-name { display: grid; gap: 2px; }
+    #cge-editorial-team-refined .cge-role { display: grid; gap: 2px; }
+    #cge-editorial-team-refined .cge-state { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+    #cge-editorial-team-refined .cge-mark { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: 0 0 8px; }
+    #cge-editorial-team-refined .cge-active { color: color-mix(in srgb, var(--foreground) 35%, var(--green) 65%); }
+    #cge-editorial-team-refined .cge-inactive { color: var(--muted-foreground); }
+    #cge-editorial-team-refined .cge-font-control { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    #cge-editorial-team-refined .cge-font-label { writing-mode: vertical-rl; }
+    #cge-editorial-team-refined .cge-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+    #cge-editorial-team-refined .cge-form { display: grid; gap: 13px; }
+    #cge-editorial-team-refined .cge-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    #cge-editorial-team-refined .cge-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    @media (max-width: 610px) { #cge-editorial-team-refined .cge-search { order: 3; flex-basis: 100%; } }
+  </style>
+
+  <nav class="cge-top" aria-label="Main navigation · 主导航">
+    <div class="cge-actions">
+      <button type="button" class="btn btn-ghost" aria-label="Home · 主页" data-tooltip="Home · 主页"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Messages · 站内消息 · 12 unread" data-tooltip="Messages · 站内消息"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></svg><span class="cge-unread">12</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="Notifications · 通知 · 4 unread" data-tooltip="Notifications · 通知"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 20a2 2 0 0 0 4 0"/></svg><span class="cge-unread">4</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="New Entry · 新建词条" data-tooltip="New Entry · 新建词条"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H5v18h14V9l-6-6v6h6M12 12v6M9 15h6"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Media · 媒体" data-tooltip="Media · 媒体"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m21 15-5-5L5 20"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Statistics · 统计" data-tooltip="Statistics · 统计"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="0.7"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"/></svg></button>
+      <button type="button" class="btn" aria-pressed="true" aria-label="Editorial team · 编辑团队" data-tooltip="Editorial team · 编辑团队"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5.3a3 3 0 0 1 0 5.4M18 14a5 5 0 0 1 3 4.6V20"/></svg></button>
+    </div>
+    <label class="form-label cge-search" for="cge-team-search"><span class="sr-only">Search · 查找</span><input id="cge-team-search" class="form-control" type="search" placeholder="Search · 查找"></label>
+    <div class="cge-account"><button type="button" class="btn btn-ghost" aria-label="My account · 我的账户" data-tooltip="My account · 我的账户"><span class="viz-badge">EC</span><span class="viz-badge">SV</span> Zurab M.</button><button type="button" class="btn btn-ghost" aria-label="Log out · 退出登录" data-tooltip="Log out · 退出登录"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17v4H3V3h7v4M8 12h13m-5-5 5 5-5 5"/></svg></button></div>
+  </nav>
+
+  <div class="cge-heading"><h2>EDITORIAL TEAM<br>编辑团队</h2></div>
+
+  <div class="cge-table-area">
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead class="cge-header"><tr>
+          <th class="text-nowrap">Editor<br><span class="text-small">编辑</span></th>
+          <th><label class="form-label" for="cge-team-role-filter"><span class="sr-only">Role · 角色</span><select id="cge-team-role-filter" class="form-select"><option value="">Role · 角色</option><option value="EC">Editor-in-Chief · 主编</option><option value="DE">Deputy Editor · 副主编</option><option value="CE">Chinese–X Translation Editor · 汉外翻译编辑</option><option value="GE">Georgian Language Editor · 格文编辑</option><option value="AE">Assistant Editor · 助理编辑</option></select></label></th>
+          <th><label class="form-label" for="cge-team-status-filter"><span class="sr-only">Account status · 账户状态</span><select id="cge-team-status-filter" class="form-select"><option value="">Account status · 账户状态</option><option value="active">Active · 启用</option><option value="blocked">Blocked · 已封锁</option><option value="cancelled">Cancelled · 已注销</option></select></label></th>
+          <th class="text-nowrap">Created<br><span class="text-small">创建时间</span></th>
+          <th class="text-nowrap">Actions<br><span class="text-small">操作</span></th>
+        </tr></thead>
+        <tbody id="cge-team-rows">
+          <tr class="cge-row" data-name="Zurab M." data-role="EC" data-status="active" data-supervisor="true"><td><span class="cge-person"><span class="viz-badge">EC</span><span class="viz-badge">SV</span><span class="cge-name"><a href="#" data-profile="Zurab M.">Zurab M.</a><span class="text-small">祃祖雷</span></span></span></td><td><span class="cge-role">Editor-in-Chief<span class="text-small">主编</span></span></td><td><span class="cge-state cge-active"><span class="cge-mark"></span>Active · 启用</span></td><td class="text-nowrap">2026-08-22</td><td><button type="button" class="btn btn-ghost" data-edit="true" aria-label="Edit Zurab M. · 修改" data-tooltip="Edit · 修改"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z"/></svg></button></td></tr>
+          <tr class="cge-row" data-name="Nino T." data-role="DE" data-status="active" data-supervisor="true"><td><span class="cge-person"><span class="viz-badge">DE</span><span class="viz-badge">SV</span><span class="cge-name"><a href="#" data-profile="Nino T.">Nino T.</a></span></span></td><td><span class="cge-role">Deputy Editor<span class="text-small">副主编</span></span></td><td><span class="cge-state cge-active"><span class="cge-mark"></span>Active · 启用</span></td><td class="text-nowrap">2026-08-22</td><td><button type="button" class="btn btn-ghost" data-edit="true" aria-label="Edit Nino T. · 修改" data-tooltip="Edit · 修改"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z"/></svg></button></td></tr>
+          <tr class="cge-row" data-name="Natalia M." data-role="CE" data-status="active" data-supervisor="false"><td><span class="cge-person"><span class="viz-badge">CE</span><span class="cge-name"><a href="#" data-profile="Natalia M.">Natalia M.</a></span></span></td><td><span class="cge-role">Chinese–X Translation Editor<span class="text-small">汉外翻译编辑</span></span></td><td><span class="cge-state cge-active"><span class="cge-mark"></span>Active · 启用</span></td><td class="text-nowrap">2026-08-21</td><td><button type="button" class="btn btn-ghost" data-edit="true" aria-label="Edit Natalia M. · 修改" data-tooltip="Edit · 修改"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z"/></svg></button></td></tr>
+          <tr class="cge-row" data-name="Darejan K." data-role="GE" data-status="active" data-supervisor="false"><td><span class="cge-person"><span class="viz-badge">GE</span><span class="cge-name"><a href="#" data-profile="Darejan K.">Darejan K.</a><span class="text-small">达列江</span></span></span></td><td><span class="cge-role">Georgian Language Editor<span class="text-small">格文编辑</span></span></td><td><span class="cge-state cge-active"><span class="cge-mark"></span>Active · 启用</span></td><td class="text-nowrap">2026-08-20</td><td><button type="button" class="btn btn-ghost" data-edit="true" aria-label="Edit Darejan K. · 修改" data-tooltip="Edit · 修改"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z"/></svg></button></td></tr>
+          <tr class="cge-row" data-name="Tatia S." data-role="CE" data-status="active" data-supervisor="false"><td><span class="cge-person"><span class="viz-badge">CE</span><span class="cge-name"><a href="#" data-profile="Tatia S.">Tatia S.</a></span></span></td><td><span class="cge-role">Chinese–X Translation Editor<span class="text-small">汉外翻译编辑</span></span></td><td><span class="cge-state cge-active"><span class="cge-mark"></span>Active · 启用</span></td><td class="text-nowrap">2026-08-18</td><td><button type="button" class="btn btn-ghost" data-edit="true" aria-label="Edit Tatia S. · 修改" data-tooltip="Edit · 修改"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z"/></svg></button></td></tr>
+          <tr class="cge-row" data-name="Tamar M." data-role="AE" data-status="blocked" data-supervisor="false"><td><span class="cge-person"><span class="viz-badge">AE</span><span class="cge-name"><a href="#" data-profile="Tamar M.">Tamar M.</a><span class="text-small">塔穆娜</span></span></span></td><td><span class="cge-role">Assistant Editor<span class="text-small">助理编辑</span></span></td><td><span class="cge-state cge-inactive"><span class="cge-mark"></span>Blocked · 已封锁</span></td><td class="text-nowrap">2026-08-14</td><td><button type="button" class="btn btn-ghost" data-edit="true" aria-label="Edit Tamar M. · 修改" data-tooltip="Edit · 修改"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z"/></svg></button></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <aside class="cge-font-control" aria-label="Font size · 字号"><span class="cge-font-label text-small">Font size · 字号</span><button id="cge-team-font-increase" type="button" class="btn btn-ghost" aria-label="Increase font · 放大字体" data-tooltip="Increase font · 放大字体">+</button><button id="cge-team-font-decrease" type="button" class="btn btn-ghost" aria-label="Decrease font · 缩小字体" data-tooltip="Decrease font · 缩小字体">−</button></aside>
+  </div>
+
+  <div class="cge-footer"><span id="cge-team-count" class="text-small text-muted">6 editors · 6 位编辑</span><button id="cge-team-add-toggle" type="button" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a6 6 0 0 0-6-6H8a6 6 0 0 0-6 6v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg> Add editor · 添加编辑</button></div>
+  <div id="cge-team-profile-feedback" class="text-small" role="status" hidden></div>
+
+  <section id="cge-team-edit-panel" aria-label="Edit editor · 修改编辑" hidden>
+    <form id="cge-team-edit-form" class="cge-form">
+      <div id="cge-team-edit-name">Edit editor · 修改编辑</div>
+      <div class="cge-fields">
+        <label class="form-label" for="cge-edit-role">Role · 角色<select id="cge-edit-role" class="form-select"><option value="EC">Editor-in-Chief · 主编</option><option value="DE">Deputy Editor · 副主编</option><option value="CE">Chinese–X Translation Editor · 汉外翻译编辑</option><option value="GE">Georgian Language Editor · 格文编辑</option><option value="AE">Assistant Editor · 助理编辑</option></select></label>
+        <label class="form-label" for="cge-edit-status">Account status · 账户状态<select id="cge-edit-status" class="form-select"><option value="active">Active · 启用</option><option value="blocked">Blocked · 已封锁</option><option value="cancelled">Cancelled · 已注销</option></select></label>
+      </div>
+      <label class="form-check form-switch"><input id="cge-edit-supervisor" class="form-check-input" type="checkbox"><span class="form-check-label">Supervisor · 主管</span></label>
+      <div id="cge-edit-error" class="text-destructive" role="alert" hidden></div>
+      <div class="cge-form-actions"><button type="submit" class="btn btn-primary">Save · 保存</button><button id="cge-edit-cancel" type="button" class="btn">Cancel · 取消</button></div>
+    </form>
+  </section>
+
+  <section id="cge-team-add-panel" aria-label="Add editor · 添加编辑" hidden>
+    <form id="cge-team-add-form" class="cge-form">
+      <div>Add editor · 添加编辑</div>
+      <div class="cge-fields">
+        <label class="form-label" for="cge-add-first">First name · 名 *<input id="cge-add-first" class="form-control" type="text" required></label>
+        <label class="form-label" for="cge-add-last">Last name · 姓 *<input id="cge-add-last" class="form-control" type="text" required></label>
+        <label class="form-label" for="cge-add-chinese">Chinese name · 中文姓名<input id="cge-add-chinese" class="form-control" type="text" placeholder="Optional · 选填"></label>
+        <label class="form-label" for="cge-add-email">Email address · 电子邮箱 *<input id="cge-add-email" class="form-control" type="email" required></label>
+        <label class="form-label" for="cge-add-role">Role · 角色 *<select id="cge-add-role" class="form-select" required><option value="">Select · 请选择</option><option value="EC">Editor-in-Chief · 主编</option><option value="DE">Deputy Editor · 副主编</option><option value="CE">Chinese–X Translation Editor · 汉外翻译编辑</option><option value="GE">Georgian Language Editor · 格文编辑</option><option value="AE">Assistant Editor · 助理编辑</option></select></label>
+        <label class="form-label" for="cge-add-password">Temporary password · 临时密码 *<input id="cge-add-password" class="form-control" type="password" minlength="8" required></label>
+        <label class="form-label" for="cge-add-wechat">WeChat account · 微信账号<input id="cge-add-wechat" class="form-control" type="text" placeholder="Optional · 选填"></label>
+      </div>
+      <label class="form-check form-switch"><input id="cge-add-supervisor" class="form-check-input" type="checkbox" disabled><span class="form-check-label">Supervisor · 主管 <span id="cge-supervisor-limit" class="text-small text-muted">2 / 2</span></span></label>
+      <div class="text-small text-muted">Temporary password must be changed after first sign-in · 首次登录后须修改临时密码</div>
+      <div class="cge-form-actions"><button type="submit" class="btn btn-primary">Add editor · 添加编辑</button><button id="cge-add-cancel" type="button" class="btn">Cancel · 取消</button></div>
+    </form>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById("cge-editorial-team-refined");
+      const tbody = root.querySelector("#cge-team-rows");
+      const roleFilter = root.querySelector("#cge-team-role-filter");
+      const statusFilter = root.querySelector("#cge-team-status-filter");
+      const search = root.querySelector("#cge-team-search");
+      const count = root.querySelector("#cge-team-count");
+      const addPanel = root.querySelector("#cge-team-add-panel");
+      const addForm = root.querySelector("#cge-team-add-form");
+      const addRole = root.querySelector("#cge-add-role");
+      const addSupervisor = root.querySelector("#cge-add-supervisor");
+      const editPanel = root.querySelector("#cge-team-edit-panel");
+      const editForm = root.querySelector("#cge-team-edit-form");
+      const editName = root.querySelector("#cge-team-edit-name");
+      const editRole = root.querySelector("#cge-edit-role");
+      const editStatus = root.querySelector("#cge-edit-status");
+      const editSupervisor = root.querySelector("#cge-edit-supervisor");
+      const editError = root.querySelector("#cge-edit-error");
+      const supervisorLimit = root.querySelector("#cge-supervisor-limit");
+      const profileFeedback = root.querySelector("#cge-team-profile-feedback");
+      const increaseFont = root.querySelector("#cge-team-font-increase");
+      const decreaseFont = root.querySelector("#cge-team-font-decrease");
+      const roleNames = {
+        "EC": { "en": "Editor-in-Chief", "zh": "主编" },
+        "DE": { "en": "Deputy Editor", "zh": "副主编" },
+        "CE": { "en": "Chinese–X Translation Editor", "zh": "汉外翻译编辑" },
+        "GE": { "en": "Georgian Language Editor", "zh": "格文编辑" },
+        "AE": { "en": "Assistant Editor", "zh": "助理编辑" }
+      };
+      const fontSizes = [14, 15, 16, 17, 18, 19];
+      let fontIndex = 1;
+      let editingRow = null;
+
+      function rows() { return Array.from(tbody.querySelectorAll("tr")); }
+      function activeSupervisorCount() {
+        return rows().filter(row => row.dataset.supervisor === "true" && row.dataset.status === "active").length;
+      }
+      function supervisorEligible(role) { return role === "EC" || role === "DE"; }
+      function updateSupervisorControls() {
+        const supervisors = activeSupervisorCount();
+        supervisorLimit.textContent = supervisors + " / 2";
+        addSupervisor.disabled = supervisors >= 2 || !supervisorEligible(addRole.value);
+        if (addSupervisor.disabled) addSupervisor.checked = false;
+        if (editingRow) {
+          const alreadySupervisor = editingRow.dataset.supervisor === "true";
+          editSupervisor.disabled = !supervisorEligible(editRole.value) || (!alreadySupervisor && supervisors >= 2);
+          if (!supervisorEligible(editRole.value)) editSupervisor.checked = false;
+        }
+      }
+      function updateList() {
+        const needle = search.value.trim().toLocaleLowerCase();
+        let visible = 0;
+        for (const row of rows()) {
+          const matches = (!needle || row.dataset.name.toLocaleLowerCase().includes(needle)) && (!roleFilter.value || row.dataset.role === roleFilter.value) && (!statusFilter.value || row.dataset.status === statusFilter.value);
+          row.hidden = !matches;
+          if (matches) visible += 1;
+        }
+        count.textContent = visible + " editors · " + visible + " 位编辑";
+        updateSupervisorControls();
+      }
+      function badge(text) {
+        const span = document.createElement("span");
+        span.className = "viz-badge";
+        span.textContent = text;
+        return span;
+      }
+      function updateEditorCells(row) {
+        const firstCell = row.cells[0];
+        const name = row.dataset.name;
+        const chineseName = row.dataset.chinese || "";
+        const person = document.createElement("span");
+        person.className = "cge-person";
+        person.appendChild(badge(row.dataset.role));
+        if (row.dataset.supervisor === "true") person.appendChild(badge("SV"));
+        const nameContainer = document.createElement("span");
+        nameContainer.className = "cge-name";
+        const profile = document.createElement("a");
+        profile.href = "#";
+        profile.dataset.profile = name;
+        profile.textContent = name;
+        nameContainer.appendChild(profile);
+        if (chineseName) {
+          const chinese = document.createElement("span");
+          chinese.className = "text-small";
+          chinese.textContent = chineseName;
+          nameContainer.appendChild(chinese);
+        }
+        person.appendChild(nameContainer);
+        firstCell.replaceChildren(person);
+        const role = document.createElement("span");
+        role.className = "cge-role";
+        role.appendChild(document.createTextNode(roleNames[row.dataset.role].en));
+        const translated = document.createElement("span");
+        translated.className = "text-small";
+        translated.textContent = roleNames[row.dataset.role].zh;
+        role.appendChild(translated);
+        row.cells[1].replaceChildren(role);
+        const state = document.createElement("span");
+        state.className = "cge-state " + (row.dataset.status === "active" ? "cge-active" : "cge-inactive");
+        const mark = document.createElement("span");
+        mark.className = "cge-mark";
+        state.appendChild(mark);
+        state.appendChild(document.createTextNode(row.dataset.status === "active" ? "Active · 启用" : (row.dataset.status === "cancelled" ? "Cancelled · 已注销" : "Blocked · 已封锁")));
+        row.cells[2].replaceChildren(state);
+      }
+      function openEdit(row) {
+        editingRow = row;
+        addPanel.hidden = true;
+        editError.hidden = true;
+        editName.textContent = row.dataset.name + " · Edit editor · 修改编辑";
+        editRole.value = row.dataset.role;
+        editStatus.value = row.dataset.status;
+        editSupervisor.checked = row.dataset.supervisor === "true";
+        editPanel.hidden = false;
+        updateSupervisorControls();
+      }
+      tbody.addEventListener("click", event => {
+        const action = event.target.closest("[data-edit]");
+        const profile = event.target.closest("[data-profile]");
+        if (action) openEdit(action.closest("tr"));
+        if (profile) {
+          event.preventDefault();
+          profileFeedback.textContent = profile.dataset.profile + " · Profile / 个人资料 · My work / 我的工作";
+          profileFeedback.hidden = false;
+        }
+      });
+      editRole.addEventListener("change", updateSupervisorControls);
+      addRole.addEventListener("change", updateSupervisorControls);
+      editForm.addEventListener("submit", event => {
+        event.preventDefault();
+        if (!editingRow) return;
+        const wasActiveSupervisor = editingRow.dataset.supervisor === "true" && editingRow.dataset.status === "active";
+        const remainsActiveSupervisor = editSupervisor.checked && editStatus.value === "active";
+        if (wasActiveSupervisor && !remainsActiveSupervisor && activeSupervisorCount() <= 1) {
+          editError.textContent = "At least one supervisor must remain active · 至少保留一名启用的主管";
+          editError.hidden = false;
+          return;
+        }
+        editingRow.dataset.role = editRole.value;
+        editingRow.dataset.status = editStatus.value;
+        editingRow.dataset.supervisor = editSupervisor.checked ? "true" : "false";
+        updateEditorCells(editingRow);
+        editingRow = null;
+        editPanel.hidden = true;
+        editError.hidden = true;
+        updateList();
+      });
+      root.querySelector("#cge-edit-cancel").addEventListener("click", () => { editingRow = null; editPanel.hidden = true; editError.hidden = true; updateSupervisorControls(); });
+      root.querySelector("#cge-team-add-toggle").addEventListener("click", () => {
+        editingRow = null;
+        editPanel.hidden = true;
+        addPanel.hidden = !addPanel.hidden;
+        updateSupervisorControls();
+      });
+      root.querySelector("#cge-add-cancel").addEventListener("click", () => { addPanel.hidden = true; addForm.reset(); updateSupervisorControls(); });
+      addForm.addEventListener("submit", event => {
+        event.preventDefault();
+        if (!addForm.reportValidity()) return;
+        const first = root.querySelector("#cge-add-first").value.trim();
+        const last = root.querySelector("#cge-add-last").value.trim();
+        const firstName = first.slice(0, 1).toLocaleUpperCase() + first.slice(1);
+        const name = firstName + " " + last.slice(0, 1).toLocaleUpperCase() + ".";
+        const row = document.createElement("tr");
+        row.className = "cge-row";
+        row.dataset.name = name;
+        row.dataset.role = addRole.value;
+        row.dataset.status = "active";
+        row.dataset.supervisor = addSupervisor.checked ? "true" : "false";
+        row.dataset.chinese = root.querySelector("#cge-add-chinese").value.trim();
+        for (let index = 0; index < 5; index += 1) row.appendChild(document.createElement("td"));
+        row.cells[3].className = "text-nowrap";
+        row.cells[3].textContent = new Date().toISOString().slice(0, 10);
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "btn btn-ghost";
+        edit.dataset.edit = "true";
+        edit.setAttribute("aria-label", "Edit " + name + " · 修改");
+        edit.setAttribute("data-tooltip", "Edit · 修改");
+        const icon = document.createElement("i");
+        icon.setAttribute("data-lucide", "pencil");
+        icon.setAttribute("aria-hidden", "true");
+        edit.appendChild(icon);
+        row.cells[4].appendChild(edit);
+        updateEditorCells(row);
+        tbody.appendChild(row);
+        if (typeof lucide !== "undefined") lucide.createIcons({ "attrs": { "width": 16, "height": 16 } });
+        addForm.reset();
+        addPanel.hidden = true;
+        updateList();
+      });
+      for (const filter of [roleFilter, statusFilter]) filter.addEventListener("change", updateList);
+      search.addEventListener("input", updateList);
+      function adjustFont(direction) {
+        fontIndex = Math.max(0, Math.min(fontSizes.length - 1, fontIndex + direction));
+        root.style.setProperty("--font-size-base", fontSizes[fontIndex] + "px");
+        decreaseFont.disabled = fontIndex === 0;
+        increaseFont.disabled = fontIndex === fontSizes.length - 1;
+      }
+      increaseFont.addEventListener("click", () => adjustFont(1));
+      decreaseFont.addEventListener("click", () => adjustFont(-1));
+      for (const row of rows()) {
+        const chinese = row.cells[0].querySelector(".cge-name .text-small");
+        if (chinese) row.dataset.chinese = chinese.textContent;
+      }
+      updateList();
+    })();
+  </script>
+</div>
+  </section>
+  <section data-handoff-page="account" hidden>
+<div id="cge-personal-account-final">
+  <style>
+    #cge-personal-account-final { --font-size-base: 15px; display: grid; gap: 18px; color: var(--foreground); padding-block: 6px; }
+    #cge-personal-account-final .cge-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    #cge-personal-account-final .cge-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; color: var(--muted-foreground); }
+    #cge-personal-account-final .cge-search { display: flex; flex: 1 1 190px; min-width: 160px; }
+    #cge-personal-account-final .cge-account { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    #cge-personal-account-final .cge-unread { display: inline-flex; align-items: center; justify-content: center; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--red) 12%, var(--background)); color: var(--red); font-weight: 500; }
+    #cge-personal-account-final .cge-owner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+    #cge-personal-account-final .cge-owner-name { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+    #cge-personal-account-final .cge-heading { text-align: center; color: color-mix(in srgb, rgb(236 247 241) 72%, var(--foreground) 28%); }
+    #cge-personal-account-final .cge-heading h2 { margin-block: 4px; font-weight: 700; }
+    #cge-personal-account-final .cge-table-area { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 6px; }
+    #cge-personal-account-final .cge-header { background: color-mix(in srgb, var(--green) 6%, var(--background)); }
+    #cge-personal-account-final .cge-row:nth-child(odd) { background: color-mix(in srgb, var(--muted) 52%, transparent); }
+    #cge-personal-account-final .cge-row:nth-child(even) { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+    #cge-personal-account-final .cge-stage { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+    #cge-personal-account-final .cge-mark { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: 0 0 8px; }
+    #cge-personal-account-final .cge-gray { color: var(--muted-foreground); }
+    #cge-personal-account-final .cge-neutral { color: var(--foreground); }
+    #cge-personal-account-final .cge-red { color: color-mix(in srgb, var(--foreground) 34%, var(--red) 66%); }
+    #cge-personal-account-final .cge-blue { color: color-mix(in srgb, var(--foreground) 36%, var(--ring) 64%); }
+    #cge-personal-account-final .cge-green { color: color-mix(in srgb, var(--foreground) 36%, var(--green) 64%); }
+    #cge-personal-account-final .cge-total { background: color-mix(in srgb, var(--green) 6%, var(--background)); }
+    #cge-personal-account-final .cge-total th, #cge-personal-account-final .cge-total a { font-size: calc(var(--font-size-base) + 2px); font-weight: 700; }
+    #cge-personal-account-final .cge-font-control { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    #cge-personal-account-final .cge-font-label { writing-mode: vertical-rl; }
+    #cge-personal-account-final .cge-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+    #cge-personal-account-final .cge-section { display: grid; align-content: start; gap: 12px; }
+    #cge-personal-account-final .cge-form { display: grid; gap: 12px; }
+    #cge-personal-account-final .cge-feedback { min-height: 1em; }
+    @media (max-width: 610px) { #cge-personal-account-final .cge-search { order: 3; flex-basis: 100%; } }
+  </style>
+
+  <nav class="cge-top" aria-label="Main navigation · 主导航">
+    <div class="cge-actions">
+      <button type="button" class="btn btn-ghost" aria-label="Home · 主页" data-tooltip="Home · 主页"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Messages · 站内消息 · 12 unread" data-tooltip="Messages · 站内消息"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></svg><span class="cge-unread">12</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="Notifications · 通知 · 4 unread" data-tooltip="Notifications · 通知"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 20a2 2 0 0 0 4 0"/></svg><span class="cge-unread">4</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="New Entry · 新建词条" data-tooltip="New Entry · 新建词条"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H5v18h14V9l-6-6v6h6M12 12v6M9 15h6"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Media · 媒体" data-tooltip="Media · 媒体"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m21 15-5-5L5 20"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Statistics · 统计" data-tooltip="Statistics · 统计"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="0.7"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Editorial team · 编辑团队" data-tooltip="Editorial team · 编辑团队"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5.3a3 3 0 0 1 0 5.4M18 14a5 5 0 0 1 3 4.6V20"/></svg></button>
+    </div>
+    <label class="form-label cge-search" for="cge-account-search"><span class="sr-only">Search · 查找</span><input id="cge-account-search" class="form-control" type="search" placeholder="Search · 查找"></label>
+    <div class="cge-account"><button type="button" class="btn" aria-pressed="true" aria-label="My account · 我的账户" data-tooltip="My account · 我的账户"><span class="viz-badge">EC</span><span class="viz-badge">SV</span><span id="cge-account-short-name">Zurab M.</span></button><button type="button" class="btn btn-ghost" aria-label="Log out · 退出登录" data-tooltip="Log out · 退出登录"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17v4H3V3h7v4M8 12h13m-5-5 5 5-5 5"/></svg></button></div>
+  </nav>
+
+  <div class="cge-owner"><div class="cge-owner-name"><span class="viz-badge">EC</span><span class="viz-badge">SV</span><span id="cge-account-full-name">Zurab Mamniashvili</span><span id="cge-account-chinese-name" class="text-small">祃祖雷</span></div><span id="cge-account-email-label" class="text-small">admin@chinese.ge</span></div>
+
+  <div class="cge-heading"><h2>MY WORK<br>我的工作</h2></div>
+
+  <div class="cge-table-area">
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead class="cge-header"><tr><th>Stage<br><span class="text-small">状态</span></th><th class="text-end">Entries<br><span class="text-small">词目数量</span></th><th class="text-end">Main score<br><span class="text-small">主分</span></th><th class="text-end">Additional score<br><span class="text-small">附加分</span></th></tr></thead>
+        <tbody>
+          <tr class="cge-row"><td><span class="cge-stage cge-gray"><span class="cge-mark"></span>New Entry · 新建</span></td><td class="text-end"><a href="#" data-stage="new_entry" data-kind="entries">3</a></td><td class="text-end"><a href="#" class="cge-gray" data-stage="new_entry" data-kind="main">0</a></td><td class="text-end"><a href="#" class="cge-gray" data-stage="new_entry" data-kind="additional">0</a></td></tr>
+          <tr class="cge-row"><td><span class="cge-stage cge-red"><span class="cge-mark"></span>CHT-review · 中文审核</span></td><td class="text-end"><a href="#" data-stage="cht_review" data-kind="entries">12</a></td><td class="text-end"><a href="#" class="cge-red" data-stage="cht_review" data-kind="main">9</a></td><td class="text-end"><a href="#" class="cge-red" data-stage="cht_review" data-kind="additional">3</a></td></tr>
+          <tr class="cge-row"><td><span class="cge-stage cge-blue"><span class="cge-mark"></span>GEL-review · 格鲁吉亚语审核</span></td><td class="text-end"><a href="#" data-stage="gel_review" data-kind="entries">8</a></td><td class="text-end"><a href="#" class="cge-blue" data-stage="gel_review" data-kind="main">6</a></td><td class="text-end"><a href="#" class="cge-blue" data-stage="gel_review" data-kind="additional">2</a></td></tr>
+          <tr class="cge-row"><td><span class="cge-stage cge-green"><span class="cge-mark"></span>Ready · 待发布</span></td><td class="text-end"><a href="#" data-stage="ready" data-kind="entries">5</a></td><td class="text-end"><a href="#" class="cge-green" data-stage="ready" data-kind="main">4</a></td><td class="text-end"><a href="#" class="cge-green" data-stage="ready" data-kind="additional">1</a></td></tr>
+          <tr class="cge-row"><td><span class="cge-stage"><span class="cge-mark"></span>Published · 已发布</span></td><td class="text-end"><a href="#" data-stage="published" data-kind="entries">20</a></td><td class="text-end"><a href="#" class="cge-neutral" data-stage="published" data-kind="main">16</a></td><td class="text-end"><a href="#" class="cge-neutral" data-stage="published" data-kind="additional">4</a></td></tr>
+        </tbody>
+        <tfoot class="cge-total"><tr><th>Total · 合计</th><th class="text-end"><a href="#" data-stage="all" data-kind="entries">48</a></th><th class="text-end"><a href="#" data-stage="all" data-kind="main">35</a></th><th class="text-end"><a href="#" data-stage="all" data-kind="additional">10</a></th></tr></tfoot>
+      </table>
+    </div>
+    <aside class="cge-font-control" aria-label="Font size · 字号"><span class="cge-font-label text-small">Font size · 字号</span><button id="cge-account-font-increase" type="button" class="btn btn-ghost" aria-label="Increase font · 放大字体" data-tooltip="Increase font · 放大字体">+</button><button id="cge-account-font-decrease" type="button" class="btn btn-ghost" aria-label="Decrease font · 缩小字体" data-tooltip="Decrease font · 缩小字体">−</button></aside>
+  </div>
+
+  <div id="cge-work-result" class="text-small cge-feedback" role="status" hidden></div>
+
+  <div class="cge-sections">
+    <section class="cge-section" aria-label="Personal information · 个人信息">
+      <div class="cge-heading"><h2>PERSONAL INFORMATION<br>个人信息</h2></div>
+      <form id="cge-personal-form" class="cge-form">
+        <label class="form-label" for="cge-first-name">First name · 名<input id="cge-first-name" class="form-control" type="text" value="Zurab" required></label>
+        <label class="form-label" for="cge-last-name">Last name · 姓<input id="cge-last-name" class="form-control" type="text" value="Mamniashvili" required></label>
+        <label class="form-label" for="cge-chinese-name">Chinese name · 中文姓名<input id="cge-chinese-name" class="form-control" type="text" value="祃祖雷" placeholder="Optional · 选填"></label>
+        <label class="form-label" for="cge-email-address">Email address · 电子邮箱<input id="cge-email-address" class="form-control" type="email" value="admin@chinese.ge" required></label>
+        <label class="form-label" for="cge-wechat-account">WeChat account · 微信账号<input id="cge-wechat-account" class="form-control" type="text" value="ZURAMZL" placeholder="Optional · 选填"></label>
+        <div><button type="submit" class="btn btn-primary">Save · 保存</button></div>
+        <div id="cge-personal-feedback" class="text-small cge-feedback" role="status" hidden></div>
+      </form>
+    </section>
+
+    <section id="cge-account-security" class="cge-section" aria-label="Security · 安全">
+      <div class="cge-heading"><h2>SECURITY<br>安全</h2></div>
+      <form id="cge-security-form" class="cge-form">
+        <label class="form-label" for="cge-current-password">Current password · 当前密码<input id="cge-current-password" class="form-control" type="password" autocomplete="current-password" required></label>
+        <label class="form-label" for="cge-new-password">New password · 新密码<input id="cge-new-password" class="form-control" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters · 至少 8 个字符" required></label>
+        <label class="form-label" for="cge-confirm-password">Confirm new password · 确认新密码<input id="cge-confirm-password" class="form-control" type="password" autocomplete="new-password" minlength="8" required></label>
+        <div><button type="submit" class="btn btn-primary">Save · 保存</button></div>
+        <div id="cge-security-feedback" class="text-small cge-feedback" role="status" hidden></div>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById("cge-personal-account-final");
+      const workResult = root.querySelector("#cge-work-result");
+      const personalForm = root.querySelector("#cge-personal-form");
+      const firstName = root.querySelector("#cge-first-name");
+      const lastName = root.querySelector("#cge-last-name");
+      const chineseName = root.querySelector("#cge-chinese-name");
+      const email = root.querySelector("#cge-email-address");
+      const personalFeedback = root.querySelector("#cge-personal-feedback");
+      const securityForm = root.querySelector("#cge-security-form");
+      const nextPassword = root.querySelector("#cge-new-password");
+      const confirmPassword = root.querySelector("#cge-confirm-password");
+      const securityFeedback = root.querySelector("#cge-security-feedback");
+      const increaseFont = root.querySelector("#cge-account-font-increase");
+      const decreaseFont = root.querySelector("#cge-account-font-decrease");
+      const fontSizes = [14, 15, 16, 17, 18, 19];
+      const stageLabels = {
+        "new_entry": "New Entry · 新建",
+        "cht_review": "CHT-review · 中文审核",
+        "gel_review": "GEL-review · 格鲁吉亚语审核",
+        "ready": "Ready · 待发布",
+        "published": "Published · 已发布",
+        "all": "Total · 合计"
+      };
+      const kindLabels = { "entries": "Entries · 词目", "main": "Main score · 主分", "additional": "Additional score · 附加分" };
+      const sampleWords = { "new_entry": ["例句", "新词", "释义"], "cht_review": ["三个和尚没水吃", "王炸", "翻译"], "gel_review": ["垂", "难题", "词义"], "ready": ["老牛吃嫩草", "薄酒", "春晖"], "published": ["轴", "时光", "和平"], "all": ["轴", "时光", "王炸", "难题"] };
+      let fontIndex = 1;
+
+      root.addEventListener("click", event => {
+        const link = event.target.closest("[data-stage][data-kind]");
+        if (!link) return;
+        event.preventDefault();
+        const stage = link.dataset.stage;
+        const kind = link.dataset.kind;
+        const amount = Number(link.textContent);
+        const preview = amount > 0 ? " · " + sampleWords[stage].slice(0, Math.min(amount, 3)).join(" · ") + (amount > 3 ? " …" : "") : "";
+        workResult.textContent = stageLabels[stage] + " → " + kindLabels[kind] + " → " + amount + preview;
+        workResult.hidden = false;
+      });
+
+      personalForm.addEventListener("submit", event => {
+        event.preventDefault();
+        if (!personalForm.reportValidity()) return;
+        const first = firstName.value.trim();
+        const last = lastName.value.trim();
+        if (!first || !last) return;
+        const displayFirst = first.slice(0, 1).toLocaleUpperCase() + first.slice(1);
+        root.querySelector("#cge-account-short-name").textContent = displayFirst + " " + last.slice(0, 1).toLocaleUpperCase() + ".";
+        root.querySelector("#cge-account-full-name").textContent = displayFirst + " " + last;
+        root.querySelector("#cge-account-chinese-name").textContent = chineseName.value.trim();
+        root.querySelector("#cge-account-email-label").textContent = email.value.trim();
+        personalFeedback.textContent = "Saved · 已保存";
+        personalFeedback.hidden = false;
+      });
+
+      function checkPasswords() {
+        const match = nextPassword.value === confirmPassword.value;
+        confirmPassword.setCustomValidity(match ? "" : "Passwords do not match · 两次密码不一致");
+      }
+      nextPassword.addEventListener("input", checkPasswords);
+      confirmPassword.addEventListener("input", checkPasswords);
+      securityForm.addEventListener("submit", event => {
+        event.preventDefault();
+        checkPasswords();
+        if (!securityForm.reportValidity()) return;
+        securityForm.reset();
+        securityFeedback.textContent = "Password changed · 密码已修改";
+        securityFeedback.hidden = false;
+      });
+
+      function adjustFont(direction) {
+        fontIndex = Math.max(0, Math.min(fontSizes.length - 1, fontIndex + direction));
+        root.style.setProperty("--font-size-base", fontSizes[fontIndex] + "px");
+        decreaseFont.disabled = fontIndex === 0;
+        increaseFont.disabled = fontIndex === fontSizes.length - 1;
+      }
+      increaseFont.addEventListener("click", () => adjustFont(1));
+      decreaseFont.addEventListener("click", () => adjustFont(-1));
+    })();
+  </script>
+</div>
+  </section>
+  <section data-handoff-page="statistics" hidden>
+<div id="cge-editorial-statistics-final">
+  <style>
+    #cge-editorial-statistics-final { --font-size-base: 16px; display: grid; gap: 20px; color: var(--foreground); padding-block: 8px; }
+    #cge-editorial-statistics-final .cge-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    #cge-editorial-statistics-final .cge-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; color: var(--muted-foreground); }
+    #cge-editorial-statistics-final .cge-search { display: flex; flex: 1 1 190px; min-width: 160px; }
+    #cge-editorial-statistics-final .cge-account { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    #cge-editorial-statistics-final .cge-unread { display: inline-flex; align-items: center; justify-content: center; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--red) 12%, var(--background)); color: var(--red); font-weight: 500; }
+    #cge-editorial-statistics-final .cge-heading { text-align: center; color: color-mix(in srgb, rgb(236 247 241) 72%, var(--foreground) 28%); }
+    #cge-editorial-statistics-final .cge-heading h2 { margin-block: 5px; font-weight: 700; }
+    #cge-editorial-statistics-final .cge-table-area { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; }
+    #cge-editorial-statistics-final .cge-table-wrap { width: min(100%, 550px); margin-inline: auto; }
+    #cge-editorial-statistics-final .cge-header { background: color-mix(in srgb, var(--green) 7%, var(--background)); }
+    #cge-editorial-statistics-final .cge-row:nth-child(odd) { background: color-mix(in srgb, var(--muted) 44%, transparent); }
+    #cge-editorial-statistics-final .cge-row:nth-child(even) { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+    #cge-editorial-statistics-final .cge-stage-new { color: var(--muted-foreground); }
+    #cge-editorial-statistics-final .cge-stage-cht { color: color-mix(in srgb, var(--red) 72%, var(--foreground)); }
+    #cge-editorial-statistics-final .cge-stage-gel { color: color-mix(in srgb, var(--primary) 76%, var(--foreground)); }
+    #cge-editorial-statistics-final .cge-stage-ready { color: color-mix(in srgb, var(--green) 70%, var(--foreground)); }
+    #cge-editorial-statistics-final .cge-stage-published { color: var(--foreground); }
+    #cge-editorial-statistics-final .cge-row a { color: currentColor; }
+    #cge-editorial-statistics-final .cge-total { background: color-mix(in srgb, var(--green) 8%, var(--background)); }
+    #cge-editorial-statistics-final .cge-total th, #cge-editorial-statistics-final .cge-total a { font-size: calc(var(--font-size-base) + 2px); font-weight: 700; }
+    #cge-editorial-statistics-final .cge-font-control { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    #cge-editorial-statistics-final .cge-font-label { writing-mode: vertical-rl; }
+    #cge-editorial-statistics-final .cge-download { display: grid; gap: 17px; padding-top: 16px; border-top: 5px solid color-mix(in srgb, var(--green) 22%, var(--background)); }
+    #cge-editorial-statistics-final .cge-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 12px; }
+    #cge-editorial-statistics-final .cge-download-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; }
+    #cge-editorial-statistics-final .cge-supervisor { display: flex; justify-content: center; gap: 7px; align-items: center; }
+    @media (max-width: 610px) { #cge-editorial-statistics-final .cge-search { order: 3; flex-basis: 100%; } }
+  </style>
+
+  <nav class="cge-top" aria-label="Main navigation · 主导航">
+    <div class="cge-actions">
+      <button type="button" class="btn btn-ghost" aria-label="Home · 主页" data-tooltip="Home · 主页"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Messages · 站内消息 · 12 unread" data-tooltip="Messages · 站内消息"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></svg><span class="cge-unread">12</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="Notifications · 通知 · 4 unread" data-tooltip="Notifications · 通知"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 20a2 2 0 0 0 4 0"/></svg><span class="cge-unread">4</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="New Entry · 新建词条" data-tooltip="New Entry · 新建词条"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H5v18h14V9l-6-6v6h6M12 12v6M9 15h6"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Media · 媒体" data-tooltip="Media · 媒体"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m21 15-5-5L5 20"/></svg></button>
+      <button type="button" class="btn" aria-pressed="true" aria-label="Statistics · 统计" data-tooltip="Statistics · 统计"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="0.7"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Editorial team · 编辑团队" data-tooltip="Editorial team · 编辑团队"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5.3a3 3 0 0 1 0 5.4M18 14a5 5 0 0 1 3 4.6V20"/></svg></button>
+    </div>
+    <label class="form-label cge-search" for="cge-stats-search"><span class="sr-only">Search · 查找</span><input id="cge-stats-search" class="form-control" type="search" placeholder="Search · 查找"></label>
+    <div class="cge-account"><button type="button" class="btn btn-ghost" aria-label="My account · 我的账户" data-tooltip="My account · 我的账户"><span class="viz-badge">EC</span><span class="viz-badge">SV</span> Zurab M.</button><button type="button" class="btn btn-ghost" aria-label="Log out · 退出登录" data-tooltip="Log out · 退出登录"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17v4H3V3h7v4M8 12h13m-5-5 5 5-5 5"/></svg></button></div>
+  </nav>
+
+  <div class="cge-heading"><h2>STATISTICS<br>统计</h2></div>
+
+  <div class="cge-table-area">
+    <div class="cge-table-wrap table-responsive">
+      <table class="table">
+        <thead class="cge-header"><tr><th>ENTRIES<br>词目</th><th class="text-end">COUNT<br>数量</th></tr></thead>
+        <tbody>
+          <tr class="cge-row cge-stage-new"><td>New Entry · 新建</td><td class="text-end"><a href="#" data-stage="new">1 500</a></td></tr>
+          <tr class="cge-row cge-stage-cht"><td>CHT-review · 中文审核</td><td class="text-end"><a href="#" data-stage="cht">25 000</a></td></tr>
+          <tr class="cge-row cge-stage-gel"><td>GEL-review · 格鲁吉亚语审核</td><td class="text-end"><a href="#" data-stage="gel">25</a></td></tr>
+          <tr class="cge-row cge-stage-ready"><td>Ready · 待发布</td><td class="text-end"><a href="#" data-stage="ready">350</a></td></tr>
+          <tr class="cge-row cge-stage-published"><td>Published · 已发布</td><td class="text-end"><a href="#" data-stage="published">55 600</a></td></tr>
+        </tbody>
+        <tfoot class="cge-total"><tr><th>Total · 合计</th><th class="text-end"><a href="#" data-stage="all">82 475</a></th></tr></tfoot>
+      </table>
+    </div>
+    <aside class="cge-font-control" aria-label="Font size · 字号"><span class="cge-font-label text-small">Font size · 字号</span><button id="cge-stats-font-increase" type="button" class="btn btn-ghost" aria-label="Increase font · 放大字体" data-tooltip="Increase font · 放大字体">+</button><button id="cge-stats-font-decrease" type="button" class="btn btn-ghost" aria-label="Decrease font · 缩小字体" data-tooltip="Decrease font · 缩小字体">−</button></aside>
+  </div>
+
+  <div id="cge-stats-result" class="text-small" role="status" hidden></div>
+
+  <section id="cge-stats-download" class="cge-download" aria-label="Database download · 数据库下载">
+    <div class="cge-heading"><h2>DATABASE DOWNLOAD<br>数据库下载</h2></div>
+    <div class="cge-supervisor text-small"><span class="viz-badge">SV</span> Supervisor · 主管</div>
+
+    <div class="cge-filter-grid">
+      <label class="form-label" for="cge-stats-stage">Status · 状态<select id="cge-stats-stage" class="form-select"><option value="eligible">All eligible · 全部可导出</option><option value="cht">CHT-review · 中文审核</option><option value="gel">GEL-review · 格鲁吉亚语审核</option><option value="ready">Ready · 待发布</option><option value="published">Published · 已发布</option></select></label>
+      <label class="form-label" for="cge-stats-editor">Editor · 编辑<select id="cge-stats-editor" class="form-select"><option value="all">All editors · 全部编辑</option><option value="zurab">Zurab M.</option><option value="natalia">Natalia M.</option><option value="darejan">Darejan K.</option><option value="tatia">Tatia S.</option><option value="tamar">Tamar M.</option></select></label>
+      <label class="form-label" for="cge-stats-from">From · 起始日期<input id="cge-stats-from" class="form-control" type="date"></label>
+      <label class="form-label" for="cge-stats-to">To · 截止日期<input id="cge-stats-to" class="form-control" type="date"></label>
+    </div>
+
+    <div class="cge-download-actions">
+      <button type="button" class="btn btn-primary" data-export="TEI/XML"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg> TEI/XML</button>
+      <button type="button" class="btn" data-export="JSON"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg> JSON</button>
+      <button type="button" class="btn" data-export="Helper Materials"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M5 17H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1"/></svg> Helper Materials · 辅助资料</button>
+    </div>
+    <div id="cge-stats-export-result" class="text-small text-center" role="status" hidden></div>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById("cge-editorial-statistics-final");
+      if (!root) return;
+      const stageLabels = { new: "New Entry · 新建", cht: "CHT-review · 中文审核", gel: "GEL-review · 格鲁吉亚语审核", ready: "Ready · 待发布", published: "Published · 已发布", all: "Total · 合计" };
+      const result = root.querySelector("#cge-stats-result");
+      const exportResult = root.querySelector("#cge-stats-export-result");
+      const stageFilter = root.querySelector("#cge-stats-stage");
+      const editorFilter = root.querySelector("#cge-stats-editor");
+      const fromDate = root.querySelector("#cge-stats-from");
+      const toDate = root.querySelector("#cge-stats-to");
+      const increase = root.querySelector("#cge-stats-font-increase");
+      const decrease = root.querySelector("#cge-stats-font-decrease");
+      const sizes = [14, 15, 16, 17, 18, 19];
+      let sizeIndex = 2;
+
+      root.querySelectorAll("a[data-stage]").forEach(link => {
+        link.addEventListener("click", event => {
+          event.preventDefault();
+          result.textContent = stageLabels[link.dataset.stage] + " → " + link.textContent.trim() + " · Last edited ↓ · 最后编辑 ↓";
+          result.hidden = false;
+        });
+      });
+
+      root.querySelectorAll("button[data-export]").forEach(button => {
+        button.addEventListener("click", () => {
+          if (fromDate.value && toDate.value && fromDate.value > toDate.value) {
+            exportResult.textContent = "Check dates · 请检查日期";
+            exportResult.hidden = false;
+            return;
+          }
+          if (button.dataset.export === "reference") {
+            exportResult.textContent = "Reference material · 参考资料";
+          } else {
+            const selected = [button.dataset.export, stageFilter.options[stageFilter.selectedIndex].text, editorFilter.options[editorFilter.selectedIndex].text];
+            if (fromDate.value) selected.push(fromDate.value);
+            if (toDate.value) selected.push(toDate.value);
+            exportResult.textContent = selected.join(" · ");
+          }
+          exportResult.hidden = false;
+        });
+      });
+
+      function adjustFont(direction) {
+        sizeIndex = Math.max(0, Math.min(sizes.length - 1, sizeIndex + direction));
+        root.style.setProperty("--font-size-base", sizes[sizeIndex] + "px");
+        decrease.disabled = sizeIndex === 0;
+        increase.disabled = sizeIndex === sizes.length - 1;
+      }
+      increase.addEventListener("click", () => adjustFont(1));
+      decrease.addEventListener("click", () => adjustFont(-1));
+    })();
+  </script>
+</div>
+  </section>
+  <section data-handoff-page="notifications" hidden>
+<div id="cge-editorial-notifications-sketch">
+  <style>
+    #cge-editorial-notifications-sketch { --font-size-base: 16px; display: grid; gap: 18px; color: var(--foreground); padding-block: 8px; }
+    #cge-editorial-notifications-sketch .cge-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    #cge-editorial-notifications-sketch .cge-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; color: var(--muted-foreground); }
+    #cge-editorial-notifications-sketch .cge-search { display: flex; flex: 1 1 190px; min-width: 160px; }
+    #cge-editorial-notifications-sketch .cge-account { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    #cge-editorial-notifications-sketch .cge-unread-count { display: inline-flex; align-items: center; justify-content: center; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--red) 12%, var(--background)); color: var(--red); font-weight: 500; }
+    #cge-editorial-notifications-sketch .cge-heading { text-align: center; color: color-mix(in srgb, rgb(236 247 241) 72%, var(--foreground) 28%); }
+    #cge-editorial-notifications-sketch .cge-heading h2 { margin-block: 5px; font-weight: 700; }
+    #cge-editorial-notifications-sketch .cge-workspace { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(240px, 0.85fr) auto; align-items: start; gap: 12px; }
+    #cge-editorial-notifications-sketch .cge-list { display: grid; gap: 9px; min-width: 0; }
+    #cge-editorial-notifications-sketch .cge-list-toolbar { display: flex; justify-content: flex-end; }
+    #cge-editorial-notifications-sketch .cge-header { background: color-mix(in srgb, var(--green) 7%, var(--background)); }
+    #cge-editorial-notifications-sketch .cge-row:nth-child(odd) { background: color-mix(in srgb, var(--muted) 44%, transparent); }
+    #cge-editorial-notifications-sketch .cge-row:nth-child(even) { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+    #cge-editorial-notifications-sketch .cge-row[data-read="false"] { background: color-mix(in srgb, var(--green) 10%, var(--background)); }
+    #cge-editorial-notifications-sketch .cge-row[data-selected="true"] { background: color-mix(in srgb, var(--primary) 12%, var(--background)); }
+    #cge-editorial-notifications-sketch .cge-date { display: grid; gap: 2px; white-space: nowrap; }
+    #cge-editorial-notifications-sketch .cge-person { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    #cge-editorial-notifications-sketch .cge-entry { display: flex; align-items: center; gap: 6px; }
+    #cge-editorial-notifications-sketch .cge-unread-dot { display: inline-block; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--red); }
+    #cge-editorial-notifications-sketch .cge-preview { display: grid; gap: 15px; padding-top: 43px; }
+    #cge-editorial-notifications-sketch .cge-preview-title { display: grid; gap: 3px; text-align: center; color: color-mix(in srgb, rgb(236 247 241) 72%, var(--foreground) 28%); font-weight: 700; }
+    #cge-editorial-notifications-sketch .cge-preview-entry { display: flex; justify-content: center; }
+    #cge-editorial-notifications-sketch .cge-preview-person { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+    #cge-editorial-notifications-sketch .cge-preview-message { display: grid; gap: 10px; }
+    #cge-editorial-notifications-sketch .cge-preview-line { padding-block: 7px; border-bottom: 1px solid var(--border); }
+    #cge-editorial-notifications-sketch .cge-stage-cht { color: color-mix(in srgb, var(--red) 72%, var(--foreground)); }
+    #cge-editorial-notifications-sketch .cge-stage-gel { color: color-mix(in srgb, var(--primary) 76%, var(--foreground)); }
+    #cge-editorial-notifications-sketch .cge-stage-ready { color: color-mix(in srgb, var(--green) 70%, var(--foreground)); }
+    #cge-editorial-notifications-sketch .cge-font-control { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    #cge-editorial-notifications-sketch .cge-font-label { writing-mode: vertical-rl; }
+    @media (max-width: 660px) { #cge-editorial-notifications-sketch .cge-search { order: 3; flex-basis: 100%; } #cge-editorial-notifications-sketch .cge-workspace { grid-template-columns: minmax(0, 1fr) auto; } #cge-editorial-notifications-sketch .cge-preview { grid-column: 1; grid-row: 2; padding-top: 8px; } #cge-editorial-notifications-sketch .cge-font-control { grid-column: 2; grid-row: 1 / span 2; } }
+  </style>
+
+  <nav class="cge-top" aria-label="Main navigation · 主导航">
+    <div class="cge-actions">
+      <button type="button" class="btn btn-ghost" aria-label="Home · 主页" data-tooltip="Home · 主页"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Messages · 站内消息 · 12 unread" data-tooltip="Messages · 站内消息"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></svg><span class="cge-unread-count">12</span></button>
+      <button type="button" class="btn" aria-pressed="true" aria-label="Notifications · 通知" data-tooltip="Notifications · 通知"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 20a2 2 0 0 0 4 0"/></svg><span id="cge-notification-count" class="cge-unread-count">4</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="New Entry · 新建词条" data-tooltip="New Entry · 新建词条"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H5v18h14V9l-6-6v6h6M12 12v6M9 15h6"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Media · 媒体" data-tooltip="Media · 媒体"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m21 15-5-5L5 20"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Statistics · 统计" data-tooltip="Statistics · 统计"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="0.7"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Editorial team · 编辑团队" data-tooltip="Editorial team · 编辑团队"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5.3a3 3 0 0 1 0 5.4M18 14a5 5 0 0 1 3 4.6V20"/></svg></button>
+    </div>
+    <label class="form-label cge-search" for="cge-notifications-search"><span class="sr-only">Search · 查找</span><input id="cge-notifications-search" class="form-control" type="search" placeholder="Search · 查找"></label>
+    <div class="cge-account"><button type="button" class="btn btn-ghost" aria-label="My account · 我的账户" data-tooltip="My account · 我的账户"><span class="viz-badge">EC</span><span class="viz-badge">SV</span> Zurab M.</button><button type="button" class="btn btn-ghost" aria-label="Log out · 退出登录" data-tooltip="Log out · 退出登录"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17v4H3V3h7v4M8 12h13m-5-5 5 5-5 5"/></svg></button></div>
+  </nav>
+
+  <div class="cge-heading"><h2>NOTIFICATIONS<br>通知</h2></div>
+
+  <div class="cge-workspace">
+    <section class="cge-list" aria-label="Notifications list · 通知列表">
+      <div class="cge-list-toolbar"><button id="cge-notifications-unread" type="button" class="btn" aria-pressed="false">Only unread · 仅未读</button></div>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead class="cge-header"><tr><th>Date<br>日期</th><th>Editor<br>编辑</th><th>Entry<br>词目</th></tr></thead>
+          <tbody id="cge-notifications-rows">
+            <tr class="cge-row" data-id="1" data-read="false" data-editor="Tatia S." data-role="CE" data-entry="老牛吃嫩草" data-date="2026-08-24 11:42" data-change="Entry text updated · 词目内容已修改" data-detail="Georgian translation revised · 已修改格文译文" data-stage="cht"><td><span class="cge-date">2026-08-24<span class="text-small">11:42</span></span></td><td><span class="cge-person"><span class="viz-badge">CE</span>Tatia S.</span></td><td><span class="cge-entry"><span class="cge-unread-dot" aria-label="Unread · 未读"></span><a href="#" data-open="1" class="cge-stage-cht">老牛吃嫩草</a></span></td></tr>
+            <tr class="cge-row" data-id="2" data-read="false" data-editor="Darejan K." data-role="GE" data-entry="三个和尚没水吃" data-date="2026-08-24 11:18" data-change="Comment added · 已添加评论" data-detail="ქართული შესატყვისი დამატებით გადასამოწმებელია." data-stage="gel"><td><span class="cge-date">2026-08-24<span class="text-small">11:18</span></span></td><td><span class="cge-person"><span class="viz-badge">GE</span>Darejan K.</span></td><td><span class="cge-entry"><span class="cge-unread-dot" aria-label="Unread · 未读"></span><a href="#" data-open="2" class="cge-stage-gel">三个和尚没水吃</a></span></td></tr>
+            <tr class="cge-row" data-id="3" data-read="false" data-editor="Tatia S." data-role="CE" data-entry="老牛吃嫩草" data-date="2026-08-24 10:56" data-change="Reference material updated · 参考资料已修改" data-detail="English source added · 已添加英文参考资料" data-stage="cht"><td><span class="cge-date">2026-08-24<span class="text-small">10:56</span></span></td><td><span class="cge-person"><span class="viz-badge">CE</span>Tatia S.</span></td><td><span class="cge-entry"><span class="cge-unread-dot" aria-label="Unread · 未读"></span><a href="#" data-open="3" class="cge-stage-cht">老牛吃嫩草</a></span></td></tr>
+            <tr class="cge-row" data-id="4" data-read="false" data-editor="Darejan K." data-role="GE" data-entry="薄酒" data-date="2026-08-24 10:35" data-change="Status changed · 状态已更改" data-detail="GEL-review · 格鲁吉亚语审核 → Ready · 待发布" data-stage="ready"><td><span class="cge-date">2026-08-24<span class="text-small">10:35</span></span></td><td><span class="cge-person"><span class="viz-badge">GE</span>Darejan K.</span></td><td><span class="cge-entry"><span class="cge-unread-dot" aria-label="Unread · 未读"></span><a href="#" data-open="4" class="cge-stage-ready">薄酒</a></span></td></tr>
+            <tr class="cge-row" data-id="5" data-read="true" data-selected="true" data-editor="Natalia M." data-role="CE" data-entry="王炸" data-date="2026-08-24 09:50" data-change="Entry text updated · 词目内容已修改" data-detail="Chinese example and translation revised · 已修改中文例句及译文" data-stage="cht"><td><span class="cge-date">2026-08-24<span class="text-small">09:50</span></span></td><td><span class="cge-person"><span class="viz-badge">CE</span>Natalia M.</span></td><td><span class="cge-entry"><a href="#" data-open="5" class="cge-stage-cht">王炸</a></span></td></tr>
+            <tr class="cge-row" data-id="6" data-read="true" data-editor="Tamar M." data-role="AE" data-entry="托梦" data-date="2026-08-23 17:22" data-change="Reference material updated · 参考资料已修改" data-detail="Russian source added · 已添加俄文参考资料" data-stage="cht"><td><span class="cge-date">2026-08-23<span class="text-small">17:22</span></span></td><td><span class="cge-person"><span class="viz-badge">AE</span>Tamar M.</span></td><td><span class="cge-entry"><a href="#" data-open="6" class="cge-stage-cht">托梦</a></span></td></tr>
+            <tr class="cge-row" data-id="7" data-read="true" data-editor="Darejan K." data-role="GE" data-entry="难题" data-date="2026-08-23 16:48" data-change="Status changed · 状态已更改" data-detail="GEL-review · 格鲁吉亚语审核 → CHT-review · 中文审核" data-stage="cht"><td><span class="cge-date">2026-08-23<span class="text-small">16:48</span></span></td><td><span class="cge-person"><span class="viz-badge">GE</span>Darejan K.</span></td><td><span class="cge-entry"><a href="#" data-open="7" class="cge-stage-cht">难题</a></span></td></tr>
+            <tr class="cge-row" data-id="8" data-read="true" data-editor="Tatia S." data-role="CE" data-entry="时光" data-date="2026-08-23 15:11" data-change="Comment added · 已添加评论" data-detail="Example checked · 例句已核对" data-stage="ready"><td><span class="cge-date">2026-08-23<span class="text-small">15:11</span></span></td><td><span class="cge-person"><span class="viz-badge">CE</span>Tatia S.</span></td><td><span class="cge-entry"><a href="#" data-open="8" class="cge-stage-ready">时光</a></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="cge-preview" aria-label="Quick view · 快速查看" aria-live="polite">
+      <div class="cge-preview-title"><span>QUICK VIEW</span><span>快速查看</span></div>
+      <div class="cge-preview-entry"><a id="cge-preview-entry" href="#" class="cge-stage-cht">王炸</a></div>
+      <div class="cge-preview-person"><span id="cge-preview-role" class="viz-badge">CE</span><span id="cge-preview-editor">Natalia M.</span></div>
+      <div id="cge-preview-date" class="text-small">2026-08-24 09:50</div>
+      <div class="cge-preview-message"><div id="cge-preview-change" class="cge-preview-line">Entry text updated · 词目内容已修改</div><div id="cge-preview-detail" class="cge-preview-line">Chinese example and translation revised · 已修改中文例句及译文</div></div>
+      <div id="cge-preview-feedback" class="text-small" role="status" hidden></div>
+    </section>
+
+    <aside class="cge-font-control" aria-label="Font size · 字号"><span class="cge-font-label text-small">Font size · 字号</span><button id="cge-notifications-font-increase" type="button" class="btn btn-ghost" aria-label="Increase font · 放大字体" data-tooltip="Increase font · 放大字体">+</button><button id="cge-notifications-font-decrease" type="button" class="btn btn-ghost" aria-label="Decrease font · 缩小字体" data-tooltip="Decrease font · 缩小字体">−</button></aside>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById("cge-editorial-notifications-sketch");
+      if (!root) return;
+      const rows = Array.from(root.querySelectorAll("#cge-notifications-rows .cge-row"));
+      const unreadFilter = root.querySelector("#cge-notifications-unread");
+      const unreadCount = root.querySelector("#cge-notification-count");
+      const previewEntry = root.querySelector("#cge-preview-entry");
+      const previewRole = root.querySelector("#cge-preview-role");
+      const previewEditor = root.querySelector("#cge-preview-editor");
+      const previewDate = root.querySelector("#cge-preview-date");
+      const previewChange = root.querySelector("#cge-preview-change");
+      const previewDetail = root.querySelector("#cge-preview-detail");
+      const previewFeedback = root.querySelector("#cge-preview-feedback");
+      const increase = root.querySelector("#cge-notifications-font-increase");
+      const decrease = root.querySelector("#cge-notifications-font-decrease");
+      const fontSizes = [14, 15, 16, 17, 18, 19];
+      let fontIndex = 2;
+      let unreadOnly = false;
+
+      function refreshRows() {
+        let remaining = 0;
+        rows.forEach(row => {
+          const isUnread = row.dataset.read === "false";
+          if (isUnread) remaining += 1;
+          row.hidden = unreadOnly && !isUnread;
+        });
+        unreadCount.textContent = String(remaining);
+        unreadCount.hidden = remaining === 0;
+        unreadFilter.setAttribute("aria-pressed", String(unreadOnly));
+      }
+
+      function openNotification(row) {
+        rows.forEach(item => { item.dataset.selected = item === row ? "true" : "false"; });
+        previewEntry.textContent = row.dataset.entry;
+        previewEntry.className = row.dataset.stage ? "cge-stage-" + row.dataset.stage : "";
+        previewRole.textContent = row.dataset.role;
+        previewEditor.textContent = row.dataset.editor;
+        previewDate.textContent = row.dataset.date;
+        previewChange.textContent = row.dataset.change;
+        previewDetail.textContent = row.dataset.detail;
+        previewFeedback.hidden = true;
+        if (row.dataset.read === "false") {
+          row.dataset.read = "true";
+          const marker = row.querySelector(".cge-unread-dot");
+          if (marker) marker.remove();
+        }
+        refreshRows();
+      }
+
+      rows.forEach(row => {
+        row.addEventListener("click", event => {
+          event.preventDefault();
+          openNotification(row);
+        });
+      });
+
+      unreadFilter.addEventListener("click", () => {
+        unreadOnly = !unreadOnly;
+        refreshRows();
+      });
+
+      previewEntry.addEventListener("click", event => {
+        event.preventDefault();
+        previewFeedback.textContent = "Open entry · 打开词目: " + previewEntry.textContent;
+        previewFeedback.hidden = false;
+      });
+
+      function adjustFont(direction) {
+        fontIndex = Math.max(0, Math.min(fontSizes.length - 1, fontIndex + direction));
+        root.style.setProperty("--font-size-base", fontSizes[fontIndex] + "px");
+        decrease.disabled = fontIndex === 0;
+        increase.disabled = fontIndex === fontSizes.length - 1;
+      }
+      increase.addEventListener("click", () => adjustFont(1));
+      decrease.addEventListener("click", () => adjustFont(-1));
+      refreshRows();
+    })();
+  </script>
+</div>
+  </section>
+  <section data-handoff-page="messages" hidden>
+<div id="cge-editorial-messages-final">
+  <style>
+    #cge-editorial-messages-final { --font-size-base: 16px; display: grid; gap: 18px; color: var(--foreground); padding-block: 8px; }
+    #cge-editorial-messages-final .cge-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    #cge-editorial-messages-final .cge-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; color: var(--muted-foreground); }
+    #cge-editorial-messages-final .cge-search { display: flex; flex: 1 1 190px; min-width: 160px; }
+    #cge-editorial-messages-final .cge-account { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    #cge-editorial-messages-final .cge-unread-count { display: inline-flex; align-items: center; justify-content: center; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--red) 12%, var(--background)); color: var(--red); font-weight: 500; }
+    #cge-editorial-messages-final .cge-heading { text-align: center; color: color-mix(in srgb, rgb(236 247 241) 72%, var(--foreground) 28%); }
+    #cge-editorial-messages-final .cge-heading h2 { margin-block: 5px; font-weight: 700; }
+    #cge-editorial-messages-final .cge-workspace { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(260px, 1.05fr) auto; align-items: start; gap: 14px; }
+    #cge-editorial-messages-final .cge-list { display: grid; gap: 10px; min-width: 0; }
+    #cge-editorial-messages-final .cge-list-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+    #cge-editorial-messages-final .cge-header { background: color-mix(in srgb, var(--green) 7%, var(--background)); }
+    #cge-editorial-messages-final .cge-row:nth-child(odd) { background: color-mix(in srgb, var(--muted) 44%, transparent); }
+    #cge-editorial-messages-final .cge-row:nth-child(even) { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+    #cge-editorial-messages-final .cge-row[data-unread]:not([data-unread="0"]) { background: color-mix(in srgb, var(--green) 10%, var(--background)); }
+    #cge-editorial-messages-final .cge-row[data-selected="true"] { background: color-mix(in srgb, var(--primary) 12%, var(--background)); }
+    #cge-editorial-messages-final .cge-date { display: grid; gap: 2px; white-space: nowrap; }
+    #cge-editorial-messages-final .cge-person { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    #cge-editorial-messages-final .cge-group-person { font-weight: 700; }
+    #cge-editorial-messages-final .cge-thread { display: grid; gap: 14px; padding-top: 45px; }
+    #cge-editorial-messages-final .cge-thread-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 9px; border-bottom: 1px solid var(--border); }
+    #cge-editorial-messages-final .cge-thread-person { display: flex; align-items: center; gap: 7px; }
+    #cge-editorial-messages-final #cge-thread-name, #cge-editorial-messages-final .cge-message-author { font-weight: 700; }
+    #cge-editorial-messages-final .cge-message-list { display: grid; gap: 10px; }
+    #cge-editorial-messages-final .cge-message { display: grid; gap: 7px; padding: 10px; }
+    #cge-editorial-messages-final .cge-incoming { background: color-mix(in srgb, var(--muted) 58%, var(--background)); }
+    #cge-editorial-messages-final .cge-outgoing { background: color-mix(in srgb, var(--green) 10%, var(--background)); }
+    #cge-editorial-messages-final .cge-message-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+    #cge-editorial-messages-final .cge-message-author { display: flex; align-items: center; gap: 6px; }
+    #cge-editorial-messages-final .cge-message-text { overflow-wrap: anywhere; }
+    #cge-editorial-messages-final .cge-compose { display: grid; gap: 9px; }
+    #cge-editorial-messages-final .cge-compose-actions { display: flex; justify-content: flex-end; }
+    #cge-editorial-messages-final .cge-font-control { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    #cge-editorial-messages-final .cge-font-label { writing-mode: vertical-rl; }
+    @media (max-width: 660px) { #cge-editorial-messages-final .cge-search { order: 3; flex-basis: 100%; } #cge-editorial-messages-final .cge-workspace { grid-template-columns: minmax(0, 1fr) auto; } #cge-editorial-messages-final .cge-thread { grid-column: 1; grid-row: 2; padding-top: 8px; } #cge-editorial-messages-final .cge-font-control { grid-column: 2; grid-row: 1 / span 2; } }
+  </style>
+
+  <nav class="cge-top" aria-label="Main navigation · 主导航">
+    <div class="cge-actions">
+      <button type="button" class="btn btn-ghost" aria-label="Home · 主页" data-tooltip="Home · 主页"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/></svg></button>
+      <button type="button" class="btn" aria-pressed="true" aria-label="Messages · 站内消息" data-tooltip="Messages · 站内消息"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></svg><span id="cge-messages-count" class="cge-unread-count">14</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="Notifications · 通知 · 4 unread" data-tooltip="Notifications · 通知"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 20a2 2 0 0 0 4 0"/></svg><span class="cge-unread-count">4</span></button>
+      <button type="button" class="btn btn-ghost" aria-label="New Entry · 新建词条" data-tooltip="New Entry · 新建词条"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H5v18h14V9l-6-6v6h6M12 12v6M9 15h6"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Media · 媒体" data-tooltip="Media · 媒体"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m21 15-5-5L5 20"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Statistics · 统计" data-tooltip="Statistics · 统计"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="0.7"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"/></svg></button>
+      <button type="button" class="btn btn-ghost" aria-label="Editorial team · 编辑团队" data-tooltip="Editorial team · 编辑团队"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5.3a3 3 0 0 1 0 5.4M18 14a5 5 0 0 1 3 4.6V20"/></svg></button>
+    </div>
+    <label class="form-label cge-search" for="cge-messages-search"><span class="sr-only">Search · 查找</span><input id="cge-messages-search" class="form-control" type="search" placeholder="Search · 查找"></label>
+    <div class="cge-account"><button type="button" class="btn btn-ghost" aria-label="My account · 我的账户" data-tooltip="My account · 我的账户"><span class="viz-badge">EC</span><span class="viz-badge">SV</span> Zurab M.</button><button type="button" class="btn btn-ghost" aria-label="Log out · 退出登录" data-tooltip="Log out · 退出登录"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17v4H3V3h7v4M8 12h13m-5-5 5 5-5 5"/></svg></button></div>
+  </nav>
+
+  <div class="cge-heading"><h2>MESSAGES<br>站内消息</h2></div>
+
+  <div class="cge-workspace">
+    <section class="cge-list" aria-label="Conversations · 会话列表">
+      <div class="cge-list-toolbar"><button id="cge-messages-new" type="button" class="btn btn-ghost"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="m16 5 3 3M8 16l-1 4 4-1L21 9a2.1 2.1 0 0 0-3-3L8 16z"/></svg> New · 新消息</button><button id="cge-messages-unread" type="button" class="btn" aria-pressed="false">Only unread · 仅未读</button></div>
+      <label id="cge-messages-new-person" class="form-label" for="cge-messages-editor" hidden>Editor · 编辑<select id="cge-messages-editor" class="form-select"><option value="">Select editor · 选择编辑</option><option value="all">All editors · 全体编辑</option><option value="tatia">Tatia S. · CE</option><option value="darejan">Darejan K. · GE</option><option value="tamar">Tamar M. · AE</option><option value="natalia">Natalia M. · CE</option><option value="nino">Nino T. · DE</option></select></label>
+      <div class="table-responsive"><table class="table table-sm"><thead class="cge-header"><tr><th>Date<br>日期</th><th>Editor<br>编辑</th><th class="text-center">Unread<br>未读</th></tr></thead><tbody id="cge-messages-rows">
+        <tr class="cge-row" data-person="all" data-unread="2"><td><span class="cge-date">2026-08-25<span class="text-small">08:10</span></span></td><td><span class="cge-person cge-group-person"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5.3a3 3 0 0 1 0 5.4M18 14a5 5 0 0 1 3 4.6V20"/></svg><a href="#" data-conversation="all">All editors · 全体编辑</a></span></td><td class="text-center"><span class="cge-unread-count" data-thread-count="all">2</span></td></tr>
+        <tr class="cge-row" data-person="tatia" data-unread="5"><td><span class="cge-date">2026-08-24<span class="text-small">11:42</span></span></td><td><span class="cge-person"><span class="viz-badge">CE</span><a href="#" data-conversation="tatia">Tatia S.</a></span></td><td class="text-center"><span class="cge-unread-count" data-thread-count="tatia">5</span></td></tr>
+        <tr class="cge-row" data-person="darejan" data-unread="4"><td><span class="cge-date">2026-08-24<span class="text-small">11:18</span></span></td><td><span class="cge-person"><span class="viz-badge">GE</span><a href="#" data-conversation="darejan">Darejan K.</a></span></td><td class="text-center"><span class="cge-unread-count" data-thread-count="darejan">4</span></td></tr>
+        <tr class="cge-row" data-person="tamar" data-unread="3"><td><span class="cge-date">2026-08-24<span class="text-small">10:35</span></span></td><td><span class="cge-person"><span class="viz-badge">AE</span><a href="#" data-conversation="tamar">Tamar M.</a></span></td><td class="text-center"><span class="cge-unread-count" data-thread-count="tamar">3</span></td></tr>
+        <tr class="cge-row" data-person="natalia" data-unread="0" data-selected="true"><td><span class="cge-date">2026-08-24<span class="text-small">09:50</span></span></td><td><span class="cge-person"><span class="viz-badge">CE</span><a href="#" data-conversation="natalia">Natalia M.</a></span></td><td class="text-center"></td></tr>
+        <tr class="cge-row" data-person="nino" data-unread="0"><td><span class="cge-date">2026-08-23<span class="text-small">17:22</span></span></td><td><span class="cge-person"><span class="viz-badge">DE</span><a href="#" data-conversation="nino">Nino T.</a></span></td><td class="text-center"></td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="cge-thread" aria-label="Selected conversation · 当前会话">
+      <div class="cge-thread-header"><div class="cge-thread-person"><span id="cge-thread-role" class="viz-badge">CE</span><span id="cge-thread-name">Natalia M.</span></div><span id="cge-thread-visibility" class="text-small">Private · 私人</span></div>
+      <div id="cge-thread-messages" class="cge-message-list" aria-live="polite"></div>
+      <form id="cge-compose-form" class="cge-compose"><label class="form-label" for="cge-compose-text"><span class="sr-only">Write a message · 输入消息</span><textarea id="cge-compose-text" class="form-control" rows="3" placeholder="Write a message · 输入消息" required></textarea></label><div class="cge-compose-actions"><button type="submit" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7z"/><path d="M22 2 11 13"/></svg> Send · 发送</button></div></form>
+      <div id="cge-messages-feedback" class="text-small" role="status" hidden></div>
+    </section>
+
+    <aside class="cge-font-control" aria-label="Font size · 字号"><span class="cge-font-label text-small">Font size · 字号</span><button id="cge-messages-font-increase" type="button" class="btn btn-ghost" aria-label="Increase font · 放大字体" data-tooltip="Increase font · 放大字体">+</button><button id="cge-messages-font-decrease" type="button" class="btn btn-ghost" aria-label="Decrease font · 缩小字体" data-tooltip="Decrease font · 缩小字体">−</button></aside>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById("cge-editorial-messages-final");
+      if (!root) return;
+      const rows = Array.from(root.querySelectorAll("#cge-messages-rows .cge-row"));
+      const unreadCount = root.querySelector("#cge-messages-count");
+      const unreadFilter = root.querySelector("#cge-messages-unread");
+      const newMessage = root.querySelector("#cge-messages-new");
+      const newPerson = root.querySelector("#cge-messages-new-person");
+      const editorSelect = root.querySelector("#cge-messages-editor");
+      const threadRole = root.querySelector("#cge-thread-role");
+      const threadName = root.querySelector("#cge-thread-name");
+      const threadVisibility = root.querySelector("#cge-thread-visibility");
+      const threadMessages = root.querySelector("#cge-thread-messages");
+      const composeForm = root.querySelector("#cge-compose-form");
+      const composeText = root.querySelector("#cge-compose-text");
+      const feedback = root.querySelector("#cge-messages-feedback");
+      const increase = root.querySelector("#cge-messages-font-increase");
+      const decrease = root.querySelector("#cge-messages-font-decrease");
+      const entries = ["三个和尚没水吃", "老牛吃嫩草", "王炸", "薄酒", "时光", "难题", "托梦"];
+      const entryPattern = new RegExp("(" + entries.join("|") + ")", "g");
+      const people = {
+        all: { name: "All editors · 全体编辑", role: "", group: true, messages: [{ author: "Zurab M.", role: "EC", time: "08:02", text: "ყველა რედაქტორს: დღეს გადავამოწმოთ 王炸 და 难题 სტატიების მაგალითები." }, { author: "Tatia S.", role: "CE", time: "08:06", text: "王炸 სტატიის ჩინური მაგალითები უკვე შევამოწმე." }, { author: "Darejan K.", role: "GE", time: "08:10", text: "难题 სტატიის ქართულ ტექსტს დილის განმავლობაში გადავხედავ." }] },
+        tatia: { name: "Tatia S.", role: "CE", messages: [{ author: "Tatia S.", role: "CE", time: "11:36", text: "ზურა, 老牛吃嫩草 სტატიის ქართულ შესატყვისთან დაკავშირებით შენი აზრი მაინტერესებს." }, { author: "Zurab M.", role: "EC", time: "11:39", text: "ვნახავ. შეადარე ასევე 三个和尚没水吃 სტატიის მაგალითების ფორმას." }, { author: "Tatia S.", role: "CE", time: "11:42", text: "კარგი, ორივე სტატიას შევამოწმებ." }] },
+        darejan: { name: "Darejan K.", role: "GE", messages: [{ author: "Darejan K.", role: "GE", time: "11:12", text: "难题 სტატიის ქართული განმარტება გადავამოწმე და მცირე შესწორება შევიტანე." }, { author: "Zurab M.", role: "EC", time: "11:15", text: "მადლობა. 王炸 სტატიის კომენტარსაც გადახედე." }, { author: "Darejan K.", role: "GE", time: "11:18", text: "გადავხედავ და ჩემს აზრს კომენტარში ჩავწერ." }] },
+        tamar: { name: "Tamar M.", role: "AE", messages: [{ author: "Tamar M.", role: "AE", time: "10:28", text: "托梦 სტატიისთვის ინგლისური და რუსული წყაროები დავამატე." }, { author: "Zurab M.", role: "EC", time: "10:31", text: "კარგია, მაგალითების წყაროებიც მიუთითე." }, { author: "Tamar M.", role: "AE", time: "10:35", text: "წყაროები უკვე მითითებულია." }] },
+        natalia: { name: "Natalia M.", role: "CE", messages: [{ author: "Natalia M.", role: "CE", time: "09:41", text: "王炸 სტატიის მაგალითში მეორე მნიშვნელობა დავაზუსტე." }, { author: "Zurab M.", role: "EC", time: "09:46", text: "მადლობა. 时光 სტატიის ფორმულირებაც გადაამოწმე." }, { author: "Natalia M.", role: "CE", time: "09:50", text: "ორივე სტატია გადავამოწმე და შევინახე." }] },
+        nino: { name: "Nino T.", role: "DE", messages: [{ author: "Nino T.", role: "DE", time: "17:15", text: "გამოსაქვეყნებლად მომზადებული სტატიების სია განახლებულია." }, { author: "Zurab M.", role: "EC", time: "17:22", text: "კარგი, ხვალ კიდევ ერთხელ გადავამოწმოთ." }] }
+      };
+      let activePerson = "natalia";
+      let unreadOnly = false;
+      const fontSizes = [14, 15, 16, 17, 18, 19];
+      let fontIndex = 2;
+
+      function appendLinkedText(container, text) {
+        text.split(entryPattern).forEach(part => {
+          if (!part) return;
+          if (entries.includes(part)) {
+            const link = document.createElement("a");
+            link.href = "#";
+            link.dataset.entry = part;
+            link.textContent = part;
+            container.appendChild(link);
+          } else {
+            container.appendChild(document.createTextNode(part));
+          }
+        });
+      }
+
+      function renderMessages(personId) {
+        const person = people[personId];
+        threadRole.textContent = person.role;
+        threadRole.hidden = Boolean(person.group);
+        threadName.textContent = person.name;
+        threadVisibility.textContent = person.group ? "Group · 群聊" : "Private · 私人";
+        threadMessages.replaceChildren();
+        person.messages.forEach(message => {
+          const own = message.author === "Zurab M.";
+          const article = document.createElement("article");
+          article.className = "cge-message " + (own ? "cge-outgoing" : "cge-incoming");
+          const meta = document.createElement("div");
+          meta.className = "cge-message-meta";
+          const author = document.createElement("span");
+          author.className = "cge-message-author";
+          const badge = document.createElement("span");
+          badge.className = "viz-badge";
+          badge.textContent = message.role;
+          author.append(badge, document.createTextNode(message.author));
+          const time = document.createElement("span");
+          time.className = "text-small";
+          time.textContent = message.time;
+          meta.append(author, time);
+          const body = document.createElement("div");
+          body.className = "cge-message-text";
+          appendLinkedText(body, message.text);
+          article.append(meta, body);
+          threadMessages.appendChild(article);
+        });
+      }
+
+      function refreshRows() {
+        let count = 0;
+        rows.forEach(row => {
+          const unread = Number(row.dataset.unread);
+          count += unread;
+          row.hidden = unreadOnly && unread === 0;
+        });
+        unreadCount.textContent = String(count);
+        unreadCount.hidden = count === 0;
+        unreadFilter.setAttribute("aria-pressed", String(unreadOnly));
+      }
+
+      function selectConversation(personId) {
+        const selected = rows.find(row => row.dataset.person === personId);
+        if (!selected || !people[personId]) return;
+        activePerson = personId;
+        rows.forEach(row => { row.dataset.selected = row === selected ? "true" : "false"; });
+        selected.dataset.unread = "0";
+        const badge = selected.querySelector("[data-thread-count]");
+        if (badge) badge.remove();
+        feedback.hidden = true;
+        renderMessages(personId);
+        refreshRows();
+      }
+
+      rows.forEach(row => {
+        row.addEventListener("click", event => {
+          event.preventDefault();
+          selectConversation(row.dataset.person);
+        });
+      });
+
+      unreadFilter.addEventListener("click", () => {
+        unreadOnly = !unreadOnly;
+        refreshRows();
+      });
+
+      newMessage.addEventListener("click", () => {
+        newPerson.hidden = !newPerson.hidden;
+        if (!newPerson.hidden) editorSelect.focus();
+      });
+
+      editorSelect.addEventListener("change", () => {
+        if (!editorSelect.value) return;
+        unreadOnly = false;
+        selectConversation(editorSelect.value);
+        newPerson.hidden = true;
+        editorSelect.value = "";
+        composeText.focus();
+      });
+
+      composeForm.addEventListener("submit", event => {
+        event.preventDefault();
+        const text = composeText.value.trim();
+        if (!text) return;
+        const now = new Date();
+        const time = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+        people[activePerson].messages.push({ author: "Zurab M.", role: "EC", time: time, text: text });
+        renderMessages(activePerson);
+        composeForm.reset();
+        feedback.textContent = "Sent · 已发送";
+        feedback.hidden = false;
+      });
+
+      threadMessages.addEventListener("click", event => {
+        const link = event.target.closest("a[data-entry]");
+        if (!link) return;
+        event.preventDefault();
+        feedback.textContent = "Open entry · 打开词目: " + link.dataset.entry;
+        feedback.hidden = false;
+      });
+
+      function adjustFont(direction) {
+        fontIndex = Math.max(0, Math.min(fontSizes.length - 1, fontIndex + direction));
+        root.style.setProperty("--font-size-base", fontSizes[fontIndex] + "px");
+        decrease.disabled = fontIndex === 0;
+        increase.disabled = fontIndex === fontSizes.length - 1;
+      }
+      increase.addEventListener("click", () => adjustFont(1));
+      decrease.addEventListener("click", () => adjustFont(-1));
+      renderMessages(activePerson);
+      refreshRows();
+    })();
+  </script>
+</div>
+  </section>
+  <script>
+    (() => {
+      const root = document.getElementById("cge-programmer-handoff-prototype");
+      if (!root) return;
+      const pages = Array.from(root.querySelectorAll("[data-handoff-page]"));
+      const tabs = Array.from(root.querySelectorAll("[data-handoff-target]"));
+      const routes = { "Log in": "login", "Log out": "login", "Home": "home", "Editorial team": "team", "My account": "account", "Statistics": "statistics", "Notifications": "notifications", "Messages": "messages" };
+      function showPage(slug) {
+        if (!pages.some(page => page.dataset.handoffPage === slug)) return;
+        pages.forEach(page => { page.hidden = page.dataset.handoffPage !== slug; });
+        tabs.forEach(tab => { const active = tab.dataset.handoffTarget === slug; tab.setAttribute("aria-pressed", String(active)); tab.classList.toggle("btn-primary", active); });
+        if (history.replaceState) history.replaceState(null, "", "#" + slug);
+      }
+      tabs.forEach(tab => tab.addEventListener("click", () => showPage(tab.dataset.handoffTarget)));
+      pages.forEach(page => page.querySelectorAll(".cge-top button[aria-label]").forEach(button => {
+        const label = button.getAttribute("aria-label") || "";
+        const match = Object.keys(routes).find(key => label === key || label.startsWith(key + " ·"));
+        if (match) button.addEventListener("click", () => showPage(routes[match]));
+      }));
+      const requested = location.hash.slice(1);
+      if (requested) showPage(requested);
+    })();
+  </script>
+</div>
+
+<script id="codex-visualization-floating-ui-core" src="https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js"></script>
+<script id="codex-visualization-floating-ui-dom" src="https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js"></script>
+<script id="codex-visualization-lucide" async src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js"></script>
+<script id="codex-visualization-tooltip">/* oxlint-disable typescript/no-unsafe-argument, typescript/no-unsafe-call, typescript/no-unsafe-return */
+// Runs inside the visualization sandbox, not the host webview.
+(() => {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set(["top", "right", "bottom", "left"]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =>
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest("[data-tooltip]")
+      : null;
+  const containsTarget = (trigger, target) =>
+    target?.nodeType != null && trigger.contains(target);
+  const getContent = (trigger) =>
+    trigger.getAttribute("data-tooltip")?.trim() ?? "";
+  const getPlacement = (trigger) => {
+    const placement = trigger.getAttribute("data-tooltip-placement");
+    return tooltipPlacements.has(placement) ? placement : "top";
+  };
+  const getTooltip = () => {
+    if (tooltip == null) {
+      tooltip = document.createElement("div");
+      tooltip.id = tooltipId;
+      tooltip.className = "tooltip";
+      tooltip.setAttribute("role", "tooltip");
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) => {
+    const ids = new Set(
+      (trigger.getAttribute("aria-describedby") ?? "")
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute("aria-describedby");
+    } else {
+      trigger.setAttribute("aria-describedby", [...ids].join(" "));
+    }
+  };
+  const clearOpenTimeout = () => {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) => {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) => {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              "--tooltip-available-width",
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              "--tooltip-available-height",
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: "fixed",
+    })
+      .then(({ x, y }) => {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = "visible";
+      })
+      .catch(() => {
+        if (activeTrigger === trigger && request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) => {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = "hidden";
+    floating.style.transform = "translate(0, 0)";
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () => {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) => {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() < skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() => {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) => {
+    if (event.pointerType === "touch") {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) => {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) => {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(":focus-visible")) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) => {
+    if (event.key === "Escape") {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) => {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () => {
+    closeTooltip(false);
+    document.removeEventListener("pointerover", handlePointerOpen);
+    document.removeEventListener("pointerout", handleLeave);
+    document.removeEventListener("focusin", handleFocusIn);
+    document.removeEventListener("focusout", handleLeave);
+    document.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("contextmenu", handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener("pointerover", handlePointerOpen);
+  document.addEventListener("pointerout", handleLeave);
+  document.addEventListener("focusin", handleFocusIn);
+  document.addEventListener("focusout", handleLeave);
+  document.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("contextmenu", handleContextMenu);
+  window.addEventListener("pagehide", destroy, { once: true });
+})();
+</script>
+<script id="codex-visualization-lucide-initialization">(() => {
+  const initialize = () => {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById("codex-visualization-lucide")
+    ?.addEventListener("load", initialize, { once: true });
+})();
+</script>
+</body>
+</html>

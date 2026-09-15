@@ -1,4 +1,9 @@
-import { DatePipe } from '@angular/common';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { API_BASE_URL } from '../../../core/config/api.config';
+import { PanelFontControl } from '../../../shared/panel-font-control';
+import { editorRoleCodes } from '../../../core/models/auth.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -17,12 +22,66 @@ import { StatusBadge } from '../../../shared/status-badge/status-badge';
 
 @Component({
   selector: 'app-accounting-page',
-  imports: [DatePipe, StatusBadge],
+  imports: [StatusBadge, PanelFontControl, FormsModule, RouterLink],
   templateUrl: './accounting-page.html',
   styleUrl: './accounting-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AccountingPage implements OnInit {
+  readonly roleCodes = editorRoleCodes;
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = inject(API_BASE_URL);
+  readonly canExport = computed(() => this.auth.editor()?.role === 'SuperAdmin');
+  readonly exporting = signal(false);
+  readonly exportError = signal<string | null>(null);
+  exportStatus = '';
+  exportEditor = '';
+  exportFrom = '';
+  exportTo = '';
+  exportFile(format: 'xml' | 'json' | 'helper'): void {
+    if (this.exporting() || !this.canExport()) return;
+    this.exportError.set(null);
+    if (this.exportFrom && this.exportTo && this.exportFrom > this.exportTo) {
+      this.exportError.set('Check dates · 请检查日期');
+      return;
+    }
+    let params = new HttpParams().set('format', format);
+    for (const [key, value] of Object.entries({
+      status: this.exportStatus,
+      editorId: this.exportEditor,
+      from: this.exportFrom,
+      to: this.exportTo,
+    }))
+      if (value) params = params.set(key, value);
+    this.exporting.set(true);
+    this.http
+      .get(this.apiUrl + '/entries/export', { params, responseType: 'blob' })
+      .pipe(finalize(() => this.exporting.set(false)))
+      .subscribe({
+        next: (blob) => {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download =
+            format === 'xml'
+              ? 'chinese-ge.xml'
+              : format === 'helper'
+                ? 'chinese-ge-helper-materials.json'
+                : 'chinese-ge.json';
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        },
+        error: async (error) => {
+          let message = 'ჩამოტვირთვა ვერ მოხერხდა.';
+          if (error.error instanceof Blob) {
+            try {
+              message = JSON.parse(await error.error.text()).message || message;
+            } catch {}
+          }
+          this.exportError.set(message);
+        },
+      });
+  }
   private readonly accounting = inject(AccountingService);
   private readonly auth = inject(AuthService);
   readonly totals = signal<EntryStatusTotals | null>(null);

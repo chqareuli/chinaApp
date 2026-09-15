@@ -1,6 +1,13 @@
 import { EditorRole } from './auth.models';
 
 export interface EditorListItem {
+  firstName?: string | null;
+  lastName?: string | null;
+  chineseName?: string | null;
+  weChatAccount?: string | null;
+  editorialRole?: EditorRole | null;
+  isSupervisor?: boolean;
+  isCancelled?: boolean;
   id: number;
   email: string;
   displayName: string;
@@ -10,6 +17,11 @@ export interface EditorListItem {
 }
 
 export interface CreateEditorRequest {
+  firstName?: string;
+  lastName?: string;
+  chineseName?: string;
+  weChatAccount?: string;
+  isSupervisor?: boolean;
   email: string;
   displayName: string;
   role: EditorRole;
@@ -17,6 +29,8 @@ export interface CreateEditorRequest {
 }
 
 export interface UpdateEditorRequest {
+  isSupervisor?: boolean;
+  isCancelled?: boolean;
   email: string;
   displayName: string;
   role: EditorRole;
@@ -53,6 +67,7 @@ export interface PersonalScoreStatistics {
 }
 
 export interface EditorAccountingDetail {
+  entriesByStatus?: Record<string, number>;
   editorId: number;
   displayName: string;
   email: string;

@@ -9,6 +9,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
   private readonly storageKey = 'editorial-panel.session';
+  private rememberSession = !sessionStorage.getItem(this.storageKey);
   private readonly sessionState = signal<AuthSession | null>(this.restoreSession());
   private refreshRequest: Observable<string> | null = null;
 
@@ -21,14 +22,19 @@ export class AuthService {
     return session !== null && Date.parse(session.accessTokenExpiresAtUtc) > Date.now() + 15_000;
   });
 
-  login(email: string, password: string): Observable<AuthSession> {
+  login(email: string, password: string, rememberMe = true): Observable<AuthSession> {
     return this.http
       .post<AuthResponse>(
         `${this.apiBaseUrl}/auth/login`,
         { email, password },
         { withCredentials: true },
       )
-      .pipe(tap((session) => this.storeSession(session)));
+      .pipe(
+        tap((session) => {
+          this.rememberSession = rememberMe;
+          this.storeSession(session);
+        }),
+      );
   }
 
   refresh(): Observable<string> {
@@ -57,6 +63,7 @@ export class AuthService {
   clearSession(): void {
     this.sessionState.set(null);
     localStorage.removeItem(this.storageKey);
+    sessionStorage.removeItem(this.storageKey);
   }
 
   updateEditor(editor: EditorSummary): void {
@@ -67,11 +74,14 @@ export class AuthService {
 
   private storeSession(session: AuthSession): void {
     this.sessionState.set(session);
-    localStorage.setItem(this.storageKey, JSON.stringify(session));
+    const storage = this.rememberSession ? localStorage : sessionStorage;
+    const otherStorage = this.rememberSession ? sessionStorage : localStorage;
+    otherStorage.removeItem(this.storageKey);
+    storage.setItem(this.storageKey, JSON.stringify(session));
   }
 
   private restoreSession(): AuthSession | null {
-    const value = localStorage.getItem(this.storageKey);
+    const value = localStorage.getItem(this.storageKey) ?? sessionStorage.getItem(this.storageKey);
     if (!value) {
       return null;
     }
@@ -80,6 +90,7 @@ export class AuthService {
       return JSON.parse(value) as AuthSession;
     } catch {
       localStorage.removeItem(this.storageKey);
+      sessionStorage.removeItem(this.storageKey);
       return null;
     }
   }

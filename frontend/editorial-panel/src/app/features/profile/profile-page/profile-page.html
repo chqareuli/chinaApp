@@ -1,164 +1,166 @@
-<section class="profile-page">
-  <header>
-    <p class="page-kicker">ჩემი ანგარიში</p>
-    <h1 class="page-title">პროფილი და უსაფრთხოება</h1>
-    <p class="muted">განაახლეთ ეკრანზე გამოსაჩენი სახელი ან შეცვალეთ პაროლი.</p>
-  </header>
-
+<section id="cge-personal-account-final">
   @if (editor(); as current) {
-    <section class="identity-card">
-      <span class="identity-avatar">{{ current.displayName.charAt(0) }}</span>
-      <div>
-        <strong>{{ current.displayName }}</strong>
-        <span>{{ current.email }}</span>
-        <small>{{ roleLabels[current.role] }}</small>
-      </div>
-    </section>
-
-    <section class="personal-statistics" aria-labelledby="personal-statistics-title">
-      <div class="statistics-heading">
-        <div>
-          <p class="page-kicker">ჩემი სამუშაო</p>
-          <h2 id="personal-statistics-title">პირადი სტატისტიკა</h2>
-        </div>
-        <span>რაოდენობა და ბოლო აქტივობა</span>
-      </div>
-
-      @if (statisticsLoading()) {
-        <div class="statistics-state">სტატისტიკა იტვირთება…</div>
-      } @else if (statisticsError()) {
-        <div class="error-banner">{{ statisticsError() }}</div>
-      } @else if (statistics(); as stats) {
-        <div class="statistics-grid">
-          <article class="stat-card entries">
-            <span>სტატიების საერთო რაოდენობა</span>
-            <strong>{{ stats.totalEntries }}</strong>
-            <time>{{ lastActivityAtUtc() ? (lastActivityAtUtc() | date: 'dd MMM yyyy' : '+0400') : '—' }}</time>
-          </article>
-          <article class="stat-card points">
-            <span>დაგროვილი ქულები</span>
-            <strong>{{ stats.totalPoints }}</strong>
-            <time>ყველა ტიპის ჯამი</time>
-          </article>
-          <article class="stat-card main">
-            <span>მთავარი ავტორობა</span>
-            <strong>{{ stats.main.total }}</strong>
-            <time>{{ stats.main.lastAwardedAtUtc ? (stats.main.lastAwardedAtUtc | date: 'dd MMM yyyy' : '+0400') : '—' }}</time>
-          </article>
-          <article class="stat-card additional">
-            <span>დამატებითი რედაქტირება</span>
-            <strong>{{ stats.additional.total }}</strong>
-            <time>{{ stats.additional.lastAwardedAtUtc ? (stats.additional.lastAwardedAtUtc | date: 'dd MMM yyyy' : '+0400') : '—' }}</time>
-          </article>
-          <article class="stat-card ka-editor">
-            <span>ქართული რედაქტირება</span>
-            <strong>{{ stats.kaEditor.total }}</strong>
-            <time>{{ stats.kaEditor.lastAwardedAtUtc ? (stats.kaEditor.lastAwardedAtUtc | date: 'dd MMM yyyy' : '+0400') : '—' }}</time>
-          </article>
-        </div>
-
-        @if (scoreBreakdown(); as breakdown) {
-          <div class="statistics-breakdown">
-            <div class="breakdown-title">
-              <div>
-                <p class="page-kicker">დეტალური განაწილება</p>
-                <h3>ქულები სტატიის მიმდინარე სტატუსის მიხედვით</h3>
-              </div>
-            </div>
-            <div class="breakdown-table">
-              <div class="breakdown-head">
-                <span>სტატუსი</span><span>მთავარი</span><span>დამატებითი</span><span>ქართული</span><span>სულ</span>
-              </div>
-              @for (status of scoreStatuses; track status.key) {
-                <div class="breakdown-row">
-                  <strong>{{ status.label }}</strong>
-                  <span>{{ scoreCount(breakdown.main, status.key) }}</span>
-                  <span>{{ scoreCount(breakdown.additional, status.key) }}</span>
-                  <span>{{ scoreCount(breakdown.kaEditor, status.key) }}</span>
-                  <b>{{ statusScoreTotal(status.key) }}</b>
-                </div>
-              }
-            </div>
-          </div>
+    <div class="cge-owner">
+      <div class="cge-owner-name">
+        <span class="viz-badge">{{ roleCodes[current.editorialRole || current.role] }}</span>
+        @if (current.isSupervisor && current.editorialRole) {
+          <span class="viz-badge">SV</span>
         }
-      }
-    </section>
-
-    <div class="settings-grid">
-      <form class="settings-card" [formGroup]="profileForm" (ngSubmit)="saveProfile()">
-        <div>
-          <p class="page-kicker">პირადი ინფორმაცია</p>
-          <h2>პროფილის მონაცემები</h2>
-        </div>
-        <div class="field">
-          <label for="profile-display-name">სახელი და გვარი</label>
-          <input id="profile-display-name" formControlName="displayName" autocomplete="name" />
-          @if (
-            profileForm.controls.displayName.touched && profileForm.controls.displayName.invalid
-          ) {
-            <span class="field-error">შეიყვანეთ სახელი (მაქს. 160 სიმბოლო).</span>
+        <span>{{ current.displayName }}</span
+        ><span class="text-small">{{ current.chineseName }}</span>
+      </div>
+      <span class="text-small">{{ current.email }}</span>
+    </div>
+  }
+  <div class="cge-heading">
+    <h2>MY WORK<br />我的工作</h2>
+  </div>
+  @if (error()) {
+    <div class="error-banner" role="alert">{{ error() }}</div>
+  }
+  <div class="cge-table-area">
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead class="cge-header">
+          <tr>
+            <th>Stage<br /><span class="text-small">状态</span></th>
+            <th class="text-end">Entries<br /><span class="text-small">词目数量</span></th>
+            <th class="text-end">Main score<br /><span class="text-small">主分</span></th>
+            <th class="text-end">Additional score<br /><span class="text-small">附加分</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr>
+              <td colspan="4">Loading… · 加载中</td>
+            </tr>
+          } @else {
+            @for (stage of stages; track stage.key) {
+              <tr class="cge-row">
+                <td>
+                  <span [class]="'cge-stage ' + stage.color"
+                    ><span class="cge-mark"></span>{{ stage.label }}</span
+                  >
+                </td>
+                @for (kind of ['entries', 'main', 'additional']; track kind) {
+                  <td class="text-end">
+                    <a
+                      [class]="kind === 'entries' ? '' : stage.color"
+                      routerLink="/adminpanel/entries"
+                      [queryParams]="workParams(kind, stage.key)"
+                      >{{ count(kind, stage.key) }}</a
+                    >
+                  </td>
+                }
+              </tr>
+            }
           }
-        </div>
-        <div class="field">
-          <label for="profile-email">ელფოსტა</label>
-          <input id="profile-email" [value]="current.email" readonly />
+        </tbody>
+        <tfoot class="cge-total">
+          <tr>
+            <th>Total · 合计</th>
+            @for (kind of ['entries', 'main', 'additional']; track kind) {
+              <th class="text-end">
+                <a routerLink="/adminpanel/entries" [queryParams]="workParams(kind)">{{
+                  total(kind)
+                }}</a>
+              </th>
+            }
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <app-panel-font-control />
+  </div>
+  <div class="cge-sections">
+    <section class="cge-section" aria-label="Personal information · 个人信息">
+      <div class="cge-heading">
+        <h2>PERSONAL INFORMATION<br />个人信息</h2>
+      </div>
+      <form class="cge-form" [formGroup]="profileForm" (ngSubmit)="saveProfile()" novalidate>
+        <label class="form-label"
+          >First name · 名<input
+            class="form-control"
+            formControlName="firstName"
+            autocomplete="given-name"
+        /></label>
+        <label class="form-label"
+          >Last name · 姓<input
+            class="form-control"
+            formControlName="lastName"
+            autocomplete="family-name"
+        /></label>
+        <label class="form-label"
+          >Chinese name · 中文姓名<input
+            class="form-control"
+            formControlName="chineseName"
+            placeholder="Optional · 选填"
+        /></label>
+        <label class="form-label"
+          >Email address · 电子邮箱<input
+            class="form-control"
+            formControlName="email"
+            type="email"
+            autocomplete="email"
+        /></label>
+        <label class="form-label"
+          >WeChat account · 微信账号<input
+            class="form-control"
+            formControlName="weChatAccount"
+            placeholder="Optional · 选填"
+        /></label>
+        <div>
+          <button class="btn btn-primary" type="submit" [disabled]="!editor() || profileSaving()">
+            {{ profileSaving() ? 'Saving… · 保存中' : 'Save · 保存' }}
+          </button>
         </div>
         @if (profileError()) {
-          <div class="error-banner">{{ profileError() }}</div>
-        } @else if (profileMessage()) {
-          <div class="success-banner">{{ profileMessage() }}</div>
+          <div role="alert" class="error-banner">{{ profileError() }}</div>
         }
-        <button
-          class="btn btn-primary"
-          type="submit"
-          [disabled]="profileSaving() || profileForm.pristine"
-        >
-          {{ profileSaving() ? 'ინახება…' : 'პროფილის შენახვა' }}
-        </button>
+        @if (profileMessage()) {
+          <div class="text-small cge-feedback" role="status">{{ profileMessage() }}</div>
+        }
       </form>
-
-      <form class="settings-card" [formGroup]="passwordForm" (ngSubmit)="changePassword()">
-        <div>
-          <p class="page-kicker">უსაფრთხოება</p>
-          <h2>პაროლის შეცვლა</h2>
-        </div>
-        <div class="field">
-          <label for="current-password">მიმდინარე პაროლი</label>
-          <input
-            id="current-password"
+    </section>
+    <section class="cge-section" aria-label="Security · 安全">
+      <div class="cge-heading">
+        <h2>SECURITY<br />安全</h2>
+      </div>
+      <form class="cge-form" [formGroup]="passwordForm" (ngSubmit)="changePassword()" novalidate>
+        <label class="form-label"
+          >Current password · 当前密码<input
+            class="form-control"
             type="password"
             formControlName="currentPassword"
             autocomplete="current-password"
-          />
-        </div>
-        <div class="field">
-          <label for="new-password">ახალი პაროლი</label>
-          <input
-            id="new-password"
+        /></label>
+        <label class="form-label"
+          >New password · 新密码<input
+            class="form-control"
             type="password"
             formControlName="newPassword"
             autocomplete="new-password"
-          />
-          <span class="field-hint">მინიმუმ 8 სიმბოლო.</span>
-        </div>
-        <div class="field">
-          <label for="confirm-password">გაიმეორეთ ახალი პაროლი</label>
-          <input
-            id="confirm-password"
+            placeholder="At least 8 characters · 至少 8 个字符"
+        /></label>
+        <label class="form-label"
+          >Confirm new password · 确认新密码<input
+            class="form-control"
             type="password"
             formControlName="confirmPassword"
             autocomplete="new-password"
-          />
+        /></label>
+        <div>
+          <button class="btn btn-primary" type="submit" [disabled]="passwordSaving()">
+            {{ passwordSaving() ? 'Saving… · 保存中' : 'Save · 保存' }}
+          </button>
         </div>
         @if (passwordError()) {
-          <div class="error-banner">{{ passwordError() }}</div>
-        } @else if (passwordMessage()) {
-          <div class="success-banner">{{ passwordMessage() }}</div>
+          <div role="alert" class="error-banner">{{ passwordError() }}</div>
         }
-        <button class="btn btn-primary" type="submit" [disabled]="passwordSaving()">
-          {{ passwordSaving() ? 'იცვლება…' : 'პაროლის შეცვლა' }}
-        </button>
+        @if (passwordMessage()) {
+          <div role="status" class="text-small cge-feedback">{{ passwordMessage() }}</div>
+        }
       </form>
-    </div>
-  }
+    </section>
+  </div>
 </section>

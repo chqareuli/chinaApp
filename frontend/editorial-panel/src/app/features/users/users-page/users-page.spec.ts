@@ -7,178 +7,121 @@ import {
 } from '../../../core/models/admin.models';
 import { EditorsService } from '../../../core/services/editors.service';
 import { UsersPage } from './users-page';
-
-const existingEditor: EditorListItem = {
+const editor: EditorListItem = {
   id: 4,
-  email: 'editor@chinese.ge',
-  displayName: 'რედაქტორი',
+  email: 'editor@example.test',
+  displayName: 'Test Editor',
   role: 'Editor',
+  editorialRole: 'Editor',
   isActive: true,
-  createdAtUtc: '2026-07-24T00:00:00Z',
+  createdAtUtc: '2026-08-22T00:00:00Z',
+  chineseName: '编辑',
 };
-
-class EditorsServiceStub {
-  readonly createRequests: CreateEditorRequest[] = [];
-  readonly updateRequests: Array<{ id: number; request: UpdateEditorRequest }> = [];
-
+class ServiceStub {
+  creates: CreateEditorRequest[] = [];
+  updates: UpdateEditorRequest[] = [];
   list() {
     return of([] as EditorListItem[]);
   }
-
   create(request: CreateEditorRequest) {
-    this.createRequests.push(request);
-    return of({
-      id: 7,
-      email: request.email,
-      displayName: request.displayName,
-      role: request.role,
-      isActive: true,
-      createdAtUtc: '2026-07-24T00:00:00Z',
-    } satisfies EditorListItem);
+    this.creates.push(request);
+    return of({ ...editor, ...request, id: 7 });
   }
-
   update(id: number, request: UpdateEditorRequest) {
-    this.updateRequests.push({ id, request });
-    return of({
-      ...existingEditor,
-      id,
-      email: request.email,
-      displayName: request.displayName,
-      role: request.role,
-      isActive: request.isActive,
-    } satisfies EditorListItem);
+    this.updates.push(request);
+    return of({ ...editor, ...request, id });
   }
 }
-
-describe('UsersPage', () => {
+describe('UsersPage reference design', () => {
   let fixture: ComponentFixture<UsersPage>;
-  let component: UsersPage;
-  let editorsService: EditorsServiceStub;
-
+  let page: UsersPage;
+  let service: ServiceStub;
   beforeEach(async () => {
-    editorsService = new EditorsServiceStub();
+    service = new ServiceStub();
     await TestBed.configureTestingModule({
       imports: [UsersPage],
-      providers: [{ provide: EditorsService, useValue: editorsService }],
+      providers: [{ provide: EditorsService, useValue: service }],
     }).compileComponents();
-
     fixture = TestBed.createComponent(UsersPage);
-    component = fixture.componentInstance;
+    page = fixture.componentInstance;
     fixture.detectChanges();
   });
-
-  it('prevents saved login credentials from autofilling the create form', () => {
-    component.toggleCreate();
+  it('uses all seven reference fields and English–Chinese labels', () => {
+    page.toggleCreate();
     fixture.detectChanges();
-
-    const email = fixture.nativeElement.querySelector(
-      'input[formControlName="email"]',
-    ) as HTMLInputElement;
-    const password = fixture.nativeElement.querySelector(
-      'input[formControlName="initialPassword"]',
-    ) as HTMLInputElement;
-
-    expect(email.autocomplete).toBe('off');
-    expect(password.autocomplete).toBe('new-password');
-    expect(email.value).toBe('');
-    expect(password.value).toBe('');
+    const form = fixture.nativeElement.querySelector('form');
+    expect(form.textContent).toContain('First name · 名');
+    expect(form.textContent).toContain('WeChat account · 微信账号');
+    expect(form.textContent).not.toMatch(/[\u10a0-\u10ff]/);
+    expect(form.querySelector('input[formControlName="email"]').autocomplete).toBe('off');
+    expect(form.querySelector('input[formControlName="initialPassword"]').autocomplete).toBe(
+      'new-password',
+    );
   });
-
-  it('shows validation feedback instead of silently ignoring an invalid form', () => {
-    component.toggleCreate();
-    component.create();
-
-    expect(editorsService.createRequests).toHaveLength(0);
-    expect(component.error()).toContain('შეავსეთ ყველა ველი სწორად');
+  it('rejects incomplete add forms with bilingual feedback', () => {
+    page.toggleCreate();
+    page.create();
+    expect(service.creates).toHaveLength(0);
+    expect(page.error()).toContain('Complete all required fields');
   });
-
-  it('trims and submits a valid new editor', () => {
-    component.toggleCreate();
-    component.createForm.setValue({
-      displayName: '  ახალი რედაქტორი  ',
-      email: '  new.editor@chinese.ge  ',
-      role: 'AssistantEditor',
-      initialPassword: 'TestPass1!',
+  it('persists names, WeChat and the independent Supervisor selection', () => {
+    page.toggleCreate();
+    page.createForm.setValue({
+      firstName: ' Test ',
+      lastName: ' Editor ',
+      chineseName: ' 编辑 ',
+      email: ' test@example.test ',
+      role: 'ChiefEditor',
+      initialPassword: 'Example123!',
+      weChatAccount: ' test-chat ',
+      isSupervisor: true,
     });
-
-    component.create();
-
-    expect(editorsService.createRequests).toEqual([
-      {
-        displayName: 'ახალი რედაქტორი',
-        email: 'new.editor@chinese.ge',
-        role: 'AssistantEditor',
-        initialPassword: 'TestPass1!',
-      },
-    ]);
-    expect(component.editors()).toHaveLength(1);
-    expect(component.createOpen()).toBe(false);
-  });
-
-  it('shows the assigned role as text until edit mode is opened', () => {
-    component.editors.set([existingEditor]);
-    fixture.detectChanges();
-
-    const roleText = fixture.nativeElement.querySelector('.role-text') as HTMLElement;
-
-    expect(roleText.textContent?.trim()).toBe('რედაქტორი');
-    expect(fixture.nativeElement.querySelector('.users-table article > select')).toBeNull();
-  });
-
-  it('opens a single edit form with current data and an empty password field', () => {
-    component.editors.set([existingEditor]);
-    component.beginEdit(existingEditor);
-    fixture.detectChanges();
-
-    expect(component.editingId()).toBe(existingEditor.id);
-    expect(component.editForm.getRawValue()).toEqual({
-      displayName: existingEditor.displayName,
-      email: existingEditor.email,
-      role: existingEditor.role,
-      isActive: true,
-      newPassword: '',
+    page.create();
+    expect(service.creates[0]).toEqual({
+      firstName: 'Test',
+      lastName: 'Editor',
+      chineseName: '编辑',
+      displayName: 'Test Editor',
+      email: 'test@example.test',
+      role: 'ChiefEditor',
+      initialPassword: 'Example123!',
+      weChatAccount: 'test-chat',
+      isSupervisor: true,
     });
-
-    const password = fixture.nativeElement.querySelector(
-      'input[formControlName="newPassword"]',
-    ) as HTMLInputElement;
-    expect(password.autocomplete).toBe('new-password');
-    expect(password.value).toBe('');
+    expect(page.createOpen()).toBe(false);
   });
-
-  it('updates name, email, role, status and an optional new password together', () => {
-    component.editors.set([existingEditor]);
-    component.beginEdit(existingEditor);
-    component.editForm.setValue({
-      displayName: '  განახლებული რედაქტორი  ',
-      email: '  updated@chinese.ge  ',
+  it('places edit form below the table and only shows the reference edit controls', () => {
+    page.editors.set([editor]);
+    page.beginEdit(editor);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('table form')).toBeNull();
+    const form = fixture.nativeElement.querySelector('form');
+    expect(form.textContent).toContain('Save · 保存');
+    expect(form.querySelectorAll('select')).toHaveLength(2);
+    expect(form.querySelector('input[type="password"]')).toBeNull();
+  });
+  it('updates status and role without overwriting profile or password', () => {
+    page.editors.set([editor]);
+    page.beginEdit(editor);
+    page.editForm.setValue({ role: 'KaEditor', accountStatus: 'cancelled', isSupervisor: false });
+    page.saveEdit(editor);
+    expect(service.updates[0]).toEqual({
+      email: editor.email,
+      displayName: editor.displayName,
       role: 'KaEditor',
       isActive: false,
-      newPassword: 'NewPass1!',
+      isCancelled: true,
+      isSupervisor: false,
+      newPassword: null,
     });
-
-    component.saveEdit(existingEditor);
-
-    expect(editorsService.updateRequests).toEqual([
-      {
-        id: existingEditor.id,
-        request: {
-          displayName: 'განახლებული რედაქტორი',
-          email: 'updated@chinese.ge',
-          role: 'KaEditor',
-          isActive: false,
-          newPassword: 'NewPass1!',
-        },
-      },
+  });
+  it('disables a third active Supervisor selection', () => {
+    page.editors.set([
+      { ...editor, id: 1, role: 'SuperAdmin' },
+      { ...editor, id: 2, role: 'SuperAdmin' },
     ]);
-    expect(component.editors()[0]).toEqual(
-      expect.objectContaining({
-        displayName: 'განახლებული რედაქტორი',
-        email: 'updated@chinese.ge',
-        role: 'KaEditor',
-        isActive: false,
-      }),
-    );
-    expect(component.editingId()).toBeNull();
+    page.toggleCreate();
+    expect(page.supervisorCount()).toBe(2);
+    expect(page.createForm.controls.isSupervisor.disabled).toBe(true);
   });
 });

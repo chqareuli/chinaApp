@@ -1,49 +1,116 @@
-<section class="notifications-page">
-  <header class="page-head">
-    <div>
-      <p class="page-kicker">ცვლილებების ცენტრი</p>
-      <h1 class="page-title">ნოტიფიკაციები</h1>
-      <p>სტატიებზე მომხდარი ყველა მნიშვნელოვანი მოქმედება ერთ სივრცეში.</p>
-    </div>
-    <button class="btn btn-secondary" type="button" (click)="toggleUnread()">
-      {{ unreadOnly() ? 'ყველას ჩვენება' : 'მხოლოდ წაუკითხავი' }}
-    </button>
-  </header>
+<section id="cge-editorial-notifications-sketch">
+  <div class="cge-heading">
+    <h2>NOTIFICATIONS<br />通知</h2>
+  </div>
   @if (error()) {
-    <div class="error-banner">{{ error() }}</div>
+    <div class="error-banner" role="alert">{{ error() }}</div>
   }
-  @if (loading()) {
-    <div class="empty-state">ნოტიფიკაციები იტვირთება…</div>
-  } @else {
-    <div class="notification-list">
-      @for (notification of notifications(); track notification.id) {
-        <article [class.unread]="!notification.isRead">
-          <span class="event-dot" aria-hidden="true"></span>
-          <div class="event-copy">
-            <strong>{{ typeLabel(notification.type) }}</strong>
-            <p>
-              <b>{{ notification.triggeredByDisplayName }}</b> —
-              <span lang="zh">{{ notification.entryLemma }}</span>
-            </p>
-            <time>{{ notification.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
-          </div>
-          <div class="event-actions">
-            <a
-              class="btn btn-secondary"
-              [routerLink]="['/adminpanel/entries', notification.entryId]"
-              (click)="markRead(notification)"
-              >სტატიის გახსნა</a
-            >
-            @if (!notification.isRead) {
-              <button type="button" (click)="markRead(notification)">წაკითხულად მონიშვნა</button>
+  <div class="cge-workspace">
+    <section class="cge-list" aria-label="Notifications list · 通知列表">
+      <div class="cge-list-toolbar">
+        <button
+          class="btn"
+          type="button"
+          (click)="toggleUnread()"
+          [attr.aria-pressed]="unreadOnly()"
+        >
+          Only unread · 仅未读
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead class="cge-header">
+            <tr>
+              <th>Date<br />日期</th>
+              <th>Editor<br />编辑</th>
+              <th>Entry<br />词目</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr>
+                <td colspan="3"><div class="empty-state">Loading… · 加载中</div></td>
+              </tr>
+            } @else {
+              @for (notification of visibleNotifications(); track notification.id) {
+                <tr
+                  class="cge-row"
+                  [attr.data-read]="notification.isRead"
+                  [attr.data-selected]="selected()?.id === notification.id"
+                >
+                  <td>
+                    <span class="cge-date"
+                      >{{ notification.createdAtUtc | date: 'yyyy-MM-dd' : '+0400'
+                      }}<span class="text-small">{{
+                        notification.createdAtUtc | date: 'HH:mm' : '+0400'
+                      }}</span></span
+                    >
+                  </td>
+                  <td>
+                    <span class="cge-person">
+                      @if (notification.triggeredByRole; as role) {
+                        <span class="viz-badge">{{ roleCodes[role] }}</span>
+                      }
+                      {{ notification.triggeredByDisplayName }}</span
+                    >
+                  </td>
+                  <td>
+                    <span class="cge-entry">
+                      @if (!notification.isRead) {
+                        <span class="cge-unread-dot" aria-label="Unread · 未读"></span>
+                      }
+                      <button
+                        class="link-button"
+                        [class]="'link-button ' + stageClass(notification.entryStatus)"
+                        type="button"
+                        (click)="select(notification)"
+                      >
+                        {{ notification.entryLemma }}
+                      </button></span
+                    >
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="3"><div class="empty-state">No notifications · 暂无通知</div></td>
+                </tr>
+              }
             }
-          </div>
-        </article>
-      } @empty {
-        <div class="empty-state">
-          <strong>ნოტიფიკაციები არ არის</strong><span>ახალი ცვლილებები აქ გამოჩნდება.</span>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="cge-preview" aria-label="Quick view · 快速查看" aria-live="polite">
+      <div class="cge-preview-title"><span>QUICK VIEW</span><span>快速查看</span></div>
+      @if (selected(); as item) {
+        <div class="cge-preview-entry">
+          <a
+            [class]="stageClass(item.entryStatus)"
+            [routerLink]="['/adminpanel/entries', item.entryId]"
+            >{{ item.entryLemma }}</a
+          >
         </div>
+        <div class="cge-preview-person">
+          @if (item.triggeredByRole; as role) {
+            <span class="viz-badge">{{ roleCodes[role] }}</span>
+          }
+          {{ item.triggeredByDisplayName }}
+        </div>
+        <div class="text-small">{{ item.createdAtUtc | date: 'yyyy-MM-dd HH:mm' : '+0400' }}</div>
+        <div class="cge-preview-message">
+          <div class="cge-preview-line">{{ typeLabel(item.type) }}</div>
+          @if (item.detail) {
+            <div class="cge-preview-line">{{ detailLabel(item) }}</div>
+          } @else if (item.entryStatus) {
+            <div class="cge-preview-line">
+              Current status · 当前状态: {{ statusMeta(item.entryStatus).label }}
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="text-small">Select a notification · 选择通知</p>
       }
-    </div>
-  }
+    </section>
+    <app-panel-font-control />
+  </div>
 </section>

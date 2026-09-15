@@ -1,71 +1,153 @@
 <div class="decorations" [class.has-content]="markers.length || crossReferences.length">
-  <div class="inline-tools">
-    <span class="inline-tools__label">ინლაინ ნიშნები</span>
-    @if (!readonly) {
-      <button type="button" (click)="openMarkerAdd('Style')">＋ სტილი</button>
-      <button type="button" (click)="openMarkerAdd('Domain')">＋ სფერო</button>
-      <button type="button" (click)="openMarkerAdd('Abbr')">＋ აბრ.</button>
-      <button type="button" (click)="openMarkerAdd('Lang')">＋ ენა</button>
-      <button class="xr-trigger" type="button" (click)="openXrAdd()">＋ იხ.</button>
-    }
-  </div>
-
   @if (markers.length || crossReferences.length) {
     <div class="chips">
       @for (marker of markers.controls; track marker.get('id')?.value ?? $index; let i = $index) {
-        <span class="chip">{{ markerText(i) }}
-          @if (!readonly) { <button type="button" (click)="openMarkerEdit(i)" aria-label="რედაქტირება">✎</button><button type="button" (click)="removeMarker(i)" aria-label="წაშლა">×</button> }
+        <span
+          class="chip"
+          [class.marker-style]="marker.get('category')?.value === 'Style'"
+          [class.marker-domain]="marker.get('category')?.value === 'Domain'"
+          >{{ markerText(i) }}
+          @if (!readonly) {
+            <button type="button" (click)="openMarkerEdit(i)" aria-label="რედაქტირება">✎</button
+            ><button type="button" (click)="removeMarker(i)" aria-label="წაშლა">×</button>
+          }
         </span>
       }
       @for (xr of crossReferences.controls; track xr.get('id')?.value ?? $index; let i = $index) {
-        <span class="chip xr">{{ xrText(i) }}
-          <small class="link-state" [class.linked]="xrLinkState(i) === 'linked'" [class.unresolved]="xrLinkState(i) === 'unresolved'">
+        <span class="chip xr"
+          >{{ xrText(i) }}
+          <small
+            class="link-state"
+            [class.linked]="xrLinkState(i) === 'linked'"
+            [class.unresolved]="xrLinkState(i) === 'unresolved'"
+          >
             {{ xrLinkText(i) }}
           </small>
-          @if (!readonly) { <button type="button" (click)="openXrEdit(i)" aria-label="რედაქტირება">✎</button><button type="button" (click)="removeXr(i)" aria-label="წაშლა">×</button> }
+          @if (!readonly) {
+            <button type="button" (click)="openXrEdit(i)" aria-label="რედაქტირება">✎</button
+            ><button type="button" (click)="removeXr(i)" aria-label="წაშლა">×</button>
+          }
         </span>
       }
     </div>
   }
 
+  @if (!readonly) {
+    <div class="inline-tools" [class.definition-tool-grid]="layout === 'definition'" [class.example-tool-row]="layout === 'example'">
+      @for (category of categories; track category.value) {
+        @if ((!scopeOnly || category.value === 'Style' || category.value === 'Domain') && (layout === 'default' || category.value !== 'Lang')) {
+          <select
+            class="form-select tool-select" [attr.data-category]="category.value"
+            [attr.aria-label]="
+              category.value === 'Style'
+                ? 'Style · 语体'
+                : category.value === 'Domain'
+                  ? 'Domain · 领域'
+                  : category.value === 'Abbr'
+                    ? 'Abbr. · 缩略语'
+                    : 'Lang. · 语言'
+            "
+            [disabled]="markerLimit(category.value)"
+            (change)="selectMarker(category.value, $event)"
+          >
+            <option value="">
+              {{
+                category.value === 'Style'
+                  ? 'Style · 语体'
+                  : category.value === 'Domain'
+                    ? 'Domain · 领域'
+                    : category.value === 'Abbr'
+                      ? 'Abbr. · 缩略语'
+                      : 'Lang. · 语言'
+              }}
+            </option>
+            @for (item of valuesFor(category.value); track item.id) {
+              <option [value]="item.code">{{ item.label }}</option>
+            }
+          </select>
+        }
+      }
+      <ng-content select="[definition-point]" />
+      <ng-content select="[media-tool]" />
+      @if (!scopeOnly) {
+        <button class="btn btn-ghost xr-trigger" type="button" (click)="openXrAdd()">
+          Link · 链接
+        </button>
+      }
+    </div>
+  }
   @if (!readonly && markerEditorOpen()) {
     <div class="mini-form marker-form" [formGroup]="markerDraft">
-      <label>ტიპი<select formControlName="category" (change)="markerCategoryChanged()">
-        @for (category of categories; track category.value) { <option [value]="category.value">{{ category.label }}</option> }
-      </select></label>
-      <label>მნიშვნელობა<select formControlName="value">
-        @for (item of valuesFor(); track item.id) { <option [value]="item.code">{{ item.label }}</option> }
-      </select></label>
-      <div class="mini-actions"><button class="primary" type="button" (click)="saveMarker()">დამატება</button><button type="button" (click)="markerEditorOpen.set(false)">გაუქმება</button></div>
+      <label
+        >ტიპი<select formControlName="category" (change)="markerCategoryChanged()">
+          @for (category of categories; track category.value) {
+            <option [value]="category.value">{{ category.label }}</option>
+          }
+        </select></label
+      >
+      <label
+        >მნიშვნელობა<select formControlName="value">
+          @for (item of valuesFor(); track item.id) {
+            <option [value]="item.code">{{ item.label }}</option>
+          }
+        </select></label
+      >
+      <div class="mini-actions">
+        <button class="primary" type="button" (click)="saveMarker()">დამატება</button
+        ><button type="button" (click)="markerEditorOpen.set(false)">გაუქმება</button>
+      </div>
     </div>
   }
 
-    @if (!readonly && xrEditorOpen()) {
-      <div class="mini-form xr-form" [formGroup]="xrDraft">
-        <label class="xr-type-field">მითითების ტიპი
-          <select formControlName="type">
-            @for (type of xrTypes; track type.value) {
-              <option [value]="type.value">{{ type.label }}</option>
+  @if (!readonly && xrEditorOpen()) {
+    <div class="mini-form xr-form" [formGroup]="xrDraft">
+      <label class="xr-type-field"
+        >მითითების ტიპი
+        <select formControlName="type">
+          @for (type of xrTypes; track type.value) {
+            <option [value]="type.value">{{ type.label }}</option>
+          }
+        </select>
+      </label>
+      <label class="target-field"
+        >ჩინური სიტყვა ან იეროგლიფი
+        <input
+          formControlName="target"
+          lang="zh"
+          placeholder="მაგ. 学习"
+          autocomplete="off"
+          (input)="targetChanged()"
+        />
+        @if (xrSearching()) {
+          <small class="lookup-note">ბაზაში იძებნება…</small>
+        }
+        @if (xrSuggestions().length) {
+          <span class="xr-suggestions">
+            @for (entry of xrSuggestions(); track entry.id) {
+              <button type="button" (click)="selectTarget(entry)">
+                <strong lang="zh">{{ entry.lemma }}</strong
+                ><small>{{ entry.pinyin || entry.status }}</small>
+              </button>
             }
-          </select>
-        </label>
-        <label class="target-field">ჩინური სიტყვა ან იეროგლიფი
-          <input formControlName="target" lang="zh" placeholder="მაგ. 学习" autocomplete="off" (input)="targetChanged()" />
-          @if (xrSearching()) { <small class="lookup-note">ბაზაში იძებნება…</small> }
-          @if (xrSuggestions().length) {
-            <span class="xr-suggestions">
-              @for (entry of xrSuggestions(); track entry.id) {
-                <button type="button" (click)="selectTarget(entry)"><strong lang="zh">{{ entry.lemma }}</strong><small>{{ entry.pinyin || entry.status }}</small></button>
-              }
-            </span>
-          } @else if (xrDraft.controls.target.value && !xrSearching() && !xrDraft.controls.targetEntryId.value) {
-            <small class="lookup-note unresolved">ბაზაში მოძებნეთ და აირჩიეთ შესაბამისი სტატია.</small>
-          }
-          @if (xrDraft.controls.targetEntryId.value) {
-            <small class="lookup-note linked">დალინკდება: {{ xrDraft.controls.targetEntryLemma.value }}</small>
-          }
-        </label>
-        <div class="mini-actions"><button class="primary" type="button" (click)="saveXr()" [disabled]="xrDraft.invalid">ლინკის დამატება</button><button type="button" (click)="xrEditorOpen.set(false)">გაუქმება</button></div>
+          </span>
+        } @else if (
+          xrDraft.controls.target.value && !xrSearching() && !xrDraft.controls.targetEntryId.value
+        ) {
+          <small class="lookup-note unresolved"
+            >ბაზაში მოძებნეთ და აირჩიეთ შესაბამისი სტატია.</small
+          >
+        }
+        @if (xrDraft.controls.targetEntryId.value) {
+          <small class="lookup-note linked"
+            >დალინკდება: {{ xrDraft.controls.targetEntryLemma.value }}</small
+          >
+        }
+      </label>
+      <div class="mini-actions">
+        <button class="primary" type="button" (click)="saveXr()" [disabled]="xrDraft.invalid">
+          ლინკის დამატება</button
+        ><button type="button" (click)="xrEditorOpen.set(false)">გაუქმება</button>
       </div>
-    }
+    </div>
+  }
 </div>

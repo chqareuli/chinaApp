@@ -1,10 +1,5 @@
 export type EditorRole =
-  | 'SuperAdmin'
-  | 'ChiefEditor'
-  | 'DeputyChiefEditor'
-  | 'Editor'
-  | 'KaEditor'
-  | 'AssistantEditor';
+  'SuperAdmin' | 'ChiefEditor' | 'DeputyChiefEditor' | 'Editor' | 'KaEditor' | 'AssistantEditor';
 
 export interface EditorSummary {
   id: number;
@@ -28,4 +23,13 @@ export const editorRoleLabels: Record<EditorRole, string> = {
   Editor: 'რედაქტორი',
   KaEditor: 'ქართული ენის რედაქტორი',
   AssistantEditor: 'დამხმარე რედაქტორი',
+};
+
+export const editorRoleCodes: Record<EditorRole, string> = {
+  SuperAdmin: 'SV',
+  ChiefEditor: 'EC',
+  DeputyChiefEditor: 'DE',
+  Editor: 'CE',
+  KaEditor: 'GE',
+  AssistantEditor: 'AE',
 };

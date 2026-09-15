@@ -1,119 +1,226 @@
-<section class="messages-page">
-  <header class="page-head">
-    <div>
-      <p class="page-kicker">პირადი მიმოწერა</p>
-      <h1 class="page-title">წერილები</h1>
-      <p class="muted">
-        ესაუბრეთ რედაქტორებს და ჩინური სიტყვიდან პირდაპირ გადადით შესაბამის სტატიაზე.
-      </p>
-    </div>
-    <button class="btn btn-primary" type="button" (click)="openNewMessage()">
-      <span aria-hidden="true">✎</span> ახალი წერილი
-    </button>
-  </header>
-  @if (newMessageOpen()) {
-    <section class="new-message-panel" aria-label="ახალი წერილის მიმღები">
-      <div>
-        <span class="compose-icon" aria-hidden="true">✉</span>
-        <div>
-          <strong>ვის სწერთ?</strong>
-          <small>აირჩიეთ აქტიური თანამშრომელი და დაიწყეთ საუბარი.</small>
-        </div>
-      </div>
-      <label for="new-message-recipient">მიმღები</label>
-      <select
-        id="new-message-recipient"
-        [value]="newRecipientId() ?? ''"
-        (change)="updateNewRecipient($event)"
-      >
-        <option value="">აირჩიეთ თანამშრომელი</option>
-        @for (editor of availableEditors(); track editor.id) {
-          <option [value]="editor.id">{{ editor.displayName }} — {{ roleLabel(editor) }}</option>
-        }
-      </select>
-      <div class="new-message-actions">
-        <button
-          class="btn btn-primary"
+<section id="cge-editorial-messages-final">
+  <div class="cge-heading">
+    <h2>MESSAGES<br />站内消息</h2>
+  </div>
+  @if (error()) {
+    <div class="error-banner" role="alert">{{ error() }}</div>
+  }
+  <div class="cge-workspace">
+    <section class="cge-list" aria-label="Conversations · 会话列表">
+      <div class="cge-list-toolbar">
+        <button class="btn btn-ghost" type="button" (click)="openNewMessage()">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="m16 5 3 3M8 16l-1 4 4-1L21 9a2.1 2.1 0 0 0-3-3L8 16z" />
+          </svg>
+          New · 新消息</button
+        ><button
+          class="btn"
           type="button"
-          (click)="startNewMessage()"
-          [disabled]="!newRecipientId()"
+          (click)="unreadOnly.set(!unreadOnly())"
+          [attr.aria-pressed]="unreadOnly()"
         >
-          საუბრის დაწყება
+          Only unread · 仅未读
         </button>
-        <button class="btn btn-secondary" type="button" (click)="newMessageOpen.set(false)">
-          გაუქმება
-        </button>
+      </div>
+      @if (newMessageOpen()) {
+        <div class="new-message-panel">
+          <label class="form-label" for="new-message-recipient">Editor · 编辑</label
+          ><select
+            id="new-message-recipient"
+            class="form-select"
+            [value]="newRecipientId() ?? ''"
+            (change)="updateNewRecipient($event)"
+          >
+            <option value="">Select editor · 选择编辑</option>
+            <option value="0">All editors · 全体编辑</option>
+            @for (editor of availableEditors(); track editor.id) {
+              <option [value]="editor.id">
+                {{ editor.displayName }} — {{ roleCodes[editor.editorialRole || editor.role] }}
+              </option>
+            }
+          </select>
+        </div>
+      }
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead class="cge-header">
+            <tr>
+              <th>Date<br />日期</th>
+              <th>Editor<br />编辑</th>
+              <th class="text-center">Unread<br />未读</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr>
+                <td colspan="3"><div class="empty-state">Loading… · 加载中</div></td>
+              </tr>
+            } @else {
+              @if (showGroup()) {
+                <tr
+                  class="cge-row"
+                  [attr.data-unread]="unreadCount(0)"
+                  [attr.data-selected]="selectedEditorId() === 0"
+                >
+                  <td>
+                    <span class="cge-date"
+                      >{{ lastMessage(0)?.sentAtUtc | date: 'yyyy-MM-dd' : '+0400'
+                      }}<span class="text-small">{{
+                        lastMessage(0)?.sentAtUtc | date: 'HH:mm' : '+0400'
+                      }}</span></span
+                    >
+                  </td>
+                  <td>
+                    <span class="cge-person cge-group-person"
+                      ><svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <circle cx="9" cy="8" r="3" />
+                        <path
+                          d="M3 20v-2a6 6 0 0 1 12 0v2M17 5.3a3 3 0 0 1 0 5.4M18 14a5 5 0 0 1 3 4.6V20"
+                        /></svg
+                      ><button class="link-button" type="button" (click)="selectEditor(0)">
+                        All editors · 全体编辑
+                      </button></span
+                    >
+                  </td>
+                  <td class="text-center">
+                    @if (unreadCount(0)) {
+                      <span class="cge-unread-count">{{ unreadCount(0) }}</span>
+                    }
+                  </td>
+                </tr>
+              }
+              @for (editor of visibleEditors(); track editor.id) {
+                <tr
+                  class="cge-row"
+                  [attr.data-unread]="unreadCount(editor.id)"
+                  [attr.data-selected]="selectedEditorId() === editor.id"
+                >
+                  <td>
+                    <span class="cge-date"
+                      >{{ lastMessage(editor.id)?.sentAtUtc | date: 'yyyy-MM-dd' : '+0400'
+                      }}<span class="text-small">{{
+                        lastMessage(editor.id)?.sentAtUtc | date: 'HH:mm' : '+0400'
+                      }}</span></span
+                    >
+                  </td>
+                  <td>
+                    <span class="cge-person"
+                      ><span class="viz-badge" [hidden]="editor.id === 0">{{
+                        roleCodes[editor.editorialRole || editor.role]
+                      }}</span
+                      ><button class="link-button" type="button" (click)="selectEditor(editor.id)">
+                        {{ editor.displayName }}
+                      </button></span
+                    >
+                  </td>
+                  <td class="text-center">
+                    @if (unreadCount(editor.id)) {
+                      <span class="cge-unread-count">{{ unreadCount(editor.id) }}</span>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                @if (!showGroup()) {
+                  <tr>
+                    <td colspan="3"><div class="empty-state">No conversations · 暂无会话</div></td>
+                  </tr>
+                }
+              }
+            }
+          </tbody>
+        </table>
       </div>
     </section>
-  }
-  @if (error()) {
-    <div class="error-banner">{{ error() }}</div>
-  }
-  @if (loading()) {
-    <div class="empty-state">წერილები იტვირთება…</div>
-  } @else {
-    <div class="messenger">
-      <aside>
-        <div class="people-title">თანამშრომლები და საუბრები</div>
-        @for (editor of availableEditors(); track editor.id) {
-          <button
-            type="button"
-            [class.active]="selectedEditorId() === editor.id"
-            (click)="selectEditor(editor.id)"
-          >
-            <span class="avatar">{{ editor.displayName.charAt(0) }}</span
-            ><span class="person-copy"
-              ><strong>{{ editor.displayName }}</strong
-              ><small>{{ lastMessage(editor.id)?.body || roleLabel(editor) }}</small></span
-            >
-            @if (unreadCount(editor.id)) {
-              <span class="unread">{{ unreadCount(editor.id) }}</span>
-            }
-          </button>
-        }
-      </aside>
-      <main>
-        @if (selectedEditor(); as editor) {
-          <header class="thread-head">
-            <span class="avatar">{{ editor.displayName.charAt(0) }}</span>
-            <div>
-              <strong>{{ editor.displayName }}</strong
-              ><small>{{ editor.email }}</small>
-            </div>
-          </header>
-          <div class="thread">
-            @for (message of thread(); track message.id) {
-              <article [class.mine]="message.senderEditorId === currentEditorId()">
-                <app-linked-message-body [body]="message.body" /><time>{{
-                  message.sentAtUtc | date: 'HH:mm, dd MMM' : '+0400'
-                }}</time>
-              </article>
-            } @empty {
-              <div class="empty-state">
-                <strong>დაიწყეთ საუბარი</strong><span>პირველი წერილი ქვემოთ დაწერეთ.</span>
-              </div>
-            }
+    <section class="cge-thread" aria-label="Selected conversation · 当前会话">
+      @if (selectedEditor(); as editor) {
+        <div class="cge-thread-header">
+          <div class="cge-thread-person">
+            <span class="viz-badge" [hidden]="editor.id === 0">{{
+              roleCodes[editor.editorialRole || editor.role]
+            }}</span
+            ><strong>{{ editor.displayName }}</strong>
           </div>
-          <div class="composer">
-            <textarea
+          <span class="text-small">{{ editor.id === 0 ? 'Group · 群聊' : 'Private · 私人' }}</span>
+        </div>
+        <div class="cge-message-list" aria-live="polite">
+          @for (message of thread(); track message.id) {
+            <article
+              class="cge-message"
+              [class.cge-outgoing]="message.senderEditorId === currentEditorId()"
+              [class.cge-incoming]="message.senderEditorId !== currentEditorId()"
+            >
+              <div class="cge-message-meta">
+                <strong class="cge-message-author">
+                  @if (senderRole(message.senderEditorId); as role) {
+                    <span class="viz-badge">{{ role }}</span>
+                  }
+                  {{ message.senderDisplayName }}</strong
+                ><time class="text-small">{{
+                  message.sentAtUtc | date: 'yyyy-MM-dd HH:mm' : '+0400'
+                }}</time>
+              </div>
+              <div class="cge-message-text"><app-linked-message-body [body]="message.body" /></div>
+            </article>
+          } @empty {
+            <div class="empty-state">Start a conversation · 开始会话</div>
+          }
+        </div>
+        <form class="cge-compose" (submit)="$event.preventDefault(); send()">
+          <label class="form-label" for="compose-text"
+            ><span class="sr-only">Write a message · 输入消息</span
+            ><textarea
+              id="compose-text"
+              class="form-control"
               rows="3"
-              placeholder="დაწერეთ წერილი…"
+              placeholder="Write a message · 输入消息"
               [value]="body()"
               (input)="updateBody($event)"
-            ></textarea
-            ><button
-              class="btn btn-primary"
-              type="button"
-              (click)="send()"
-              [disabled]="!body().trim() || sending()"
-            >
-              {{ sending() ? 'იგზავნება…' : 'გაგზავნა' }}
+            ></textarea>
+          </label>
+          <div class="cge-compose-actions">
+            <button class="btn btn-primary" type="submit" [disabled]="!body().trim() || sending()">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m22 2-7 20-4-9-9-4 20-7z" />
+                <path d="M22 2 11 13" /></svg
+              >{{ sending() ? 'Sending… · 发送中' : 'Send · 发送' }}
             </button>
           </div>
-        } @else {
-          <div class="empty-state">აირჩიეთ რედაქტორი</div>
-        }
-      </main>
-    </div>
-  }
+        </form>
+      } @else {
+        <div class="empty-state">Select editor · 选择编辑</div>
+      }
+    </section>
+    <app-panel-font-control />
+  </div>
 </section>

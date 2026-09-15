@@ -1,129 +1,156 @@
-<section class="entries-list-page">
-  <header class="page-head">
-    <div>
-      <p class="page-kicker">ლექსიკონის ბაზა</p>
-      <h1 class="page-title">სტატიები</h1>
-      <p>ყველა სტატია ერთ სივრცეში — ახალი, სამუშაო პროცესში მყოფი და გამოქვეყნებული.</p>
+<section id="cge-home-final">
+  @if (!isHome) {
+    <div class="cge-heading">
+      <h2>ALL ENTRIES<br />全部词目</h2>
     </div>
-    @if (canCreateEntry()) {
-      <a class="btn btn-primary" routerLink="/adminpanel/entries/new">
-        <span aria-hidden="true">＋</span> ახალი სტატია
-      </a>
-    }
-  </header>
-
-  <section class="filters-card" aria-label="სტატიების ფილტრები">
-    <label class="search-field">
-      <span>სიტყვით ან პინინით ძიება</span>
-      <span class="search-control">
-        <i aria-hidden="true">⌕</i>
-        <input
-          type="search"
-          autocomplete="off"
-          placeholder="მაგალითად: 中国 ან Zhōngguó"
-          [formControl]="queryControl"
-        />
-      </span>
-    </label>
-    <label>
-      <span>სტატუსი</span>
-      <select [formControl]="statusControl">
-        @for (status of statuses; track status.value) {
-          <option [value]="status.value">{{ status.label }}</option>
-        }
-      </select>
-    </label>
-    <label>
-      <span>ავტორი / რედაქტორი</span>
-      <select [formControl]="editorControl">
-        <option value="">ყველა თანამშრომელი</option>
-        @for (editor of editors(); track editor.id) {
-          <option [value]="editor.id">{{ editor.displayName }}</option>
-        }
-      </select>
-    </label>
-    <label>
-      <span>დალაგება</span>
-      <select [formControl]="sortControl">
-        @for (sort of sorts; track sort.value) {
-          <option [value]="sort.value">{{ sort.label }}</option>
-        }
-      </select>
-    </label>
-    <button class="clear-button" type="button" (click)="clearFilters()" [disabled]="!hasFilters()">
-      გასუფთავება
-    </button>
-  </section>
-
-  <section class="entries-card">
-    <div class="list-head">
-      <div>
-        <h2>სრული ჩამონათვალი</h2>
-        <p>{{ totalCount() }} სტატია</p>
-      </div>
-      <span>{{ rangeStart() }}–{{ rangeEnd() }} / {{ totalCount() }}</span>
+  }
+  @if (error()) {
+    <div class="error-banner" role="alert">
+      {{ error() }} <button class="btn" type="button" (click)="retry()">Retry · 重试</button>
     </div>
-
-    @if (error()) {
-      <div class="load-error">
-        <div class="error-banner">{{ error() }}</div>
-        <button class="btn btn-secondary" type="button" (click)="retry()">ხელახლა ცდა</button>
-      </div>
-    } @else if (loading()) {
-      <div class="skeleton-list" aria-label="სტატიები იტვირთება">
-        @for (_ of [1, 2, 3, 4, 5]; track $index) {
-          <span></span>
-        }
-      </div>
-    } @else if (entries().length === 0) {
-      <div class="empty-state">
-        <strong>სტატია ვერ მოიძებნა</strong>
-        <span>შეცვალეთ ფილტრები ან შექმენით ახალი სტატია.</span>
-      </div>
-    } @else {
-      <div class="table-head" aria-hidden="true">
-        <span>სიტყვა</span>
-        <span>სტატუსი</span>
-        <span>ავტორი / ბოლო რედაქტორი</span>
-        <span>განახლება</span>
-        <span></span>
-      </div>
-      <div class="entry-rows">
-        @for (entry of entries(); track entry.id) {
-          <article>
-            <a class="word-link" [routerLink]="['/adminpanel/entries', entry.id]">
-              <strong lang="zh">{{ entry.lemma }}</strong>
-              <small>{{ entry.pinyin || 'პინინი არ არის' }}</small>
-            </a>
-            <app-status-badge [status]="entry.status" />
-            <div class="editor-copy">
-              <strong>{{
-                entry.mainAuthorDisplayName || 'ავტორი ჯერ არ არის დაფიქსირებული'
-              }}</strong>
-              <small>ბოლო: {{ entry.lastEditorDisplayName || '—' }}</small>
-            </div>
-            <time [attr.datetime]="entry.updatedAtUtc">
-              {{ entry.updatedAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}
-            </time>
-            <a
-              class="open-link"
-              [routerLink]="['/adminpanel/entries', entry.id]"
-              aria-label="სტატიის გახსნა"
-              >→</a
-            >
-          </article>
-        }
-      </div>
-    }
-
-    <footer class="pagination">
-      <span>გვერდი {{ page() }} / {{ pageCount() }}</span>
-      <div>
-        <button type="button" (click)="previousPage()" [disabled]="page() <= 1">← წინა</button>
-        <button type="button" (click)="nextPage()" [disabled]="page() >= pageCount()">
-          შემდეგი →
+  }
+  <div class="cge-table-area">
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead class="cge-header">
+          <tr>
+            <th>
+              <select class="form-select" aria-label="Author · 作者" [formControl]="authorControl">
+                <option value="">Author · 作者</option>
+                @for (editor of editors(); track editor.id) {
+                  <option [value]="editor.id">{{ editor.displayName }}</option>
+                }
+              </select>
+            </th>
+            <th>
+              <select class="form-select" aria-label="Editor · 编辑" [formControl]="editorControl">
+                <option value="">Editor · 编辑</option>
+                @for (editor of editors(); track editor.id) {
+                  <option [value]="editor.id">{{ editor.displayName }}</option>
+                }
+              </select>
+            </th>
+            <th>
+              <input
+                class="form-control"
+                type="search"
+                [formControl]="queryControl"
+                placeholder="Word · 词语"
+                aria-label="Entry content search · 词目全文检索"
+              />
+            </th>
+            <th>
+              <select class="form-select" aria-label="Stage · 状态" [formControl]="statusControl">
+                @for (status of statuses; track status.value) {
+                  <option [value]="status.value">{{ status.label }}</option>
+                }
+              </select>
+            </th>
+            <th class="text-nowrap">
+              Last modified<br /><span class="text-small">最后修改时间</span>
+            </th>
+            <th>
+              <button
+                type="button"
+                class="btn btn-ghost"
+                (click)="clearFilters()"
+                aria-label="Clear filters · 清除筛选"
+                title="Clear filters · 清除筛选"
+              >
+                ⌧
+              </button>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr>
+              <td colspan="6"><div class="empty-state" role="status">Loading… · 加载中</div></td>
+            </tr>
+          } @else {
+            @for (entry of entries(); track entry.id) {
+              <tr class="cge-row">
+                <td>
+                  <span class="cge-person">{{ entry.mainAuthorDisplayName || '—' }}</span>
+                </td>
+                <td>
+                  <span class="cge-person">{{ entry.lastEditorDisplayName }}</span>
+                </td>
+                <td>
+                  <a [routerLink]="['/adminpanel/entries', entry.id]" lang="zh">{{
+                    entry.lemma
+                  }}</a>
+                </td>
+                <td><app-status-badge [status]="entry.status" /></td>
+                <td class="text-nowrap">
+                  {{ entry.updatedAtUtc | date: 'yyyy-MM-dd HH:mm' : '+0400' }}
+                </td>
+                <td>
+                  <a
+                    [routerLink]="['/adminpanel/entries', entry.id]"
+                    class="btn btn-ghost"
+                    aria-label="Open entry · 打开词目"
+                    >↗</a
+                  >
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6"><div class="empty-state">No entries found · 未找到词目</div></td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-panel-font-control />
+  </div>
+  <footer class="cge-footer">
+    <span class="text-small">{{ rangeStart() }}–{{ rangeEnd() }} / {{ totalCount() }}</span>
+    <div class="cge-pages">
+      <button
+        class="btn"
+        type="button"
+        (click)="goToPage(1)"
+        [disabled]="page() === 1 || loading()"
+        aria-label="First page · 首页"
+      >
+        «</button
+      ><button
+        class="btn"
+        type="button"
+        (click)="previousPage()"
+        [disabled]="page() <= 1 || loading()"
+      >
+        ‹
+      </button>
+      @for (number of pageNumbers(); track number) {
+        <button
+          class="btn"
+          type="button"
+          (click)="goToPage(number)"
+          [attr.aria-current]="page() === number ? 'page' : null"
+          [disabled]="loading()"
+        >
+          {{ number }}
         </button>
-      </div>
-    </footer>
-  </section>
+      }
+      <button
+        class="btn"
+        type="button"
+        (click)="nextPage()"
+        [disabled]="page() >= pageCount() || loading()"
+      >
+        ›</button
+      ><button
+        class="btn"
+        type="button"
+        (click)="goToPage(pageCount())"
+        [disabled]="page() === pageCount() || loading()"
+        aria-label="Last page · 末页"
+      >
+        »
+      </button>
+    </div>
+  </footer>
 </section>

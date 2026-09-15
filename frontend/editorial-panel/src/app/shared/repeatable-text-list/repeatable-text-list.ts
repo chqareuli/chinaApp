@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  signal,
+} from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 @Component({
@@ -23,6 +30,42 @@ export class RepeatableTextList {
   readonly editorOpen = signal(false);
   readonly duplicateError = signal(false);
   readonly draft = new FormControl('', { nonNullable: true });
+  private pendingInline: { index: number | null; value: string } | null = null;
+
+  queueInline(index: number | null, value: string): void {
+    this.pendingInline = { index, value };
+    this.duplicateError.set(false);
+    this.contentChanged.emit();
+  }
+
+  flushInline(): boolean {
+    const pending = this.pendingInline;
+    if (!pending) return true;
+    if (pending.index === null && !pending.value.trim()) {
+      this.pendingInline = null;
+      return true;
+    }
+    if (!pending.value.trim() || pending.value.trim().length > this.maxLength) return false;
+    this.editingIndex.set(pending.index);
+    this.draft.setValue(pending.value);
+    this.save();
+    if (this.duplicateError()) return false;
+    this.pendingInline = null;
+    return true;
+  }
+
+  addInline(value: string): void {
+    if (!value.trim()) return;
+    this.editingIndex.set(null);
+    this.draft.setValue(value);
+    this.save();
+  }
+
+  editInline(index: number, value: string): void {
+    this.editingIndex.set(index);
+    this.draft.setValue(value);
+    this.save();
+  }
 
   openAdd(): void {
     this.editingIndex.set(null);
@@ -57,7 +100,11 @@ export class RepeatableTextList {
 
     const editing = this.editingIndex();
     const duplicate = this.items.controls.some(
-      (item, index) => index !== editing && String(item.get('value')?.value ?? '').trim().toLocaleLowerCase() === value.toLocaleLowerCase(),
+      (item, index) =>
+        index !== editing &&
+        String(item.get('value')?.value ?? '')
+          .trim()
+          .toLocaleLowerCase() === value.toLocaleLowerCase(),
     );
     if (duplicate) {
       this.duplicateError.set(true);
@@ -68,7 +115,10 @@ export class RepeatableTextList {
       this.items.push(
         new FormGroup({
           id: new FormControl<number | null>(null),
-          value: new FormControl(value, { nonNullable: true, validators: [Validators.required, Validators.maxLength(this.maxLength)] }),
+          value: new FormControl(value, {
+            nonNullable: true,
+            validators: [Validators.required, Validators.maxLength(this.maxLength)],
+          }),
           order: new FormControl(this.items.length, { nonNullable: true }),
         }),
       );
@@ -82,6 +132,9 @@ export class RepeatableTextList {
   }
 
   remove(index: number): void {
+    if (this.pendingInline?.index === index) this.pendingInline = null;
+    else if (this.pendingInline?.index != null && this.pendingInline.index > index)
+      this.pendingInline.index--;
     this.items.removeAt(index);
     this.renumber();
     this.contentChanged.emit();
@@ -93,6 +146,8 @@ export class RepeatableTextList {
   }
 
   private renumber(): void {
-    this.items.controls.forEach((item, index) => item.get('order')?.setValue(index, { emitEvent: false }));
+    this.items.controls.forEach((item, index) =>
+      item.get('order')?.setValue(index, { emitEvent: false }),
+    );
   }
 }

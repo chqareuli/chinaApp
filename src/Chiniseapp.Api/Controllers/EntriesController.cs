@@ -10,6 +10,20 @@ namespace Chiniseapp.Api.Controllers;
 [Authorize]
 public class EntriesController(IEntryService entryService) : ControllerBase
 {
+    [HttpGet("all")]
+    public async Task<ActionResult<PagedResult<EntrySummary>>> All(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25, [FromQuery] string? q = null,
+        [FromQuery] EntryStatus? status = null, [FromQuery] int? editorId = null,
+        [FromQuery] int? authorId = null, [FromQuery] bool excludeDrafts = false,
+        [FromQuery] string sort = "UpdatedDesc", CancellationToken ct = default,
+        [FromQuery] int? workEditorId = null, [FromQuery] string? scoreKind = null)
+    {
+        if (!string.IsNullOrWhiteSpace(q) && !EntryListQuery.CanSearchContent(q))
+            return BadRequest(new { message = "Enter at least one Chinese character or two letters." });
+        var filter = new EntryListFilter(page, pageSize, q, status, editorId, authorId, excludeDrafts, sort, workEditorId, scoreKind);
+        return Ok(await entryService.GetFilteredListAsync(filter, User.GetEditorRole(), ct));
+    }
+
     /// <summary>5.1 Main editor page list: all entries except new_entry.</summary>
     [HttpGet]
     public async Task<ActionResult<PagedResult<EntrySummary>>> List(

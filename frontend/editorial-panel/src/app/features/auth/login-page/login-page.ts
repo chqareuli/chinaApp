@@ -21,6 +21,7 @@ export class LoginPage {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly showPassword = signal(false);
+  readonly rememberMe = signal(true);
 
   readonly form = this.formBuilder.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -37,7 +38,7 @@ export class LoginPage {
     this.error.set(null);
     const { email, password } = this.form.getRawValue();
     this.auth
-      .login(email.trim(), password)
+      .login(email.trim(), password, this.rememberMe())
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: () => {

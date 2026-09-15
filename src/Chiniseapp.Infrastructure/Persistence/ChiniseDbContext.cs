@@ -35,6 +35,7 @@ public class ChiniseDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<DirectMessage> DirectMessages => Set<DirectMessage>();
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+    public DbSet<SupportMaterial> SupportMaterials => Set<SupportMaterial>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

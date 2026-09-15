@@ -8,7 +8,8 @@
     "mock-api": "node tools/mock-api.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "start:local": "ng serve --host 127.0.0.1 --port 4303 --proxy-config proxy.conf.json"
   },
   "private": true,
   "packageManager": "npm@11.12.1",
