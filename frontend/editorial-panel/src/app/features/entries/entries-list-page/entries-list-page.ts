@@ -176,7 +176,7 @@ export class EntriesListPage implements OnInit {
     const options: EntryListQuery = {
       workEditorId: Number(this.route.snapshot.queryParamMap.get('workEditorId')) || undefined,
       scoreKind: this.route.snapshot.queryParamMap.get('scoreKind') || undefined,
-      excludeDrafts: this.isHome && !this.statusControl.value,
+      excludeDrafts: false,
       authorId: Number(this.authorControl.value) || undefined,
       page: this.page(),
       pageSize: this.pageSize,

@@ -90,6 +90,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     if (this.saving() || !window.confirm('Discard unsaved changes? · 放弃未保存的更改吗？')) return;
     const item = this.entry();
     if (item) this.populateEntryForm(item);
+    this.referenceForm.reset(this.referenceBaseline);
     this.saveError.set(null);
     this.statusConfirmation.set(null);
     this.editing.set(false);
@@ -209,6 +210,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     senses: this.fb.array<FormGroup>([]),
   });
 
+  private referenceBaseline = {g1: '', g2: '', g3: '', g4: '', g5: ''};
+  readonly referenceSaved = signal(false);
   readonly referenceForm = this.fb.group({
     g1: [''],
     g2: [''],
@@ -382,6 +385,30 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     return result;
   }
 
+  structureLines(): string[] {
+    const lines: string[] = [];
+    const senses = (items: FormArray<FormGroup>, prefix: string) => items.controls.forEach((sense, i) => {
+      const examples = this.formArrayAt(sense, 'examples').length;
+      lines.push(prefix + ' → S' + (i + 1) + (examples ? ' → E (' + examples + ')' : ' → ∅ E'));
+    });
+    const groups = (items: FormArray<FormGroup>, prefix: string) => items.controls.forEach((group, i) => {
+      const label = prefix + ' → POS ' + this.toRoman(i + 1) + ' [' + (group.get('pos')?.value || 'არ არის არჩეული') + ']';
+      const children = this.formArrayAt(group, 'senses');
+      if (children.length) senses(children, label); else lines.push(label + ' → ∅ S');
+    });
+    this.homonyms.controls.forEach((h, i) => {
+      const prefix = 'Entry → H' + (i + 1);
+      const children = this.formArrayAt(h, 'gramGroups');
+      const direct = this.formArrayAt(h, 'directSenses');
+      groups(children, prefix); senses(direct, prefix + ' → ∅ POS');
+      if (!children.length && !direct.length) lines.push(prefix + ' → ∅ POS → ∅ S');
+    });
+    groups(this.rootGramGroups, 'Entry → ∅ H');
+    groups(this.directPoses, 'Entry → ∅ H');
+    senses(this.rootSenses, 'Entry → ∅ H → ∅ POS');
+    return lines.length ? lines : ['Entry → ∅ H → ∅ POS → ∅ S'];
+  }
+
   structureKind(): 'homonym' | 'grammar' | 'pos' | 'sense' | null {
     if (this.homonyms.length) return 'homonym';
     if (this.rootGramGroups.length) return 'grammar';
@@ -528,7 +555,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   saveContent(): void {
     const item = this.entry();
-    if (!item || !this.canEditFields() || this.saving()) return;
+    if (!item || !this.canEditFields() || this.saving() || this.referenceSaving()) return;
 
     if (this.writtenForms?.some((list) => !list.flushInline())) {
       this.saveError.set(
@@ -553,6 +580,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
     this.saving.set(true);
     this.saveError.set(null);
+    this.referenceError.set(null);
     this.saveSuccess.set(false);
     this.concurrencyConflict.set(false);
 
@@ -570,7 +598,24 @@ export class EntryDetailPage implements OnInit, OnDestroy {
             ),
           )
       : this.entriesService.saveContent(item.id, this.toSaveRequest(item.rowVersion));
-    source.pipe(finalize(() => this.saving.set(false))).subscribe({
+    source.pipe(
+      tap(updated => this.entry.set(updated)),
+      switchMap(updated => {
+        if (!this.referenceForm.dirty) return of(updated);
+        const value = this.referenceForm.getRawValue();
+        return this.collaboration.saveReferenceMaterial(updated.id, {
+          g1: value.g1 ?? '', g2: value.g2 ?? '', g3: value.g3 ?? '', g4: value.g4 ?? '', g5: value.g5 ?? '',
+        }).pipe(tap(detail => {
+          this.populateReference(detail);
+          this.referenceForm.markAsPristine();
+          this.referenceSaved.set(true);
+        }), switchMap(() => of(updated)), catchError(error => {
+          this.referenceError.set('სტატია შეინახა, მაგრამ G1–G5 ვერ შეინახა. ხელახლა დააჭირეთ Save-ს.');
+          throw error;
+        }));
+      }),
+      finalize(() => this.saving.set(false))
+    ).subscribe({
       next: (updated) => {
         this.entry.set(updated);
         this.populateEntryForm(updated);
@@ -588,7 +633,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
           this.saveError.set('სტატია სხვამ შეცვალა. განაახლეთ მონაცემები და შემდეგ შეინახეთ.');
           return;
         }
-        this.saveError.set(this.problemMessage(error, 'სტატიის შენახვა ვერ მოხერხდა.'));
+        this.saveError.set(this.referenceError() ?? this.problemMessage(error, 'სტატიის შენახვა ვერ მოხერხდა.'));
       },
     });
   }
@@ -600,7 +645,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   changeStatus(targetStatus: string): void {
     const item = this.entry();
-    if (!item || this.changingStatus()) return;
+    if (!item || !item.id || this.changingStatus()) return;
+    if (this.entryForm.dirty || this.referenceForm.dirty) {
+      this.statusError.set('სტატუსის შეცვლამდე შეინახეთ ცვლილებები — Save · 保存.');
+      return;
+    }
 
     const validationErrors = this.publishValidationErrors(targetStatus);
     if (validationErrors.length) {
@@ -772,8 +821,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   saveReferenceMaterial(): void {
-    if (!this.canEdit() || this.referenceSaving()) return;
+    if (!this.canEditFields() || this.referenceSaving() || this.saving()) return;
+    if (!this.entryId) { this.saveContent(); return; }
     this.referenceSaving.set(true);
+    this.referenceSaved.set(false);
     this.referenceError.set(null);
     const value = this.referenceForm.getRawValue();
     this.collaboration
@@ -789,6 +840,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
         next: (detail) => {
           this.populateReference(detail);
           this.referenceForm.markAsPristine();
+          this.referenceSaved.set(true);
           this.loadHistory();
         },
         error: (error: HttpErrorResponse) =>
@@ -1047,6 +1099,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       g4: detail.g4,
       g5: detail.g5,
     });
+    this.referenceBaseline = {g1: detail.g1 ?? '', g2: detail.g2 ?? '', g3: detail.g3 ?? '', g4: detail.g4 ?? '', g5: detail.g5 ?? ''};
+    this.referenceForm.markAsPristine();
   }
 
   private statusFromAuditValue(value: string | null): string | null {

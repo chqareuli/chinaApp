@@ -240,6 +240,20 @@ describe('EntryDetailPage status confirmation', () => {
     first.remove(); second.remove();
   });
 
+  it('blocks a status transition when reference changes are unsaved', () => {
+    component.referenceForm.controls.g1.setValue('unsaved');
+    component.referenceForm.markAsDirty();
+    component.changeStatus('Ready');
+    expect(component.statusConfirmation()).toBeNull();
+    expect(component.statusError()).toContain('Save');
+  });
+
+  it('shows the actual direct-sense and example hierarchy', () => {
+    component.startStructure('sense');
+    component.addExampleTo(component.formArrayAt(component.rootSenses.at(0), 'examples'));
+    expect(component.structureLines()).toEqual(['Entry → ∅ H → ∅ POS → S1 → E (1)']);
+  });
+
   it('opens the embedded notes panel on reference material by default', () => {
     expect(component.notesTab()).toBe('reference');
 

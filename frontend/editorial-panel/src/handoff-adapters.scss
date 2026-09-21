@@ -387,3 +387,5 @@
  #cx-entry-v2 .example-grid>.example-side:first-child { grid-column:1/-1; }
  #cx-entry-v2 .example-side:nth-child(2) { padding-bottom:0; }
 }
+
+#cx-entry-v2 .structure-outline { display:grid; gap:5px; padding:10px 12px; border:1px dashed #bdcbc8; border-radius:8px; background:#f7faf9; color:#496a64; font-size:13px; }

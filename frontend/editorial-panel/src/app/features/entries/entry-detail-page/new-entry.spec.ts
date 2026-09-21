@@ -15,6 +15,7 @@ describe('New entry in the full editor', () => {
   const navigate = vi.fn().mockResolvedValue(true);
   const create = vi.fn();
   const saveContent = vi.fn();
+  const saveReferenceMaterial = vi.fn();
   let persisted: EntryDetail;
 
   beforeEach(() => {
@@ -37,13 +38,14 @@ describe('New entry in the full editor', () => {
           provide: AuthService,
           useValue: { editor: () => ({ role: 'Editor', displayName: 'Editor' }) },
         },
-        { provide: CollaborationService, useValue: {} },
+        { provide: CollaborationService, useValue: { saveReferenceMaterial } },
         { provide: MediaService, useValue: {} },
       ],
     });
     component = TestBed.runInInjectionContext(() => new EntryDetailPage());
     component.ngOnInit();
     persisted = { ...component.entry()!, id: 24, rowVersion: 3 };
+    saveReferenceMaterial.mockImplementation((_id, body) => of(body));
     create.mockReturnValue(of(persisted));
     saveContent.mockImplementation((_id, body) => of({ ...persisted, ...body, rowVersion: 4 }));
   });
@@ -70,6 +72,33 @@ describe('New entry in the full editor', () => {
       }),
     );
     expect(navigate).toHaveBeenCalledWith(['/adminpanel/entries', 24], { replaceUrl: true });
+  });
+
+  it('saves G1–G5 with the main Save on a new entry', () => {
+    component.startEditing();
+    component.entryForm.controls.lemma.setValue('测试');
+    component.referenceForm.setValue({g1:'ერთი',g2:'ორი',g3:'სამი',g4:'ოთხი',g5:'ხუთი'});
+    component.referenceForm.markAsDirty();
+    component.saveContent();
+    expect(saveReferenceMaterial).toHaveBeenCalledWith(24, {g1:'ერთი',g2:'ორი',g3:'სამი',g4:'ოთხი',g5:'ხუთი'});
+    expect(component.referenceForm.pristine).toBe(true);
+    expect(component.saveSuccess()).toBe(true);
+  });
+
+  it('retains reference text and updated version when reference save fails, then retries', () => {
+    component.startEditing();
+    component.entryForm.controls.lemma.setValue('测试');
+    component.referenceForm.controls.g1.setValue('შენარჩუნდეს');
+    component.referenceForm.markAsDirty();
+    saveReferenceMaterial.mockReturnValueOnce(throwError(() => new HttpErrorResponse({status:500})));
+    component.saveContent();
+    expect(component.editing()).toBe(true);
+    expect(component.referenceForm.controls.g1.value).toBe('შენარჩუნდეს');
+    expect(component.entry()?.rowVersion).toBe(4);
+    expect(navigate).not.toHaveBeenCalled();
+    component.saveContent();
+    expect(create).toHaveBeenCalledOnce();
+    expect(component.saveSuccess()).toBe(true);
   });
 
   it('retains edits and retries the same draft if saving content fails after creation', () => {

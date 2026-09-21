@@ -17,10 +17,10 @@
         <select
           #stage
           class="form-select stage-select"
-          aria-label="Stage · 状态"
+          aria-label="სტატუსის შეცვლა · Stage · 状态" title="Review / Ready / Published — სტატუსის შეცვლა"
           [value]="item.status"
           (change)="changeStatus(stage.value); stage.value = item.status"
-          [disabled]="!canEditFields() || !!changingStatus() || !allowedTransitions().length"
+          [disabled]="isNew() || saving() || !!changingStatus() || !allowedTransitions().length"
         >
           <option [value]="item.status" [selected]="true">{{ statusLabel(item.status) }}</option>
           @for (status of allowedTransitions(); track status) {
@@ -36,7 +36,7 @@
           } @else {
             <button class="btn" type="button" [disabled]="!canEdit()" (click)="startEditing()">Edit · 编辑</button>
           }
-          <button class="btn btn-primary" type="submit" form="entry-content-form" [disabled]="!canEditFields() || saving() || activeTab() !== 'content'">{{ saving() ? 'Saving… · 保存中' : 'Save · 保存' }}</button>
+          <button class="btn btn-primary" type="button" (click)="activeTab() === 'reference' ? saveReferenceMaterial() : saveContent()" [disabled]="!canEditFields() || saving() || referenceSaving() || (activeTab() !== 'content' && activeTab() !== 'reference')">{{ saving() ? 'Saving… · 保存中' : 'Save · 保存' }}</button>
         </div>
       </div>
     </div>
@@ -210,6 +210,14 @@
           />
           Show structure · 显示结构</label
         >
+        @if (structureVisible()) {
+          <div class="structure-outline" role="status" aria-label="სტატიის სტრუქტურა">
+            <strong>სტატიის სტრუქტურა · Structure</strong>
+            @for (line of structureLines(); track $index) { <span>{{ line }}</span> }
+            <span>H — ჰომოგრაფი · POS — მეტყველების ნაწილი · S — მნიშვნელობა · E — მაგალითი</span>
+            <span>∅ — გამოტოვებული დონე; ჩარჩოები ირთვება Frames ღილაკით.</span>
+          </div>
+        }
         @if (vocabularyError()) {
           <div class="error-banner">{{ vocabularyError() }}</div>
         }
@@ -711,16 +719,15 @@
 
         <section
           class="entry-notes-panel"
-          [class.draft-notes]="isNew()"
+          [class.draft-notes]="false"
           [class.notes-collapsed]="!notesExpanded()"
         >
           @if (isNew()) {
             <p class="text-small">
-              Save the entry to add comments and reference materials. ·
-              保存词目后可添加评论和参考资料。
+              G1–G5 შეინახება სტატიის Save ღილაკით. კომენტარებისა და დამხმარე მასალებისთვის ჯერ შეინახეთ სტატია.
             </p>
           }
-          <fieldset [disabled]="isNew()">
+          <fieldset>
             <nav class="entry-notes-tabs" aria-label="სტატიის ჩანაწერები">
               <button
                 type="button"
@@ -732,14 +739,14 @@
               <button
                 type="button"
                 [class.active]="notesTab() === 'comments'"
-                (click)="setNotesTab('comments')"
+                [disabled]="isNew()" (click)="setNotesTab('comments')"
               >
                 Comments · 评论 <span>{{ comments().length }}</span>
               </button>
               <button
                 type="button"
                 [class.active]="notesTab() === 'support'"
-                (click)="setNotesTab('support')"
+                [disabled]="isNew()" (click)="setNotesTab('support')"
               >
                 Helper materials · 辅助资料 <span>{{ supportMaterials().length }}</span>
               </button>
@@ -756,6 +763,7 @@
               </button>
             </div>
 
+            @if (referenceSaved() && !referenceForm.dirty) { <p role="status">G1–G5 შენახულია · 已保存</p> }
             @if (notesTab() === 'reference') {
               <div class="entry-notes-body" [formGroup]="referenceForm">
                 @if (referenceLoading()) {
