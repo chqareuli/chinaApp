@@ -458,6 +458,8 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("mime_type");
 
+                    b.Property<string>("DisplayName").HasColumnType("text").HasColumnName("display_name");
+
                     b.Property<string>("OriginalFilename")
                         .IsRequired()
                         .HasColumnType("text")

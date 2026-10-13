@@ -276,6 +276,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly mediaSaving = signal(false);
   readonly mediaError = signal<string | null>(null);
   readonly selectedMedia = signal<File | null>(null);
+  readonly mediaDisplayName = signal('');
   readonly selectedMediaPreview = signal<string | null>(null);
   readonly mediaTarget = signal<{ kind: 'sense' | 'example'; node: FormGroup } | null>(null);
   readonly exampleMediaFields = signal(new Map<FormGroup, 'zh' | 'ka'>());
@@ -309,7 +310,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       const placement = readMediaPlacement(asset.placement);
       const url = this.mediaUrl(asset.id);
       return placement && url && placement.kind === kind && placement.nodeId === id && placement.field === field
-        ? [{ offset: resolveMediaOffset(placement, body), url, alt: asset.originalFilename }] : [];
+        ? [{ offset: resolveMediaOffset(placement, body), url, alt: asset.displayName || asset.originalFilename, label: asset.displayName || asset.originalFilename.replace(/\.[^.]+$/, '') }] : [];
     });
   }
   hasInlineFormatting(node: FormGroup, field: string): boolean {
@@ -1022,6 +1023,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     }
 
     this.selectedMedia.set(file);
+    this.mediaDisplayName.set(file.name.replace(/\.[^.]+$/, ''));
     this.selectedMediaPreview.set(URL.createObjectURL(file));
   }
 
@@ -1037,7 +1039,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.mediaSaving.set(true);
     this.mediaError.set(null);
     this.mediaService
-      .upload(this.entryId, file, this.mediaPlacement())
+      .upload(this.entryId, file, this.mediaPlacement(), this.mediaDisplayName())
       .pipe(finalize(() => this.mediaSaving.set(false)))
       .subscribe({
         next: (item) => {

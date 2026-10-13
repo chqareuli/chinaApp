@@ -153,6 +153,7 @@ export interface EntryHistoryItem {
 }
 
 export interface MediaAssetItem {
+  displayName?: string;
   id: number;
   entryId: number;
   originalFilename: string;

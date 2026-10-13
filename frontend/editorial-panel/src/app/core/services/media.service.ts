@@ -13,10 +13,15 @@ export class MediaService {
     return this.http.get<MediaAssetItem[]>(`${this.apiBaseUrl}/entries/${entryId}/media`);
   }
 
-  upload(entryId: number, file: File, placement: string): Observable<MediaAssetItem> {
+  library(page = 1, q = ''): Observable<{items: MediaAssetItem[]; total: number; page: number; pageSize: number}> {
+    return this.http.get<{items: MediaAssetItem[]; total: number; page: number; pageSize: number}>(`${this.apiBaseUrl}/media`, {params: {page, q}});
+  }
+
+  upload(entryId: number, file: File, placement: string, displayName?: string): Observable<MediaAssetItem> {
     const form = new FormData();
     form.append('file', file, file.name);
     if (placement) form.append('placement', placement);
+    if (displayName?.trim()) form.append('displayName', displayName.trim());
     return this.http.post<MediaAssetItem>(`${this.apiBaseUrl}/entries/${entryId}/media`, form);
   }
 

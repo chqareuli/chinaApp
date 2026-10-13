@@ -19,6 +19,7 @@ public class MediaAsset
 
     /// <summary>Unicode-safe original filename (Chinese/Georgian/English/digits allowed).</summary>
     public string OriginalFilename { get; set; } = string.Empty;
+    public string? DisplayName { get; set; }
 
     /// <summary>Safe internal storage filename/key, decoupled from the original.</summary>
     public string SafeStorageName { get; set; } = string.Empty;

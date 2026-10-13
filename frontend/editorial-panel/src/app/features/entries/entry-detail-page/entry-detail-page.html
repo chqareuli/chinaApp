@@ -70,6 +70,7 @@
             <p>JPEG, PNG, WebP · Max. · 最大 5 MB</p>
             <label class="btn" for="node-image-file">Choose image · 选择图片</label>
             <input id="node-image-file" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose image · 选择图片" [disabled]="mediaSaving()" (change)="selectMedia($event)" />
+            <label>Image name · 图片名称<input class="form-control" maxlength="200" [value]="mediaDisplayName()" (input)="mediaDisplayName.set($any($event.target).value)" placeholder="სურათის დასახელება" /></label>
             <span>{{ selectedMedia()?.name || 'No image selected · 未选择图片' }}</span>
             @if (selectedMediaPreview(); as url) { <img class="node-media-preview" [src]="url" alt="Selected image · 已选图片" /> }
             <ng-container [ngTemplateOutlet]="nodeMediaList" [ngTemplateOutletContext]="{kind: target.kind, node: target.node}" />

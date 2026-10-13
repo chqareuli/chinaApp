@@ -14,9 +14,22 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
 {
     private string StorageDirectory => Path.Combine(environment.ContentRootPath, "App_Data", "media");
     private async Task<object> Summary(MediaAsset m, CancellationToken ct) => new {
-        m.Id, m.EntryId, m.OriginalFilename, m.MimeType, m.StorageUrl, m.ThumbnailUrl, m.Placement,
+        m.Id, m.EntryId, m.OriginalFilename, DisplayName = m.DisplayName ?? Path.GetFileNameWithoutExtension(m.OriginalFilename), m.MimeType, m.StorageUrl, m.ThumbnailUrl, m.Placement,
         m.UploadedByEditorId, UploadedByDisplayName = await db.Editors.Where(e => e.Id == m.UploadedByEditorId).Select(e => e.DisplayName).FirstOrDefaultAsync(ct), m.UploadedAtUtc
     };
+    [HttpGet("media")]
+    public async Task<IActionResult> Library([FromQuery] int page = 1, [FromQuery] string? q = null, CancellationToken ct = default)
+    {
+        page = Math.Max(1, page);
+        var allowed = Enum.GetValues<EntryStatus>().Where(status => EntryPermissionRules.CanView(User.GetEditorRole(), status)).ToArray();
+        var query = db.MediaAssets.AsNoTracking().Where(m => db.Entries.Any(e => e.Id == m.EntryId && allowed.Contains(e.Status)));
+        if (!string.IsNullOrWhiteSpace(q)) query = query.Where(m => (m.DisplayName ?? m.OriginalFilename).Contains(q.Trim()));
+        var total = await query.CountAsync(ct);
+        var assets = await query.OrderByDescending(m => m.UploadedAtUtc).ThenByDescending(m => m.Id).Skip((page - 1) * 25).Take(25).ToListAsync(ct);
+        var items = new List<object>();
+        foreach (var asset in assets) items.Add(await Summary(asset, ct));
+        return Ok(new { items, total, page, pageSize = 25 });
+    }
     private async Task<Entry?> EntryFor(MediaAsset m, CancellationToken ct) => m.EntryId is int id ? await db.Entries.FindAsync([id], ct) : null;
 
     [HttpGet("entries/{entryId:int}/media")]
@@ -30,11 +43,13 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         return Ok(results);
     }
     [HttpPost("entries/{entryId:int}/media"), RequestSizeLimit(6 * 1024 * 1024)]
-    public async Task<IActionResult> Upload(int entryId, IFormFile file, [FromForm] string? placement, CancellationToken ct)
+    public async Task<IActionResult> Upload(int entryId, IFormFile file, [FromForm] string? placement, CancellationToken ct, [FromForm] string? displayName = null)
     {
         var entry = await db.Entries.FindAsync([entryId], ct);
         if (entry is null) return NotFound();
         if (!EntryPermissionRules.CanEditContent(User.GetEditorRole(), entry.Status)) return Forbid();
+        displayName = displayName?.Trim();
+        if (displayName?.Length > 200) return BadRequest(new { message = "Image name must be at most 200 characters." });
         int? insertedIntoSegmentId = null;
         if (placement?.StartsWith("inline:", StringComparison.Ordinal) == true)
         {
@@ -79,7 +94,7 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
                 await output.WriteAsync(header.AsMemory(0,count), ct);
                 await stream.CopyToAsync(output, ct);
             }
-            var item = new MediaAsset { EntryId = entryId, OriginalFilename = Path.GetFileName(file.FileName),
+            var item = new MediaAsset { EntryId = entryId, OriginalFilename = Path.GetFileName(file.FileName), DisplayName = string.IsNullOrWhiteSpace(displayName) ? Path.GetFileNameWithoutExtension(file.FileName) : displayName,
                 SafeStorageName = key, FileType = MediaFileType.Image, MimeType = mime, Placement = placement, InsertedIntoSegmentId = insertedIntoSegmentId,
                 UploadedByEditorId = User.GetEditorId(), UploadedAtUtc = DateTime.UtcNow };
             db.MediaAssets.Add(item);

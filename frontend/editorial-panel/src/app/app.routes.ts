@@ -34,6 +34,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./layout/app-shell/app-shell').then((m) => m.AppShell),
     children: [
+      { path: 'media', loadComponent: () => import('./features/media/media-library').then(m => m.MediaLibrary), title: 'სურათები — სარედაქციო პანელი' },
       {
         path: 'dashboard',
         data: { home: true },
