@@ -213,6 +213,21 @@ describe('EntryDetailPage status confirmation', () => {
     expect(component.formArrayAt(component.homonyms.at(0), 'gramGroups').at(0)).toBe(group);
   });
 
+  it('uses the last focused field of each example for the single image button', () => {
+    const first = new FormGroup({}), second = new FormGroup({});
+    const chinese = document.createElement('textarea'), georgian = document.createElement('textarea');
+    const open = vi.spyOn(component, 'openNodeMedia').mockImplementation(() => {});
+    component.openExampleMedia(first, chinese, georgian);
+    expect(open).not.toHaveBeenCalled();
+    component.rememberExampleMediaField(first, 'zh');
+    component.rememberExampleMediaField(second, 'ka');
+    component.openExampleMedia(first, chinese, georgian);
+    expect(open).toHaveBeenLastCalledWith('example', first, chinese, 'zh');
+    component.rememberExampleMediaField(first, 'ka');
+    component.openExampleMedia(first, chinese, georgian);
+    expect(open).toHaveBeenLastCalledWith('example', first, georgian, 'ka');
+  });
+
   it('uploads an image at the cursor and resolves its saved placement on reload', () => {
     component.startEditing();
     component.startStructure('sense');

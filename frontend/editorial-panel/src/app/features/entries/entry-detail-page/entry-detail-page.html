@@ -308,7 +308,7 @@
                   <div class="example-grid">
                     <div class="example-side">
                       <textarea
-                        class="form-control" #exampleChinese
+                        class="form-control" #exampleChinese (focus)="rememberExampleMediaField(example, 'zh')"
                         formControlName="zh"
                         [class.rich-text-bridge]="!canEditFields() && inlineNodeMedia('example', example, 'zh').length > 0"
                         rows="1"
@@ -326,19 +326,19 @@
                         [readonly]="!canEditFields()"
                         (contentChanged)="markContentChanged()"
                       >
-                      <button media-tool class="btn btn-ghost" type="button" aria-label="Add Chinese example media · 添加中文例句媒体" title="Chinese example image · 中文例句图片" [disabled]="!canEditFields()" (click)="openNodeMedia('example', example, exampleChinese, 'zh')">中<ng-container [ngTemplateOutlet]="mediaIcon" /></button><button media-tool class="btn btn-ghost" type="button" aria-label="Add example media · 添加例句媒体" title="Add media · 添加媒体" [disabled]="!canEditFields()" (click)="openNodeMedia('example', example, exampleGeorgian, 'ka')"><ng-container [ngTemplateOutlet]="mediaIcon" /></button></app-editorial-decorations>
+                      <button media-tool class="btn btn-ghost" type="button" aria-label="Insert image in active example field · 在当前例句字段插入图片" title="Place the cursor in Chinese or Georgian text, then insert an image · 先定位光标，再插入图片" [disabled]="!canEditFields() || !exampleMediaFields().has(example)" (mousedown)="$event.preventDefault()" (click)="openExampleMedia(example, exampleChinese, exampleGeorgian)"><ng-container [ngTemplateOutlet]="mediaIcon" /></button></app-editorial-decorations>
                       <ng-container [ngTemplateOutlet]="nodeMediaList" [ngTemplateOutletContext]="{kind: 'example', node: example}" />
                     </div>
                     <div class="example-side">
                       <textarea
-                        class="form-control" #exampleGeorgian
+                        class="form-control" #exampleGeorgian (focus)="rememberExampleMediaField(example, 'ka')"
                         formControlName="ka" [class.rich-text-bridge]="canEditFields()"
                         rows="1"
                         aria-label="Georgian translation · 格文译文"
                         placeholder="Enter Georgian translation · 请输入格文译文"
                         [readOnly]="!canEditFields()"
                       ></textarea>
-                      @if (canEditFields()) { <app-inline-rich-field class="formatted-editor-text" [control]="example.get('ka')!" [value]="example.get('ka')?.value || ''" [bridge]="exampleGeorgian" [annotationArrays]="[formArrayAt(example, 'markers'), formArrayAt(example, 'crossReferences')]" [markers]="formArrayAt(example, 'markers').getRawValue()" [references]="nodeReferences(example)" field="ka" label="Georgian translation · 格文译文" /> }
+                      @if (canEditFields()) { <app-inline-rich-field (focusin)="rememberExampleMediaField(example, 'ka')" class="formatted-editor-text" [control]="example.get('ka')!" [value]="example.get('ka')?.value || ''" [bridge]="exampleGeorgian" [annotationArrays]="[formArrayAt(example, 'markers'), formArrayAt(example, 'crossReferences')]" [markers]="formArrayAt(example, 'markers').getRawValue()" [references]="nodeReferences(example)" field="ka" label="Georgian translation · 格文译文" /> }
                       @if (!canEditFields() || inlineNodeMedia('example', example, 'ka').length) { <div class="formatted-editor-text" [attr.aria-label]="canEditFields() ? 'Preview · 预览' : null"><app-inline-entry-text [images]="inlineNodeMedia('example', example, 'ka')" [body]="example.get('ka')?.value || ''" [references]="nodeReferences(example)" [markers]="formArrayAt(example, 'markers').getRawValue()" field="ka" route="/adminpanel/entries" /></div> }
                     </div>
                     <div class="font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost font-control" type="button" title="Decrease text size · 缩小字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], -1)">A−</button><button class="btn btn-ghost font-control" type="button" title="Increase text size · 放大字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], 1)">A+</button><button class="btn btn-ghost" type="button" [disabled]="!example.get('id')?.value" (click)="commentOn(example)" title="Comment on this example · 评论此例句">💬</button></div>

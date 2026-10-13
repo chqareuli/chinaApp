@@ -278,6 +278,14 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly selectedMedia = signal<File | null>(null);
   readonly selectedMediaPreview = signal<string | null>(null);
   readonly mediaTarget = signal<{ kind: 'sense' | 'example'; node: FormGroup } | null>(null);
+  readonly exampleMediaFields = signal(new Map<FormGroup, 'zh' | 'ka'>());
+  rememberExampleMediaField(node: FormGroup, field: 'zh' | 'ka'): void {
+    this.exampleMediaFields.update(fields => new Map(fields).set(node, field));
+  }
+  openExampleMedia(node: FormGroup, chinese: HTMLTextAreaElement, georgian: HTMLTextAreaElement): void {
+    const field = this.exampleMediaFields().get(node);
+    if (field) this.openNodeMedia('example', node, field === 'zh' ? chinese : georgian, field);
+  }
   openNodeMedia(kind: 'sense' | 'example', node: FormGroup, field: HTMLTextAreaElement, fieldName: 'definition' | 'zh' | 'ka'): void {
     if (!this.canEditFields()) return;
     this.clearSelectedMedia();
