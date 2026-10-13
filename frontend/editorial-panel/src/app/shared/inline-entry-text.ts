@@ -7,8 +7,8 @@ type Marker = { textField?: string | null; textOffset?: number | null; displayTe
   selector: 'app-inline-entry-text',
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `@for (part of parts(); track $index) { @if (part.image) { <img [src]="part.image.url" [alt]="part.image.alt" /> } @else if (part.target) { <a [routerLink]="[route(), part.target]">{{ part.text }}</a> } @else if (part.italic) { <em>{{ part.text }}</em> } @else { <span>{{ part.text }}</span> } }`,
-  styles: [':host{white-space:pre-wrap}a{color:#286fac;text-decoration:underline}em{font-style:italic;font-weight:700;color:#5a6373}img{display:inline-block;max-width:100%;max-height:400px;object-fit:contain;vertical-align:middle;margin:8px}'],
+  template: `@for (part of parts(); track $index) { @if (part.image) { <img [src]="part.image.url" [alt]="part.image.alt" /> } @else if (part.target) { <a [routerLink]="[route(), part.target]">{{ part.text }}</a> } @else if (part.italic) { <em>{{ part.text }}</em> } @else { <span [class.definition-number]="part.numbered">{{ part.text }}</span> } }`,
+  styles: [':host{white-space:pre-wrap}a{color:#286fac;text-decoration:underline}em{font-style:italic;font-weight:700;color:#5a6373}.definition-number{color:#5b59eb;font-style:normal;font-weight:500}img{display:inline-block;max-width:100%;max-height:400px;object-fit:contain;vertical-align:middle;margin:8px}'],
 })
 export class InlineEntryText {
   readonly body = input('');
@@ -29,7 +29,7 @@ export class InlineEntryText {
       }
       return [{ offset, text: reference.displayText, target: reference.targetEntryId, italic: reference.italic }];
     }).sort((a, b) => a.offset - b.offset);
-    const parts: { text: string; target: number | null; italic?: boolean; image?: { url: string; alt: string } }[] = [];
+    const parts: { text: string; target: number | null; italic?: boolean; numbered?: boolean; image?: { url: string; alt: string } }[] = [];
     let cursor = 0;
     for (const match of matches) {
       if (match.offset < cursor) continue;
@@ -54,6 +54,7 @@ export class InlineEntryText {
       if (local < part.text.length) result.push({ ...part, text: part.text.slice(local) });
       position += part.text.length;
     }
-    return result;
+    if (this.field() !== 'definition') return result;
+    return result.flatMap(part => part.image || part.target || part.italic ? [part] : part.text.split(/([①-⑳])/u).filter(Boolean).map(text => ({ ...part, text, numbered: /^[①-⑳]$/u.test(text) })));
   });
 }
