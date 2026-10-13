@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, input } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 type Reference = { placement: string; textField?: string | null; textOffset?: number | null; displayText: string | null; targetEntryId: number | null };
@@ -7,10 +7,11 @@ type Marker = { textField?: string | null; textOffset?: number | null; displayTe
   selector: 'app-inline-entry-text',
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `@for (part of parts(); track $index) { @if (part.image) { <img [src]="part.image.url" [alt]="part.image.alt" /> } @else if (part.target) { <a [routerLink]="[route(), part.target]">{{ part.text }}</a> } @else if (part.italic) { <em>{{ part.text }}</em> } @else { <span [class.definition-number]="part.numbered">{{ part.text }}</span> } }`,
-  styles: [':host{white-space:pre-wrap}a{color:#286fac;text-decoration:underline}em{font-style:italic;font-weight:700;color:#5a6373}.definition-number{color:#5b59eb;font-style:normal;font-weight:500}img{display:inline-block;max-width:100%;max-height:400px;object-fit:contain;vertical-align:middle;margin:8px}'],
+  template: `@for (part of parts(); track $index) { @if (part.image) { <button class="image-thumbnail" type="button" aria-haspopup="dialog" [attr.aria-label]="'Enlarge image · 放大图片: ' + part.image.alt" (click)="expandedImage.set(part.image); viewer.showModal()"><img [src]="part.image.url" [alt]="part.image.alt" /></button> } @else if (part.target) { <a [routerLink]="[route(), part.target]">{{ part.text }}</a> } @else if (part.italic) { <em>{{ part.text }}</em> } @else { <span [class.definition-number]="part.numbered">{{ part.text }}</span> } }<dialog #viewer class="image-viewer" aria-label="Image preview · 图片预览" (click)="$event.target === viewer && viewer.close()" (close)="expandedImage.set(null)">@if (expandedImage(); as image) { <button class="image-close" type="button" autofocus aria-label="Close · 关闭" (click)="viewer.close()">×</button> <img [src]="image.url" [alt]="image.alt" /> }</dialog>`,
+  styles: [':host{white-space:pre-wrap}a{color:#286fac;text-decoration:underline}em{font-style:italic;font-weight:700;color:#5a6373}.definition-number{color:#5b59eb;font-style:normal;font-weight:500}.image-thumbnail{display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;padding:5px;margin:4px 8px;border:1px solid #dce3e8;border-radius:10px;background:#fff;cursor:zoom-in;max-width:100%}.image-thumbnail:hover{border-color:#86bde9;box-shadow:0 2px 8px #00000015}.image-thumbnail img{display:block;width:auto;height:auto;max-width:min(160px,100%);max-height:120px;object-fit:contain}.image-viewer{padding:40px 16px 16px;border:0;border-radius:14px;max-width:94vw;max-height:94vh;background:#fff;box-shadow:0 12px 50px #0004}.image-viewer::backdrop{background:#14202bc4}.image-viewer img{display:block;max-width:88vw;max-height:80vh;object-fit:contain}.image-close{position:absolute;top:5px;right:8px;border:0;background:transparent;font-size:28px;cursor:pointer;line-height:1}'],
 })
 export class InlineEntryText {
+  readonly expandedImage = signal<{ url: string; alt: string } | null>(null);
   readonly body = input('');
   readonly references = input<Reference[]>([]);
   readonly markers = input<Marker[]>([]);
