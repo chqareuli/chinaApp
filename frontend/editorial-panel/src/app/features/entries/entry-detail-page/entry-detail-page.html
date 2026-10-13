@@ -60,6 +60,9 @@
         }
       </div>
     </ng-template>
+    @if (pendingMediaDeleteId() && activeTab() !== 'media') {
+      <div class="status-confirm-backdrop"><section class="status-confirm" role="dialog" aria-modal="true" aria-label="Remove image · 删除图片"><p>სურათი ამ სტატიიდან ამოვშალოთ? სხვა გამოყენების ადგილებში დარჩება.</p><button class="btn" type="button" [disabled]="!!deletingMediaId()" (click)="deleteMedia(pendingMediaDeleteId()!)">წაშლა · 删除</button><button class="btn" type="button" [disabled]="!!deletingMediaId()" (click)="pendingMediaDeleteId.set(null)">გაუქმება · 取消</button>@if (mediaError()) {<p role="alert">{{ mediaError() }}</p>}</section></div>
+    }
     @if (mediaTarget(); as target) {
       <div class="status-confirm-backdrop">
         <section class="status-confirm" role="dialog" aria-modal="true" aria-label="Add media · 添加媒体">
@@ -276,8 +279,8 @@
                   placeholder="Enter definition · 请输入释义"
                   [readOnly]="!canEditFields()"
                 ></textarea>
-                @if (canEditFields()) { <app-inline-rich-field class="formatted-editor-text" [control]="sense.get('definition')!" [value]="sense.get('definition')?.value || ''" [bridge]="definitionField" [annotationArrays]="[formArrayAt(sense, 'markers'), formArrayAt(sense, 'crossReferences')]" [markers]="formArrayAt(sense, 'markers').getRawValue()" [references]="nodeReferences(sense)" label="Enter definition · 请输入释义" /> }
-                @if (!canEditFields() || inlineNodeMedia('sense', sense, 'definition').length) { <div class="formatted-editor-text" [attr.aria-label]="canEditFields() ? 'Preview · 预览' : null"><app-inline-entry-text [images]="inlineNodeMedia('sense', sense, 'definition')" [body]="sense.get('definition')?.value || ''" [references]="nodeReferences(sense)" [markers]="formArrayAt(sense, 'markers').getRawValue()" route="/adminpanel/entries" /></div> }
+                @if (canEditFields()) { <app-inline-rich-field [images]="inlineNodeMedia('sense', sense, 'definition')" (imageRemove)="requestMediaDelete($event)" class="formatted-editor-text" [control]="sense.get('definition')!" [value]="sense.get('definition')?.value || ''" [bridge]="definitionField" [annotationArrays]="[formArrayAt(sense, 'markers'), formArrayAt(sense, 'crossReferences')]" [markers]="formArrayAt(sense, 'markers').getRawValue()" [references]="nodeReferences(sense)" label="Enter definition · 请输入释义" /> }
+                @if (!canEditFields()) { <div class="formatted-editor-text" [attr.aria-label]="canEditFields() ? 'Preview · 预览' : null"><app-inline-entry-text [images]="inlineNodeMedia('sense', sense, 'definition')" [body]="sense.get('definition')?.value || ''" [references]="nodeReferences(sense)" [markers]="formArrayAt(sense, 'markers').getRawValue()" route="/adminpanel/entries" /></div> }
               </div>
               <div class="font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost font-control" type="button" title="Decrease text size · 缩小字号" (click)="resizeEditorText([definitionField], -1)">A−</button><button class="btn btn-ghost font-control" type="button" title="Increase text size · 放大字号" (click)="resizeEditorText([definitionField], 1)">A+</button><button class="btn btn-ghost" type="button" [disabled]="!sense.get('id')?.value" (click)="commentOn(sense)" title="Comment on this definition · 评论此释义">💬</button></div>
               <div class="definition-tools tools"><app-editorial-decorations layout="definition"
@@ -322,14 +325,15 @@
                       <textarea
                         class="form-control" #exampleChinese (focus)="rememberExampleMediaField(example, 'zh')"
                         formControlName="zh"
-                        [class.rich-text-bridge]="!canEditFields() && inlineNodeMedia('example', example, 'zh').length > 0"
+                        [class.rich-text-bridge]="canEditFields() || inlineNodeMedia('example', example, 'zh').length > 0"
                         rows="1"
                         lang="zh"
                         aria-label="Chinese example · 中文例句"
                         placeholder="Enter Chinese example · 请输入中文例句"
                         [readOnly]="!canEditFields()"
                       ></textarea>
-                      @if (inlineNodeMedia('example', example, 'zh').length) { <div class="formatted-editor-text"><app-inline-entry-text [body]="example.get('zh')?.value || ''" [images]="inlineNodeMedia('example', example, 'zh')" field="zh" /></div> }
+                      @if (canEditFields()) { <app-inline-rich-field [images]="inlineNodeMedia('example', example, 'zh')" (imageRemove)="requestMediaDelete($event)" (focusin)="rememberExampleMediaField(example, 'zh')" class="formatted-editor-text" [control]="example.get('zh')!" [value]="example.get('zh')?.value || ''" [bridge]="exampleChinese" field="zh" label="Chinese example · 中文例句" /> }
+                      @if (!canEditFields() && inlineNodeMedia('example', example, 'zh').length) { <div class="formatted-editor-text"><app-inline-entry-text [body]="example.get('zh')?.value || ''" [images]="inlineNodeMedia('example', example, 'zh')" field="zh" /></div> }
                       <app-editorial-decorations layout="example" class="tools"
                         [textField]="exampleGeorgian" [textControl]="example.get('ka')" fieldName="ka"
                         [markers]="formArrayAt(example, 'markers')"
@@ -350,8 +354,8 @@
                         placeholder="Enter Georgian translation · 请输入格文译文"
                         [readOnly]="!canEditFields()"
                       ></textarea>
-                      @if (canEditFields()) { <app-inline-rich-field (focusin)="rememberExampleMediaField(example, 'ka')" class="formatted-editor-text" [control]="example.get('ka')!" [value]="example.get('ka')?.value || ''" [bridge]="exampleGeorgian" [annotationArrays]="[formArrayAt(example, 'markers'), formArrayAt(example, 'crossReferences')]" [markers]="formArrayAt(example, 'markers').getRawValue()" [references]="nodeReferences(example)" field="ka" label="Georgian translation · 格文译文" /> }
-                      @if (!canEditFields() || inlineNodeMedia('example', example, 'ka').length) { <div class="formatted-editor-text" [attr.aria-label]="canEditFields() ? 'Preview · 预览' : null"><app-inline-entry-text [images]="inlineNodeMedia('example', example, 'ka')" [body]="example.get('ka')?.value || ''" [references]="nodeReferences(example)" [markers]="formArrayAt(example, 'markers').getRawValue()" field="ka" route="/adminpanel/entries" /></div> }
+                      @if (canEditFields()) { <app-inline-rich-field [images]="inlineNodeMedia('example', example, 'ka')" (imageRemove)="requestMediaDelete($event)" (focusin)="rememberExampleMediaField(example, 'ka')" class="formatted-editor-text" [control]="example.get('ka')!" [value]="example.get('ka')?.value || ''" [bridge]="exampleGeorgian" [annotationArrays]="[formArrayAt(example, 'markers'), formArrayAt(example, 'crossReferences')]" [markers]="formArrayAt(example, 'markers').getRawValue()" [references]="nodeReferences(example)" field="ka" label="Georgian translation · 格文译文" /> }
+                      @if (!canEditFields()) { <div class="formatted-editor-text" [attr.aria-label]="canEditFields() ? 'Preview · 预览' : null"><app-inline-entry-text [images]="inlineNodeMedia('example', example, 'ka')" [body]="example.get('ka')?.value || ''" [references]="nodeReferences(example)" [markers]="formArrayAt(example, 'markers').getRawValue()" field="ka" route="/adminpanel/entries" /></div> }
                     </div>
                     <div class="font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost font-control" type="button" title="Decrease text size · 缩小字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], -1)">A−</button><button class="btn btn-ghost font-control" type="button" title="Increase text size · 放大字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], 1)">A+</button><button class="btn btn-ghost" type="button" [disabled]="!example.get('id')?.value" (click)="commentOn(example)" title="Comment on this example · 评论此例句">💬</button></div>
                   </div>
@@ -1198,7 +1202,7 @@
                   }
                 </div>
                 <div class="media-meta">
-                  <strong>{{ item.originalFilename }}</strong>
+                  <strong>{{ item.displayName || item.originalFilename }}</strong>
                   <span
                     >{{ item.uploadedByDisplayName }} ·
                     {{ item.uploadedAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</span

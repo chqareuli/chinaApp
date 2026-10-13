@@ -11,7 +11,7 @@ describe('InlineEntryText', () => {
     fixture.componentRef.setInput('images', [0, 1, 2].map(offset => ({ offset, url: 'blob:test', alt: 'image' + offset })));
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toBe('ab');
-    expect(Array.from(fixture.nativeElement.children).map((x: any) => x.tagName)).toEqual(['BUTTON', 'EM', 'BUTTON', 'EM', 'BUTTON', 'DIALOG']);
+    expect(Array.from(fixture.nativeElement.children).map((x: any) => x.tagName)).toEqual(['SPAN', 'EM', 'SPAN', 'EM', 'SPAN', 'DIALOG']);
     expect(fixture.nativeElement.querySelectorAll('.image-thumbnail svg').length).toBe(3);
   });
   it('renders abbreviations in italics and links at their position without injecting HTML', () => {

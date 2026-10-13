@@ -247,7 +247,7 @@ describe('EntryDetailPage status confirmation', () => {
     component.uploadMedia();
     expect(upload).toHaveBeenCalledWith(entry.id, file, asset.placement, component.mediaDisplayName());
     expect(component.nodeMedia('sense', sense)).toEqual([]);
-    expect(component.inlineNodeMedia('sense', sense, 'definition')).toEqual([{offset:7,url:'blob:test',alt:'image.png',label:'image'}]);
+    expect(component.inlineNodeMedia('sense', sense, 'definition')).toEqual([{id:19,offset:7,url:'blob:test',alt:'image.png',label:'image'}]);
     const reloaded = JSON.parse(JSON.stringify(asset));
     component.media.set([reloaded]);
     sense.get('definition')?.setValue('new before after');

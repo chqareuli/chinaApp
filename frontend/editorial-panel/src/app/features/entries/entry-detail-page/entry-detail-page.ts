@@ -339,7 +339,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       const placement = readMediaPlacement(asset.placement);
       const url = this.mediaUrl(asset.id);
       return placement && url && placement.kind === kind && placement.nodeId === id && placement.field === field
-        ? [{ offset: resolveMediaOffset(placement, body), url, alt: asset.displayName || asset.originalFilename, label: asset.displayName || asset.originalFilename.replace(/\.[^.]+$/, '') }] : [];
+        ? [{ id: asset.id, offset: resolveMediaOffset(placement, body), url, alt: asset.displayName || asset.originalFilename, label: asset.displayName || asset.originalFilename.replace(/\.[^.]+$/, '') }] : [];
     });
   }
   hasInlineFormatting(node: FormGroup, field: string): boolean {

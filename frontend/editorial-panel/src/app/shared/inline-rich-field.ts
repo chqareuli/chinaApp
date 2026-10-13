@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, Injector, OnChanges, OnDestroy, ViewChild, afterNextRender, inject, input, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, Injector, OnChanges, OnDestroy, ViewChild, afterNextRender, inject, input, output, signal } from '@angular/core';
 import { AbstractControl, FormArray, FormBuilder, FormGroup } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { InlineEntryText } from './inline-entry-text';
@@ -8,10 +8,14 @@ import { CrossReference } from '../core/models/entry.models';
   selector: 'app-inline-rich-field',
   imports: [InlineEntryText],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div #editor contenteditable="true" role="textbox" aria-multiline="true" [attr.aria-label]="label()" [attr.data-placeholder]="label()" [attr.data-empty]="!body()" (click)="editableClick($event)" (input)="readInput()" (keyup)="syncSelection()" (mouseup)="syncSelection()" (blur)="syncSelection()" (paste)="paste($event)" (keydown)="keyDown($event)" (keydown.enter)="lineBreak($event)" (drop)="$event.preventDefault()"></div><div #formatted hidden aria-hidden="true"><app-inline-entry-text [body]="body()" [markers]="markers()" [references]="references()" [field]="field()" route="/adminpanel/entries" /></div>`,
-  styles: [`:host{display:block}div{min-height:54px;white-space:pre-wrap;overflow-wrap:anywhere;outline:none;line-height:1.5}div[data-empty="true"]:before{content:attr(data-placeholder);color:#929292;pointer-events:none;position:absolute}div:focus-visible{outline:2px solid #86bde9;outline-offset:4px;border-radius:4px}`],
+  template: `<div #editor contenteditable="true" role="textbox" aria-multiline="true" [attr.aria-label]="label()" [attr.data-placeholder]="label()" [attr.data-empty]="!body() && !images().length" (click)="editableClick($event)" (input)="readInput()" (keyup)="syncSelection()" (mouseup)="syncSelection()" (blur)="syncSelection()" (paste)="paste($event)" (keydown)="keyDown($event)" (keydown.enter)="lineBreak($event)" (drop)="$event.preventDefault()"></div><div #formatted hidden aria-hidden="true"><app-inline-entry-text [body]="body()" [images]="images()" [removable]="true" [markers]="markers()" [references]="references()" [field]="field()" route="/adminpanel/entries" /></div><dialog #imageViewer class="image-viewer" aria-label="Image preview · 图片预览" (click)="$event.target === imageViewer && imageViewer.close()" (close)="expandedImage.set(null)">@if (expandedImage(); as image) { <button class="image-close" type="button" autofocus aria-label="Close · 关闭" (click)="imageViewer.close()">×</button><img [src]="image.url" [alt]="image.alt" /> }</dialog>`,
+  styles: [`:host{display:block}div{min-height:54px;white-space:pre-wrap;overflow-wrap:anywhere;outline:none;line-height:1.5}div[data-empty="true"]:before{content:attr(data-placeholder);color:#929292;pointer-events:none;position:absolute}dialog.image-viewer{border:0;border-radius:14px;padding:40px 16px 16px;max-width:94vw;max-height:94vh}dialog.image-viewer::backdrop{background:#14202bc4}dialog.image-viewer img{display:block;max-width:88vw;max-height:80vh;object-fit:contain}.image-close{position:absolute;top:5px;right:8px;border:0;background:transparent;font-size:28px;cursor:pointer}div:focus-visible{outline:2px solid #86bde9;outline-offset:4px;border-radius:4px}`],
 })
 export class InlineRichField implements OnChanges, AfterViewInit, OnDestroy {
+  readonly images = input<{offset: number; url: string; alt: string; label?: string; id?: number}[]>([]);
+  readonly imageRemove = output<number>();
+  readonly expandedImage = signal<{url: string; alt: string} | null>(null);
+  @ViewChild('imageViewer') private imageViewer?: ElementRef<HTMLDialogElement>;
   readonly annotationArrays = input<FormArray<FormGroup>[]>([]);
   readonly control = input.required<AbstractControl>();
   readonly value = input<string | null>(null);
@@ -80,17 +84,30 @@ export class InlineRichField implements OnChanges, AfterViewInit, OnDestroy {
     if (!editor || !selection?.rangeCount || !editor.contains(selection.anchorNode) || !editor.contains(selection.focusNode)) return;
     const range = selection.getRangeAt(0), prefix = range.cloneRange();
     prefix.selectNodeContents(editor); prefix.setEnd(range.startContainer, range.startOffset);
-    const start = prefix.toString().length;
-    this.bridge().setSelectionRange(start, start + range.toString().length);
+    const start = this.plainText(prefix.cloneContents()).length;
+    this.bridge().setSelectionRange(start, start + this.plainText(range.cloneContents()).length);
   }
-  editableClick(event: MouseEvent): void { if ((event.target as Element)?.closest?.('a')) event.preventDefault(); }
+  editableClick(event: MouseEvent): void {
+    const element = event.target as Element;
+    const remove = element.closest<HTMLElement>('[data-media-remove]');
+    if (remove) {event.preventDefault();this.imageRemove.emit(Number(remove.dataset['mediaRemove']));return;}
+    const image = element.closest<HTMLElement>('[data-image-url]');
+    if (image) {event.preventDefault();this.expandedImage.set({url:image.dataset['imageUrl']!,alt:image.dataset['imageAlt'] || ''});this.imageViewer?.nativeElement.showModal();return;}
+    if (element.closest?.('a')) event.preventDefault();
+  }
+  private plainText(node: Node): string {
+    const copy = node.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll?.('.inline-image,dialog').forEach(item => item.remove());
+    return copy.textContent || '';
+  }
   readInput(): void {
     const editor = this.editor?.nativeElement; if (!editor) return;
-    const value = (editor.textContent || '').replace(/\r\n/g, '\n');
+    const value = this.plainText(editor).replace(/\r\n/g, '\n');
     this.bridge().value = value; this.syncSelection();
     const start = this.bridge().selectionStart, end = this.bridge().selectionEnd;
     this.lastState = this.captureState(); this.control().setValue(value); this.control().markAsDirty();
     this.bridge().setSelectionRange(start,end);
+    this.scheduleRender();
   }
   paste(event: ClipboardEvent): void {
     event.preventDefault();
@@ -109,7 +126,7 @@ export class InlineRichField implements OnChanges, AfterViewInit, OnDestroy {
     if (!this.control().dirty && document.activeElement !== this.bridge() && !editor.contains(document.activeElement)) return;
     const range = document.createRange();
     const point = (offset: number): [Node, number] => {
-      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT); let node: Node | null;
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {acceptNode: node => node.parentElement?.closest('.inline-image,dialog') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT}); let node: Node | null;
       while ((node = walker.nextNode())) {
         const length = node.textContent?.length || 0;
         if (offset <= length) return [node, offset];
