@@ -28,6 +28,9 @@ export class MediaService {
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/media/${id}`);
   }
+  reuse(entryId: number, mediaId: number, placement: string): Observable<MediaAssetItem> {
+    return this.http.post<MediaAssetItem>(`${this.apiBaseUrl}/entries/${entryId}/media/reuse`, {mediaId, placement});
+  }
 
   getContent(storageUrl: string): Observable<Blob> {
     return this.http.get(`${this.apiBaseUrl}${storageUrl}`, { responseType: 'blob' });

@@ -11,6 +11,7 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
         builder.ToTable("media_assets");
 
         builder.HasKey(m => m.Id);
+        builder.HasIndex(m => m.SafeStorageName);
 
         builder.Property(m => m.OriginalFilename).IsRequired();
         builder.Property(m => m.SafeStorageName).IsRequired();

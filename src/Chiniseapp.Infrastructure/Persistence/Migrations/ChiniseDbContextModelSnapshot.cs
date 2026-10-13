@@ -497,6 +497,8 @@ namespace Chiniseapp.Infrastructure.Persistence.Migrations
                     b.HasIndex("EntryId")
                         .HasDatabaseName("ix_media_assets_entry_id");
 
+                    b.HasIndex("SafeStorageName").HasDatabaseName("ix_media_assets_safe_storage_name");
+
                     b.HasIndex("InsertedIntoSegmentId")
                         .HasDatabaseName("ix_media_assets_inserted_into_segment_id");
 

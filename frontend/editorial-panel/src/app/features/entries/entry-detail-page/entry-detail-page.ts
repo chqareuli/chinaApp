@@ -2,6 +2,7 @@ import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
+  DestroyRef,
   Component,
   computed,
   ElementRef,
@@ -15,6 +16,7 @@ import {
 } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, finalize, of, switchMap, tap } from 'rxjs';
 import {
   CommentSummary,
@@ -78,6 +80,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly entriesService = inject(EntriesService);
   private readonly collaboration = inject(CollaborationService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly mediaService = inject(MediaService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
@@ -279,6 +282,31 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly mediaDisplayName = signal('');
   readonly selectedMediaPreview = signal<string | null>(null);
   readonly mediaTarget = signal<{ kind: 'sense' | 'example'; node: FormGroup } | null>(null);
+  readonly useExistingMedia = signal(false);
+  readonly mediaLibraryItems = signal<MediaAssetItem[]>([]);
+  readonly mediaLibraryLoading = signal(false);
+  readonly mediaLibraryPage = signal(1);
+  readonly mediaLibraryTotal = signal(0);
+  private mediaLibraryQuery = '';
+  private mediaLibraryRequest = 0;
+  browseMedia(query = this.mediaLibraryQuery, page = 1): void {
+    this.useExistingMedia.set(true); this.mediaLibraryQuery = query;
+    this.mediaLibraryLoading.set(true); this.mediaError.set(null);
+    const request = ++this.mediaLibraryRequest;
+    this.mediaService.library(page, query).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next: result => {
+      if (request !== this.mediaLibraryRequest) return;
+      this.mediaLibraryItems.set(result.items); this.mediaLibraryPage.set(result.page); this.mediaLibraryTotal.set(result.total); this.mediaLibraryLoading.set(false);
+      result.items.forEach(item => this.loadMediaUrl(item));
+    }, error: () => { if (request === this.mediaLibraryRequest) {this.mediaLibraryLoading.set(false); this.mediaError.set('სურათების ჩატვირთვა ვერ მოხერხდა.');} }});
+  }
+  insertExistingMedia(asset: MediaAssetItem): void {
+    if (!this.entryId || !this.canEditFields() || this.mediaSaving() || !this.mediaTarget()?.node.get('id')?.value) return;
+    this.mediaSaving.set(true); this.mediaError.set(null);
+    this.mediaService.reuse(this.entryId, asset.id, this.mediaPlacement()).pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.mediaSaving.set(false))).subscribe({
+      next: item => {this.media.update(items => [item, ...items]); this.loadMediaUrl(item); this.mediaTarget.set(null);},
+      error: (error: HttpErrorResponse) => this.mediaError.set(this.problemMessage(error, 'სურათის ჩასმა ვერ მოხერხდა.')),
+    });
+  }
   readonly exampleMediaFields = signal(new Map<FormGroup, 'zh' | 'ka'>());
   rememberExampleMediaField(node: FormGroup, field: 'zh' | 'ka'): void {
     this.exampleMediaFields.update(fields => new Map(fields).set(node, field));
@@ -291,6 +319,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     if (!this.canEditFields()) return;
     this.clearSelectedMedia();
     this.mediaError.set(null);
+    this.useExistingMedia.set(false);
     this.mediaTarget.set({ kind, node });
     this.mediaPlacement.set(captureMediaPlacement(kind, node.get('id')?.value, fieldName, field.value, field.selectionStart ?? field.value.length));
   }

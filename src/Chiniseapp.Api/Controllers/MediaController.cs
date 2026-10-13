@@ -24,6 +24,8 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         var allowed = Enum.GetValues<EntryStatus>().Where(status => EntryPermissionRules.CanView(User.GetEditorRole(), status)).ToArray();
         var query = db.MediaAssets.AsNoTracking().Where(m => db.Entries.Any(e => e.Id == m.EntryId && allowed.Contains(e.Status)));
         if (!string.IsNullOrWhiteSpace(q)) query = query.Where(m => (m.DisplayName ?? m.OriginalFilename).Contains(q.Trim()));
+        var uniqueIds = query.GroupBy(m => m.SafeStorageName).Select(group => group.Min(m => m.Id));
+        query = query.Where(m => uniqueIds.Contains(m.Id));
         var total = await query.CountAsync(ct);
         var assets = await query.OrderByDescending(m => m.UploadedAtUtc).ThenByDescending(m => m.Id).Skip((page - 1) * 25).Take(25).ToListAsync(ct);
         var items = new List<object>();
@@ -42,14 +44,8 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         foreach (var item in items) results.Add(await Summary(item, ct));
         return Ok(results);
     }
-    [HttpPost("entries/{entryId:int}/media"), RequestSizeLimit(6 * 1024 * 1024)]
-    public async Task<IActionResult> Upload(int entryId, IFormFile file, [FromForm] string? placement, CancellationToken ct, [FromForm] string? displayName = null)
+    private async Task<(string? Error, int? SegmentId)> ValidatePlacement(int entryId, string? placement, CancellationToken ct)
     {
-        var entry = await db.Entries.FindAsync([entryId], ct);
-        if (entry is null) return NotFound();
-        if (!EntryPermissionRules.CanEditContent(User.GetEditorRole(), entry.Status)) return Forbid();
-        displayName = displayName?.Trim();
-        if (displayName?.Length > 200) return BadRequest(new { message = "Image name must be at most 200 characters." });
         int? insertedIntoSegmentId = null;
         if (placement?.StartsWith("inline:", StringComparison.Ordinal) == true)
         {
@@ -65,17 +61,30 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
                 var after = root.GetProperty("after").GetString();
                 if (offset < 0 || before is null || after is null || before.Length > 32 || after.Length > 32
                     || !(kind == "sense" && field == "definition" || kind == "example" && field is "ka" or "zh"))
-                    return BadRequest(new { message = "Invalid image insertion position." });
+                    return ("Invalid image insertion position.", null);
                 var expected = kind == "sense" ? SegmentType.Sense : SegmentType.Example;
                 if (!await db.Segments.AnyAsync(s => s.Id == nodeId && s.EntryId == entryId && s.SegmentType == expected, ct))
-                    return BadRequest(new { message = "Save the target definition or example before inserting an image." });
+                    return ("Save the target definition or example before inserting an image.", null);
                 insertedIntoSegmentId = nodeId;
             }
             catch (Exception error) when (error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
             {
-                return BadRequest(new { message = "Invalid image insertion position." });
+                return ("Invalid image insertion position.", null);
             }
         }
+        return (null, insertedIntoSegmentId);
+    }
+    [HttpPost("entries/{entryId:int}/media"), RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<IActionResult> Upload(int entryId, IFormFile file, [FromForm] string? placement, CancellationToken ct, [FromForm] string? displayName = null)
+    {
+        var entry = await db.Entries.FindAsync([entryId], ct);
+        if (entry is null) return NotFound();
+        if (!EntryPermissionRules.CanEditContent(User.GetEditorRole(), entry.Status)) return Forbid();
+        displayName = displayName?.Trim();
+        if (displayName?.Length > 200) return BadRequest(new { message = "Image name must be at most 200 characters." });
+        var position = await ValidatePlacement(entryId, placement, ct);
+        if (position.Error is not null) return BadRequest(new { message = position.Error });
+        var insertedIntoSegmentId = position.SegmentId;
         if (file.Length is <= 0 or > 5 * 1024 * 1024) return BadRequest(new { message = "Image must be at most 5 MB." });
         await using var stream = file.OpenReadStream();
         var header = new byte[12];
@@ -108,6 +117,35 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         }
         catch { System.IO.File.Delete(path); throw; }
     }
+    public record ReuseMediaRequest(int MediaId, string? Placement);
+    [HttpPost("entries/{entryId:int}/media/reuse")]
+    public async Task<IActionResult> Reuse(int entryId, ReuseMediaRequest request, CancellationToken ct)
+    {
+        var entry = await db.Entries.FindAsync([entryId], ct);
+        if (entry is null) return NotFound();
+        if (!EntryPermissionRules.CanEditContent(User.GetEditorRole(), entry.Status)) return Forbid();
+        var source = await db.MediaAssets.AsNoTracking().SingleOrDefaultAsync(m => m.Id == request.MediaId, ct);
+        if (source is null) return NotFound();
+        var sourceEntry = await EntryFor(source, ct);
+        if (sourceEntry is null || !EntryPermissionRules.CanView(User.GetEditorRole(), sourceEntry.Status)) return NotFound();
+        var position = await ValidatePlacement(entryId, request.Placement, ct);
+        if (position.Error is not null) return BadRequest(new { message = position.Error });
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({source.SafeStorageName}, 0))", ct);
+        if (!await db.MediaAssets.AnyAsync(m => m.Id == source.Id, ct) || !System.IO.File.Exists(Path.Combine(StorageDirectory, source.SafeStorageName))) return NotFound();
+        var item = new MediaAsset { EntryId = entryId, InsertedIntoSegmentId = position.SegmentId,
+            OriginalFilename = source.OriginalFilename, DisplayName = source.DisplayName, SafeStorageName = source.SafeStorageName,
+            FileType = source.FileType, MimeType = source.MimeType, Placement = request.Placement,
+            UploadedByEditorId = source.UploadedByEditorId, UploadedAtUtc = source.UploadedAtUtc };
+        db.MediaAssets.Add(item);
+        await db.SaveChangesAsync(ct);
+        item.StorageUrl = $"/media/{item.Id}/content";
+        await db.SaveChangesAsync(ct);
+        var result = await Summary(item, ct);
+        await transaction.CommitAsync(ct);
+        return Ok(result);
+    }
+
     [HttpGet("media/{id:int}/content")]
     public async Task<IActionResult> Content(int id, CancellationToken ct)
     {
@@ -128,9 +166,12 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         if (item is null) return NotFound();
         var entry = await EntryFor(item, ct);
         if (entry is null || !EntryPermissionRules.CanEditContent(User.GetEditorRole(), entry.Status)) return Forbid();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({item.SafeStorageName}, 0))", ct);
         db.MediaAssets.Remove(item);
         await db.SaveChangesAsync(ct);
-        if (Guid.TryParseExact(item.SafeStorageName, "N", out _)) System.IO.File.Delete(Path.Combine(StorageDirectory, item.SafeStorageName));
+        if (!await db.MediaAssets.AnyAsync(m => m.SafeStorageName == item.SafeStorageName, ct) && Guid.TryParseExact(item.SafeStorageName, "N", out _)) System.IO.File.Delete(Path.Combine(StorageDirectory, item.SafeStorageName));
+        await transaction.CommitAsync(ct);
         return NoContent();
     }
 }
