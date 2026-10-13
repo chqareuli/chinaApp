@@ -21,7 +21,7 @@ export class MediaService {
     const form = new FormData();
     form.append('file', file, file.name);
     if (placement) form.append('placement', placement);
-    if (displayName?.trim()) form.append('displayName', displayName.trim());
+    if (displayName?.trim()) form.append('displayName', displayName);
     return this.http.post<MediaAssetItem>(`${this.apiBaseUrl}/entries/${entryId}/media`, form);
   }
 

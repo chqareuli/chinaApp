@@ -213,6 +213,15 @@ describe('EntryDetailPage status confirmation', () => {
     expect(component.formArrayAt(component.homonyms.at(0), 'gramGroups').at(0)).toBe(group);
   });
 
+  it('preserves the typed image name when selecting an image file', () => {
+    component.mediaDisplayName.set('ჩემი სურათი');
+    const input=document.createElement('input');
+    Object.defineProperty(input,'files',{value:[new File(['image'],'different-filename.png',{type:'image/png'})]});
+    vi.spyOn(URL,'createObjectURL').mockReturnValue('blob:test');
+    component.selectMedia({target:input} as unknown as Event);
+    expect(component.mediaDisplayName()).toBe('ჩემი სურათი');
+  });
+
   it('uses the last focused field of each example for the single image button', () => {
     const first = new FormGroup({}), second = new FormGroup({});
     const chinese = document.createElement('textarea'), georgian = document.createElement('textarea');
@@ -244,6 +253,7 @@ describe('EntryDetailPage status confirmation', () => {
     Object.assign(TestBed.inject(MediaService), {upload, getContent: () => of(new Blob(['image']))});
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
     component.selectedMedia.set(file);
+    component.mediaDisplayName.set('image');
     component.uploadMedia();
     expect(upload).toHaveBeenCalledWith(entry.id, file, asset.placement, component.mediaDisplayName());
     expect(component.nodeMedia('sense', sense)).toEqual([]);

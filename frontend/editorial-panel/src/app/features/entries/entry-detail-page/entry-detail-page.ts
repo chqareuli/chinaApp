@@ -320,6 +320,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.clearSelectedMedia();
     this.mediaError.set(null);
     this.useExistingMedia.set(false);
+    this.mediaDisplayName.set('');
     this.mediaTarget.set({ kind, node });
     this.mediaPlacement.set(captureMediaPlacement(kind, node.get('id')?.value, fieldName, field.value, field.selectionStart ?? field.value.length));
   }
@@ -1052,7 +1053,6 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     }
 
     this.selectedMedia.set(file);
-    this.mediaDisplayName.set(file.name.replace(/\.[^.]+$/, ''));
     this.selectedMediaPreview.set(URL.createObjectURL(file));
   }
 
@@ -1063,6 +1063,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   uploadMedia(): void {
     const file = this.selectedMedia();
     if (!file || !this.canEditFields() || !this.entryId || this.mediaSaving()) return;
+    if (!this.mediaDisplayName().trim()) { this.mediaError.set('შეიყვანეთ სურათის სახელი.'); return; }
     if (this.mediaTarget() && !this.mediaTarget()!.node.get('id')?.value) return;
 
     this.mediaSaving.set(true);

@@ -80,8 +80,14 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         var entry = await db.Entries.FindAsync([entryId], ct);
         if (entry is null) return NotFound();
         if (!EntryPermissionRules.CanEditContent(User.GetEditorRole(), entry.Status)) return Forbid();
-        displayName = displayName?.Trim();
-        if (displayName?.Length > 200) return BadRequest(new { message = "Image name must be at most 200 characters." });
+        if (string.IsNullOrWhiteSpace(displayName)) return BadRequest(new { message = "შეიყვანეთ სურათის სახელი." });
+        if (displayName.Length > 200) return BadRequest(new { message = "Image name must be at most 200 characters." });
+        var normalizedName = displayName.Trim().ToLowerInvariant();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var nameLock = "media-name:" + normalizedName;
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({nameLock}, 0))", ct);
+        if (await db.MediaAssets.AnyAsync(m => m.DisplayName != null && m.DisplayName.Trim().ToLower() == normalizedName, ct))
+            return Conflict(new { message = "სახელი უკვე გამოყენებულია. აირჩიეთ სხვა სახელი ან გამოიყენეთ არსებული სურათი." });
         var position = await ValidatePlacement(entryId, placement, ct);
         if (position.Error is not null) return BadRequest(new { message = position.Error });
         var insertedIntoSegmentId = position.SegmentId;
@@ -103,11 +109,10 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
                 await output.WriteAsync(header.AsMemory(0,count), ct);
                 await stream.CopyToAsync(output, ct);
             }
-            var item = new MediaAsset { EntryId = entryId, OriginalFilename = Path.GetFileName(file.FileName), DisplayName = string.IsNullOrWhiteSpace(displayName) ? Path.GetFileNameWithoutExtension(file.FileName) : displayName,
+            var item = new MediaAsset { EntryId = entryId, OriginalFilename = Path.GetFileName(file.FileName), DisplayName = displayName,
                 SafeStorageName = key, FileType = MediaFileType.Image, MimeType = mime, Placement = placement, InsertedIntoSegmentId = insertedIntoSegmentId,
                 UploadedByEditorId = User.GetEditorId(), UploadedAtUtc = DateTime.UtcNow };
             db.MediaAssets.Add(item);
-            await using var transaction = await db.Database.BeginTransactionAsync(ct);
             await db.SaveChangesAsync(ct);
             item.StorageUrl = $"/media/{item.Id}/content";
             await db.SaveChangesAsync(ct);
