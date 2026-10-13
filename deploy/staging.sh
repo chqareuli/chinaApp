@@ -27,6 +27,10 @@ test -f "$release/frontend/index.html"
 install -d -m 700 "$backup"
 cp -a "$base/app/backend" "$backup/backend"
 cp -a "$base/app/frontend" "$backup/frontend"
+install -d -o chiniseapp -g chiniseapp "$base/storage/media"
+if [[ -d "$base/app/backend/App_Data/media" && ! -L "$base/app/backend/App_Data/media" ]]; then
+  cp -an "$base/app/backend/App_Data/media/." "$base/storage/media/"
+fi
 tar -czf "$backup/storage.tar.gz" -C "$base" storage
 stopped=0
 switched=0
@@ -58,6 +62,8 @@ systemd-run --wait --pipe --unit="chiniseapp-migrate-${revision:0:12}" \
   /usr/bin/dotnet "$release/backend/Chiniseapp.Api.dll" --migrate-only
 cp -a "$release/backend" "$base/app/backend.next"
 cp -a "$release/frontend" "$base/app/frontend.next"
+mkdir -p "$base/app/backend.next/App_Data"
+ln -s "$base/storage/media" "$base/app/backend.next/App_Data/media"
 chown -R chiniseapp:chiniseapp "$base/app/backend.next" "$base/app/frontend.next"
 switched=1
 mv "$base/app/backend" "$backup/previous-backend"
