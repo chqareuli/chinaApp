@@ -8,6 +8,58 @@ namespace Chiniseapp.Tests;
 
 public class EntrySchemaCompatibilityTests
 {
+    [Fact]
+    public void HomographPronunciationIdentitySurvivesReloadRenameAndReorder()
+    {
+        var request = new SaveEntryContentRequest(null, null, [new HomonymDto([]) { PinyinId = 2, Text = "stale" }], 0);
+        var forms = new LexicalForms([new(1, "hé", 1), new(2, "huó", 0)], []);
+        var linked = EntryTreeMapper.LinkPronunciations(request, forms);
+        var mapper = new EntryTreeMapper(1, [], DateTime.UtcNow);
+        mapper.Apply(linked);
+        var reloaded = EntryTreeMapper.Read(Persist(mapper));
+        Assert.Equal(2, reloaded.Homonyms[0].PinyinId);
+        Assert.Equal("huó", reloaded.Homonyms[0].Text);
+        var renamed = EntryTreeMapper.LinkPronunciations(reloaded, new([new(2, "huò", 1), new(1, "hé", 0)], []));
+        Assert.Equal("huò", renamed.Homonyms[0].Text);
+        Assert.Throws<EntryValidationException>(() => EntryTreeMapper.LinkPronunciations(reloaded, new([new(1, "hé", 0)], [])));
+    }
+    [Fact]
+    public void NewPronunciationLinksResolveToSavedIdsWhileIndependentLegacyLabelsRemain()
+    {
+        var request = new SaveEntryContentRequest(null, null, [new HomonymDto([]) { PinyinOrder = 0 }, new HomonymDto([]) { Text = "legacy" }], 0);
+        var linked = EntryTreeMapper.LinkPronunciations(request, new([new(7, "hé", 0)], []));
+        Assert.Equal(7, linked.Homonyms[0].PinyinId);
+        Assert.Null(linked.Homonyms[0].PinyinOrder);
+        Assert.Equal("legacy", linked.Homonyms[1].Text);
+    }
+    [Fact]
+    public void InlineAnnotationsPreserveTheirFieldPositionAndTextOnReload()
+    {
+        var mapper = new EntryTreeMapper(1, [], DateTime.UtcNow);
+        mapper.Apply(new(null, null, [], 0) { Senses = [new(1, "ჩვეულ. იხ. 中国", []) {
+            Markers = [new(null, "Abbr", "usual") { TextField = "definition", TextOffset = 0, DisplayText = "ჩვეულ." }],
+            CrossReferences = [new(null, "see", "იხ.", "中国", 2, "中国", "იხ. 中国", "Inline") { TextField = "definition", TextOffset = 7 }]
+        }] });
+        var result = EntryTreeMapper.Read(Persist(mapper));
+        Assert.Equal("ჩვეულ.", result.Senses[0].Markers[0].DisplayText);
+        Assert.Equal(0, result.Senses[0].Markers[0].TextOffset);
+        Assert.Equal("definition", result.Senses[0].CrossReferences[0].TextField);
+        Assert.Equal(7, result.Senses[0].CrossReferences[0].TextOffset);
+        Assert.Equal(2, result.Senses[0].CrossReferences[0].TargetEntryId);
+    }
+    [Fact]
+    public void WrittenFormsEnforceIndependentLimitsWithoutChangingPersistedData()
+    {
+        var entry = new Entry { Lemma = "测试" };
+        var pinyins = Enumerable.Range(1, 5).Select(i => new FormItemDto(null, $"pinyin{i}", i)).ToList();
+        var forms = Enumerable.Range(1, 3).Select(i => new FormItemDto(null, $"form{i}", i)).ToList();
+        EntryTreeMapper.SaveForms(entry, pinyins, forms);
+        var original = entry.LexicalForms;
+        Assert.Throws<EntryValidationException>(() => EntryTreeMapper.SaveForms(entry, [.. pinyins, new(null, "extra", 5)], null));
+        Assert.Equal(original, entry.LexicalForms);
+        Assert.Throws<EntryValidationException>(() => EntryTreeMapper.SaveForms(entry, null, [.. forms, new(null, "extra", 3)]));
+        Assert.Equal(original, entry.LexicalForms);
+    }
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private static List<Segment> Persist(EntryTreeMapper mapper)
     {

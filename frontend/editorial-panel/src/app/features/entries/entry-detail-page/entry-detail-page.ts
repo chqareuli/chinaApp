@@ -43,9 +43,14 @@ import { AuthService } from '../../../core/services/auth.service';
 import { CollaborationService } from '../../../core/services/collaboration.service';
 import { EntriesService } from '../../../core/services/entries.service';
 import { MediaService } from '../../../core/services/media.service';
+import { captureMediaPlacement, readMediaPlacement, resolveMediaOffset } from '../../../shared/inline-media';
 import { getStatusMeta } from '../../../shared/status-badge/status-badge';
 import { EditorialDecorations } from '../../../shared/editorial-decorations/editorial-decorations';
 import { RepeatableTextList } from '../../../shared/repeatable-text-list/repeatable-text-list';
+import { InlineEntryText } from '../../../shared/inline-entry-text';
+import { LinkedMessageBody } from '../../../shared/linked-message-body/linked-message-body';
+import { ReferenceText } from '../../../shared/reference-text';
+import { InlineRichField } from '../../../shared/inline-rich-field';
 
 type EntryTab = 'content' | 'reference' | 'media' | 'history';
 type EntryNotesTab = 'reference' | 'comments' | 'support';
@@ -59,6 +64,10 @@ type EntryNotesTab = 'reference' | 'comments' | 'support';
     ReactiveFormsModule,
     EditorialDecorations,
     RepeatableTextList,
+    InlineEntryText,
+    LinkedMessageBody,
+    ReferenceText,
+    InlineRichField,
   ],
   templateUrl: './entry-detail-page.html',
   styleUrl: './entry-detail-page.scss',
@@ -100,15 +109,74 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     localStorage.setItem('cx-entry-editor-hierarchy-frames', this.framesVisible() ? 'on' : 'off');
   }
   readonly structureVisible = signal(false);
+  readonly editingHomograph = signal<number | null>(null);
+  homographLabel(index: number): string {
+    const values = this.homonyms.controls.map(node => {
+      const linked = node.get('pinyinId')?.value != null
+        ? this.pinyins.controls.find(p => p.get('id')?.value === node.get('pinyinId')?.value)
+        : node.get('pinyinOrder')?.value != null ? this.pinyins.at(node.get('pinyinOrder')?.value) : null;
+      return String(linked?.get('value')?.value ?? node.get('text')?.value ?? '').trim();
+    });
+    const value = values[index];
+    if (!value) return `H${index + 1}`;
+    const matching = values.filter(item => item === value).length;
+    return matching > 1 ? `${value} ${values.slice(0, index + 1).filter(item => item === value).length}` : value;
+  }
+  homographPronunciationIndex(node: FormGroup): string {
+    const id = node.get('pinyinId')?.value;
+    const index = id != null ? this.pinyins.controls.findIndex(p => p.get('id')?.value === id) : node.get('pinyinOrder')?.value;
+    return index != null && index >= 0 ? String(index) : '';
+  }
+  linkHomographPronunciation(node: FormGroup, value: string): void {
+    const pinyin = value === '' ? null : this.pinyins.at(Number(value));
+    node.patchValue({ pinyinId: pinyin?.get('id')?.value ?? null,
+      pinyinOrder: pinyin && pinyin.get('id')?.value == null ? Number(value) : null,
+      text: pinyin?.get('value')?.value ?? node.get('text')?.value ?? '' });
+    this.markContentChanged();
+    this.editingHomograph.set(null);
+  }
   readonly entry = signal<EntryDetail | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly activeTab = signal<EntryTab>('content');
   readonly notesTab = signal<EntryNotesTab>('reference');
+  readonly referenceGroups = [
+    { key: 'g1', title: 'Chinese–English · 汉英', source: '汉英词典' },
+    { key: 'g2', title: 'Chinese explanatory · 汉语释义', source: '现代汉语词典' },
+    { key: 'g3', title: 'Chinese–Russian · 汉俄', source: '汉俄词典' },
+    { key: 'g4', title: 'Other reference material · 其他参考资料', source: '' },
+    { key: 'g5', title: 'Additional information · 补充资料', source: '' },
+  ];
+  readonly collapsedReferenceGroups = signal<string[]>([]);
+  toggleReferenceGroup(group: string): void {
+    this.collapsedReferenceGroups.update(groups => groups.includes(group) ? groups.filter(item => item !== group) : [...groups, group]);
+  }
+  readonly privateMessageRecipient = signal<{ id: number; name: string } | null>(null);
+  readonly privateMessageText = signal('');
+  readonly privateMessageSaving = signal(false);
+  readonly privateMessageError = signal<string | null>(null);
+  openPrivateMessage(comment: CommentSummary): void {
+    this.privateMessageRecipient.set({id: comment.authorEditorId, name: comment.authorDisplayName});
+    this.privateMessageText.set(''); this.privateMessageError.set(null);
+  }
+  replyParent(id: number): CommentSummary | undefined { return this.comments().find(comment => comment.id === id); }
+  sendPrivateMessage(): void {
+    const recipient = this.privateMessageRecipient();
+    if (!recipient || !this.privateMessageText().trim() || this.privateMessageSaving()) return;
+    this.privateMessageSaving.set(true);
+    this.collaboration.sendMessage(recipient.id, this.privateMessageText().trim()).pipe(finalize(() => this.privateMessageSaving.set(false))).subscribe({
+      next: () => this.privateMessageRecipient.set(null),
+      error: error => this.privateMessageError.set(this.problemMessage(error, 'Unable to send message · 无法发送消息')),
+    });
+  }
+  commentRole(role?: string | null): string {
+    return ({SuperAdmin:'SV · 主管',ChiefEditor:'EC · 主编',DeputyChiefEditor:'DE · 副主编',Editor:'CE · 汉外翻译编辑',KaEditor:'GE · 格文编辑'} as Record<string,string>)[role || ''] || role || '';
+  }
   readonly notesExpanded = signal(false);
   readonly saving = signal(false);
   readonly saveSuccess = signal(false);
   readonly saveError = signal<string | null>(null);
+  readonly draftWarning = signal<string | null>(null);
   readonly concurrencyConflict = signal(false);
   readonly changingStatus = signal<string | null>(null);
   readonly statusError = signal<string | null>(null);
@@ -117,7 +185,58 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly comments = signal<CommentSummary[]>([]);
   readonly commentsLoading = signal(false);
   readonly commentText = signal('');
+  readonly commentTarget = signal<number | null>(null);
+  readonly replyingTo = signal<CommentSummary | null>(null);
+  readonly commentsPinned = signal(false);
+  readonly commentFontSize = signal(16);
+  readonly referenceQuery = signal('');
+  readonly referenceGroup = signal('all');
+  readonly referencePinned = signal(false);
+  readonly referenceRaw = signal(false);
+  readonly referenceFontSize = signal(16);
+  commentOn(node: FormGroup): void {
+    const id = node.get('id')?.value;
+    if (!id) return;
+    this.commentTarget.set(id);
+    this.replyingTo.set(null);
+    this.notesExpanded.set(true);
+    this.setNotesTab('comments');
+  }
+  replyTo(comment: CommentSummary): void {
+    this.replyingTo.set(comment);
+    this.commentTarget.set(comment.targetSegmentId ?? null);
+  }
+  replyAuthor(id: number): string {
+    return this.comments().find(comment => comment.id === id)?.authorDisplayName ?? '';
+  }
+  commentTargetLabel(id: number): string {
+    const visit = (node: FormGroup | FormArray): string | null => {
+      if (node instanceof FormGroup && node.get('id')?.value === id) {
+        return node.get('definition')?.value || [node.get('zh')?.value, node.get('ka')?.value].filter(Boolean).join(' — ') || null;
+      }
+      for (const child of Object.values(node.controls)) {
+        if (child instanceof FormGroup || child instanceof FormArray) {
+          const result = visit(child);
+          if (result) return result;
+        }
+      }
+      return null;
+    };
+    return visit(this.entryForm) ?? 'Entry · 词目';
+  }
+  resizeNotes(kind: 'comments' | 'reference', delta: number): void {
+    const size = kind === 'comments' ? this.commentFontSize : this.referenceFontSize;
+    size.update(value => Math.min(40, Math.max(12, value + delta)));
+  }
+  referenceVisible(group: string): boolean {
+    if (this.referenceGroup() !== 'all' && this.referenceGroup() !== group) return false;
+    const query = this.referenceQuery().trim().toLocaleLowerCase();
+    return !query || String(this.referenceForm.get(group)?.value ?? '').toLocaleLowerCase().includes(query);
+  }
   readonly commentSaving = signal(false);
+  referenceLines(group: string): string[] {
+    return String(this.referenceForm.get(group)?.value ?? '').split(/\r?\n|\/{2,}/).map(line => line.trim()).filter(Boolean);
+  }
   readonly editingCommentId = signal<number | null>(null);
   readonly editingCommentText = signal('');
   readonly commentError = signal<string | null>(null);
@@ -159,12 +278,12 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly selectedMedia = signal<File | null>(null);
   readonly selectedMediaPreview = signal<string | null>(null);
   readonly mediaTarget = signal<{ kind: 'sense' | 'example'; node: FormGroup } | null>(null);
-  openNodeMedia(kind: 'sense' | 'example', node: FormGroup): void {
+  openNodeMedia(kind: 'sense' | 'example', node: FormGroup, field: HTMLTextAreaElement, fieldName: 'definition' | 'zh' | 'ka'): void {
     if (!this.canEditFields()) return;
     this.clearSelectedMedia();
     this.mediaError.set(null);
     this.mediaTarget.set({ kind, node });
-    this.mediaPlacement.set(kind + ':' + node.get('id')?.value);
+    this.mediaPlacement.set(captureMediaPlacement(kind, node.get('id')?.value, fieldName, field.value, field.selectionStart ?? field.value.length));
   }
   closeNodeMedia(): void {
     if (this.mediaSaving()) return;
@@ -175,10 +294,25 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     const id = node.get('id')?.value;
     return id ? this.media().filter(item => item.placement === kind + ':' + id) : [];
   }
+  inlineNodeMedia(kind: 'sense' | 'example', node: FormGroup, field: 'definition' | 'zh' | 'ka') {
+    const id = node.get('id')?.value;
+    const body = node.get(field)?.value || '';
+    return this.media().flatMap(asset => {
+      const placement = readMediaPlacement(asset.placement);
+      const url = this.mediaUrl(asset.id);
+      return placement && url && placement.kind === kind && placement.nodeId === id && placement.field === field
+        ? [{ offset: resolveMediaOffset(placement, body), url, alt: asset.originalFilename }] : [];
+    });
+  }
+  hasInlineFormatting(node: FormGroup, field: string): boolean {
+    return ['markers', 'crossReferences'].some(key => this.formArrayAt(node, key).controls.some(item => item.get('textField')?.value === field));
+  }
   resizeEditorText(fields: HTMLTextAreaElement[], delta: number): void {
     for (const field of fields) {
       const size = parseFloat(getComputedStyle(field).fontSize) || 16;
       field.style.fontSize = Math.min(40, Math.max(12, size + delta)) + 'px';
+      const formatted = field.parentElement?.querySelector<HTMLElement>('.formatted-editor-text');
+      if (formatted) formatted.style.fontSize = field.style.fontSize;
       field.style.height = 'auto';
       field.style.height = field.scrollHeight + 'px';
     }
@@ -245,6 +379,9 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   get homonyms(): FormArray<FormGroup> {
     return this.entryForm.controls.homonyms;
   }
+  nodeReferences(node: FormGroup): CrossReference[] {
+    return this.formArrayAt(node, 'crossReferences').getRawValue() as CrossReference[];
+  }
 
   get pinyins(): FormArray<FormGroup> {
     return this.entryForm.controls.pinyins;
@@ -269,6 +406,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (this.route.snapshot.data['newEntry']) {
       this.isNew.set(true);
+      this.editing.set(true);
       const draft: EntryDetail = {
         id: 0,
         lemma: '',
@@ -565,18 +703,22 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     }
 
     const parents = [this.rootGramGroups, ...this.homonyms.controls.map(h => this.formArrayAt(h, 'gramGroups'))];
-    if (parents.some(groups => {
+    const isDraft = item.status === 'NewEntry';
+    const duplicatePos = parents.some(groups => {
       const values = groups.controls.map(g => String(g.get('pos')?.value ?? '').trim()).filter(Boolean);
       return new Set(values).size !== values.length;
-    })) {
+    });
+    if (duplicatePos && !isDraft) {
       this.saveError.set('ერთი მშობლის ქვეშ ერთი და იგივე POS არ უნდა მეორდებოდეს — მნიშვნელობები ერთ POS ჯგუფში დაამატეთ.');
       return;
     }
     this.entryForm.markAllAsTouched();
-    if (this.entryForm.invalid) {
+    if (this.entryForm.controls.lemma.invalid || (this.entryForm.invalid && !isDraft)) {
       this.saveError.set('შეავსეთ სტატიის სათაური და გადაამოწმეთ ფორმა.');
       return;
     }
+    this.draftWarning.set(isDraft && (this.entryForm.invalid || duplicatePos)
+      ? 'Incomplete draft; complete its structure before review · 草稿尚未完成，请在送审前补全结构' : null);
 
     this.saving.set(true);
     this.saveError.set(null);
@@ -697,12 +839,14 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.commentSaving.set(true);
     this.commentError.set(null);
     this.collaboration
-      .addComment(this.entryId, text)
+      .addComment(this.entryId, text, { targetSegmentId: this.commentTarget(), replyToCommentId: this.replyingTo()?.id })
       .pipe(finalize(() => this.commentSaving.set(false)))
       .subscribe({
         next: (comment) => {
-          this.comments.update((comments) => [comment, ...comments]);
+          this.comments.update((comments) => [...comments, comment]);
           this.commentText.set('');
+          this.replyingTo.set(null);
+          this.commentTarget.set(null);
           this.loadHistory();
         },
         error: (error: HttpErrorResponse) =>
@@ -948,8 +1092,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     return (
       {
         Created: 'სტატია შეიქმნა',
-        StatusChanged: 'სტატუსი შეიცვალა',
-        ContentEdited: 'შინაარსი განახლდა',
+        StatusChanged: 'Stage changed · 阶段更改',
+        ContentEdited: 'Entry edited · 编辑词目',
         CommentAdded: 'კომენტარი დაემატა',
         Archived: 'დაარქივდა',
         Other: 'სხვა ცვლილება',
@@ -963,7 +1107,14 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       const after = this.statusFromAuditValue(item.newValue);
       if (before && after) return `${this.statusLabel(before)} → ${this.statusLabel(after)}`;
     }
-    return item.notes;
+    return item.notes || (item.action === 'ContentEdited' ? 'Entry content updated · 词目内容已更新' : null);
+  }
+  historySection(item: EntryHistoryItem): string {
+    if (item.action === 'StatusChanged') return 'Stage · 状态';
+    if (item.action === 'CommentAdded') return 'Comments · 评论';
+    if (/comment/i.test(item.notes || '')) return 'Comments · 评论';
+    if (/reference/i.test(item.notes || '')) return 'Reference materials · 参考资料';
+    return 'Entry · 词目';
   }
 
   private loadEntry(): void {
@@ -1116,6 +1267,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   private createHomonym(homonym?: Homonym & { senses?: Sense[] }): FormGroup {
     return this.fb.group({
       id: [homonym?.id ?? null],
+      pinyinId: [homonym?.pinyinId ?? null],
+      pinyinOrder: [homonym?.pinyinOrder ?? null],
       text: [homonym?.text ?? ''],
       directSenses: this.fb.array<FormGroup>(
         (homonym?.directSenses ?? []).map((s) => this.createSense(s.number, s)),
@@ -1209,7 +1362,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   private createMarkers(items: EditorialMarker[] = []): FormArray<FormGroup> {
     return this.fb.array<FormGroup>(
       items.map((item) =>
-        this.fb.group({ id: [item.id], category: [item.category], value: [item.value] }),
+        this.fb.group({ id: [item.id], category: [item.category], value: [item.value], textOffset: [item.textOffset ?? null], textField: [item.textField ?? null], displayText: [item.displayText ?? null] }),
       ),
     );
   }
@@ -1226,6 +1379,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
           targetEntryLemma: [item.targetEntryLemma ?? null],
           displayText: [item.displayText ?? ''],
           placement: [item.placement],
+          textOffset: [item.textOffset ?? null],
+          textField: [item.textField ?? null],
         }),
       ),
     );
@@ -1248,8 +1403,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       id: example.id ?? null,
       zhSegmentId: example.zhSegmentId ?? null,
       kaSegmentId: example.kaSegmentId ?? null,
-      zh: example.zh?.trim() ?? '',
-      ka: example.ka?.trim() ?? '',
+      zh: example.zh ?? '',
+      ka: example.ka ?? '',
       markers: example.markers ?? [],
       crossReferences: example.crossReferences ?? [],
     });
@@ -1257,7 +1412,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       id: sense.id ?? null,
       definitionId: sense.definitionId ?? null,
       number: index + 1,
-      definition: sense.definition?.trim() ?? '',
+      definition: sense.definition ?? '',
       markers: sense.markers ?? [],
       crossReferences: sense.crossReferences ?? [],
       examples: (sense.examples ?? []).map(mapExample),
@@ -1293,6 +1448,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       })),
       rowVersion,
       homonyms: homonyms.map((homonym) => ({
+        pinyinId: homonym.pinyinId ?? null,
+        pinyinOrder: homonym.pinyinOrder ?? null,
         id: homonym.id ?? null,
         text: homonym.text?.trim() ?? '',
         directSenses: (homonym.directSenses ?? []).map(mapSense),

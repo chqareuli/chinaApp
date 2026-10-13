@@ -1,4 +1,6 @@
 export interface EntrySummary {
+  mainAuthorEditorId?: number | null;
+  lastEditorEditorId?: number;
   id: number;
   lemma: string;
   pinyin: string | null;
@@ -69,6 +71,8 @@ export interface DirectPos {
 }
 
 export interface Homonym {
+  pinyinId?: number | null;
+  pinyinOrder?: number | null;
   directSenses?: Sense[];
   id: number | null;
   text: string;
@@ -90,12 +94,17 @@ export interface ComplexFormItem {
 }
 
 export interface EditorialMarker {
+  textOffset?: number | null;
+  textField?: string | null;
+  displayText?: string | null;
   id: number | null;
   category: 'Style' | 'Domain' | 'Abbr' | 'Lang';
   value: string;
 }
 
 export interface CrossReference {
+  textOffset?: number | null;
+  textField?: string | null;
   id: number | null;
   type: 'see' | 'seeAlso' | 'equivalent' | 'antonym' | 'illustration';
   label: string;
@@ -132,6 +141,7 @@ export interface EntryCapabilities {
 }
 
 export interface EntryHistoryItem {
+  performedByRole?: string;
   id: number;
   action: string;
   performedByEditorId: number;

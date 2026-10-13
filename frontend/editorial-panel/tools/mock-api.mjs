@@ -139,13 +139,10 @@ let notifications = [
     createdAtUtc: '2026-07-20T05:00:00Z',
   },
 ];
-// Start QA with no article-related data. New articles are created during the session.
-comments = [];
-supportMaterials = [];
-reference = null;
-history = [];
-media = [];
-notifications = [];
+const reviewFixture = process.env.QA_SCENARIO === 'photo-review';
+if (reviewFixture) { entry = structuredClone(entryTemplate); comments[0].authorRole = 'Editor'; comments[0].commentText = 'გთხოვთ გადაამოწმოთ 学习 სტატია.'; reference.g1 = '都 dōu\n● all; both; entirely: 大家都来了。 Everyone has arrived.\n●● even; already: 都十二点了。 It is already twelve o’clock.'; }
+// Default QA starts empty; opt in to a populated screenshot-review fixture.
+if (!reviewFixture) { comments = []; supportMaterials = []; reference = null; history = []; media = []; notifications = []; }
 let messages = [
   {
     id: 1,
@@ -186,9 +183,17 @@ const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
   'base64',
 );
+let uploadedImage = png;
+let nextSegmentId = 100;
+const assignSegmentIds = (node) => {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) { node.forEach(assignSegmentIds); return; }
+  if ('definition' in node || 'zh' in node || 'gramGroups' in node || 'senses' in node) node.id ??= nextSegmentId++;
+  Object.values(node).forEach(assignSegmentIds);
+};
 const image = (response) => {
-  response.writeHead(200, { 'content-type': 'image/png', 'content-length': png.length });
-  response.end(png);
+  response.writeHead(200, { 'content-type': 'image/png', 'content-length': uploadedImage.length });
+  response.end(uploadedImage);
 };
 const readBody = async (request) => {
   let raw = '';
@@ -214,6 +219,7 @@ createServer(async (request, response) => {
     { id: 2, category: 'pos', code: '动', label: '动 · Verb', sortOrder: 2 },
     { id: 3, category: 'style', code: '口', label: '口 · Colloquial', sortOrder: 1 },
     { id: 4, category: 'domain', code: '医', label: '医 · Medicine', sortOrder: 1 },
+    { id: 5, category: 'abbr', code: 'ჩვეულ.', label: 'ჩვეულ.', sortOrder: 1 },
   ]);
   if (path === '/auth/login' || path === '/auth/refresh')
     return json(response, 200, {
@@ -297,8 +303,14 @@ createServer(async (request, response) => {
   if (entry && path === `/entries/${entry.id}/media` && request.method === 'GET')
     return json(response, 200, media);
   if (entry && path === `/entries/${entry.id}/media` && request.method === 'POST') {
-    for await (const _chunk of request) {
-      // Drain the multipart request; QA only needs the response contract.
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const multipart = Buffer.concat(chunks).toString('utf8');
+    const placement = multipart.match(/name="placement"\r\n\r\n([^\r\n]*)/)?.[1] ?? 'cover';
+    const boundary = request.headers['content-type']?.match(/boundary=([^;]+)/)?.[1];
+    if (boundary) {
+      const filePart = Buffer.concat(chunks).toString('latin1').split('--' + boundary).find(part => /name="file";/.test(part));
+      if (filePart) uploadedImage = Buffer.from(filePart.slice(filePart.indexOf('\r\n\r\n') + 4, -2), 'latin1');
     }
     const item = {
       id: Date.now(),
@@ -307,7 +319,7 @@ createServer(async (request, response) => {
       mimeType: 'image/png',
       storageUrl: '/media/files/mock-image.png',
       thumbnailUrl: null,
-      placement: 'cover',
+      placement,
       uploadedByEditorId: 1,
       uploadedByDisplayName: editor.displayName,
       uploadedAtUtc: new Date().toISOString(),
@@ -330,6 +342,7 @@ createServer(async (request, response) => {
   }
   if (entry && path === `/entries/${entry.id}/content` && request.method === 'PUT') {
     const body = await readBody(request);
+    Object.values(body).forEach(assignSegmentIds);
     entry = {
       ...entry,
       ...body,
@@ -585,6 +598,7 @@ createServer(async (request, response) => {
         role: editor.role,
         mainScoreTotal: 24,
         additionalScoreTotal: 17,
+        totalEntries: entry ? 1 : 0,
       },
       {
         editorId: 2,
@@ -592,6 +606,7 @@ createServer(async (request, response) => {
         role: editors[1].role,
         mainScoreTotal: 12,
         additionalScoreTotal: 9,
+        totalEntries: 0,
       },
     ]);
   if (path === '/accounting/editors/1')

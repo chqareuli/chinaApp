@@ -21,14 +21,14 @@
             @for (status of statuses; track status) {
               <tr class="cge-row">
                 <td><app-status-badge [status]="status" /></td>
-                <td class="text-end">
+                <td class="text-end" [style.color]="statusColor(status)">
                   <a [routerLink]="['/adminpanel/entries']" [queryParams]="{ status: status }">{{
                     statusCount(status)
                   }}</a>
                 </td>
               </tr>
             }
-            <tr class="cge-row">
+            <tr class="cge-row totals-row">
               <td>Total · 总计</td>
               <td class="text-end">
                 <a [routerLink]="['/adminpanel/entries']">{{ totals()?.total ?? 0 }}</a>
@@ -66,17 +66,17 @@
             </select></label
           >
           <label class="form-label"
-            >From · 起始日期<input class="form-control" type="date" [(ngModel)]="exportFrom"
+            >From · 起始日期<input class="form-control" type="date" [max]="today" [(ngModel)]="exportFrom"
           /></label>
           <label class="form-label"
-            >To · 截止日期<input class="form-control" type="date" [(ngModel)]="exportTo"
+            >To · 截止日期<input class="form-control" type="date" [max]="today" [(ngModel)]="exportTo"
           /></label>
         </div>
         <div class="cge-download-actions">
-          <button class="btn btn-primary" [disabled]="exporting()" (click)="exportFile('xml')">
+          <button class="btn btn-primary export-format" [disabled]="exporting()" (click)="exportFile('xml')">
             ↓ TEI/XML
           </button>
-          <button class="btn" [disabled]="exporting()" (click)="exportFile('json')">↓ JSON</button>
+          <button class="btn export-format" [disabled]="exporting()" (click)="exportFile('json')">↓ JSON</button>
           <button class="btn" [disabled]="exporting()" (click)="exportFile('helper')">
             ↓ Helper Materials · 辅助资料
           </button>
@@ -98,7 +98,7 @@
               <th>Editor<br /><span class="text-small">编辑</span></th>
               <th class="text-end">Main score<br /><span class="text-small">主分</span></th>
               <th class="text-end">Additional score<br /><span class="text-small">附加分</span></th>
-              <th class="text-end">Total<br /><span class="text-small">总计</span></th>
+              <th class="text-end">Entries<br /><span class="text-small">词目数量</span></th>
             </tr>
           </thead>
           <tbody>
@@ -110,9 +110,9 @@
                     >{{ editor.displayName }}</span
                   >
                 </td>
-                <td class="text-end">{{ editor.mainScoreTotal }}</td>
-                <td class="text-end">{{ editor.additionalScoreTotal }}</td>
-                <td class="text-end">{{ editor.mainScoreTotal + editor.additionalScoreTotal }}</td>
+                <td class="text-end"><a [routerLink]="['/adminpanel/entries']" [queryParams]="{ workEditorId: editor.editorId, scoreKind: 'main' }">{{ editor.mainScoreTotal }}</a></td>
+                <td class="text-end"><a [routerLink]="['/adminpanel/entries']" [queryParams]="{ workEditorId: editor.editorId, scoreKind: 'additional' }">{{ editor.additionalScoreTotal }}</a></td>
+                <td class="text-end"><a [routerLink]="['/adminpanel/entries']" [queryParams]="{ workEditorId: editor.editorId }">{{ editor.totalEntries }}</a></td>
               </tr>
             }
           </tbody>

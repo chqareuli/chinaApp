@@ -38,6 +38,7 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
         foreach (var (h, i) in (request.Homonyms ?? []).Select((x, i) => (x, i)))
         {
             var node = Node(h.Id, SegmentType.Homonym, null, i, h.Text);
+            node.Attributes = h.PinyinId.HasValue ? JsonSerializer.Serialize(new { pinyinId = h.PinyinId.Value }, Json) : null;
             Decorations(node, h.Markers, h.CrossReferences);
             var groups = h.GramGroups ?? [new GramGroupDto { Senses = h.Senses ?? [] }];
             Groups(node, groups);
@@ -90,7 +91,8 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
             if (!Enum.TryParse<SegmentType>(m.Category, out var type) || type is not (SegmentType.Style or SegmentType.Domain or SegmentType.Abbr or SegmentType.Lang))
                 throw new EntryValidationException("Unknown marker category.");
             var node = Node(m.Id, type, parent, i, m.Value);
-            node.Placement = Placement.Attached;
+            node.Placement = m.TextField is null ? Placement.Attached : Placement.Inline;
+            node.Attributes = m.TextField is null ? null : JsonSerializer.Serialize(m with { Id = null }, Json);
         }
         foreach (var (r, i) in references.Select((x, i) => (x, i)))
         {
@@ -108,7 +110,8 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
         var children = segments.ToLookup(s => s.ParentSegmentId);
         List<Segment> Children(int? id, SegmentType type) => children[id].Where(s => s.SegmentType == type).OrderBy(s => s.OrderIndex).ThenBy(s => s.Id).ToList();
         List<MarkerDto> Markers(int id) => children[id].Where(s => s.SegmentType is SegmentType.Style or SegmentType.Domain or SegmentType.Abbr or SegmentType.Lang)
-            .OrderBy(s => s.OrderIndex).Select(s => new MarkerDto(s.Id, s.SegmentType.ToString(), s.Value ?? "")).ToList();
+            .OrderBy(s => s.OrderIndex).Select(s => s.Attributes is not null && JsonSerializer.Deserialize<MarkerDto>(s.Attributes, Json) is { } marker
+                ? marker with { Id = s.Id } : new MarkerDto(s.Id, s.SegmentType.ToString(), s.Value ?? "")).ToList();
         List<CrossReferenceDto> References(int id) => Children(id, SegmentType.Xr).Select(s =>
             (s.Attributes is not null ? JsonSerializer.Deserialize<CrossReferenceDto>(s.Attributes, Json) : null) is { } r
                 ? r with { Id = s.Id, Placement = s.Placement?.ToString() ?? "Attached" }
@@ -134,7 +137,7 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
         {
             var groups = Groups(h.Id);
             return new HomonymDto(groups.SelectMany(g => g.Senses).ToList())
-                { Id = h.Id, Text = h.Value ?? "", GramGroups = groups, DirectSenses=Senses(h.Id), Markers = Markers(h.Id), CrossReferences = References(h.Id) };
+                { Id = h.Id, PinyinId = h.Attributes is not null ? JsonSerializer.Deserialize<HomonymDto>(h.Attributes, Json)?.PinyinId : null, Text = h.Value ?? "", GramGroups = groups, DirectSenses=Senses(h.Id), Markers = Markers(h.Id), CrossReferences = References(h.Id) };
         }).ToList(), 0)
         {
             GramGroups = Groups(null), Senses = Senses(null),
@@ -147,13 +150,25 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
         ? JsonSerializer.Deserialize<LexicalForms>(entry.LexicalForms, Json) ?? new([], [])
         : new(string.IsNullOrWhiteSpace(entry.Pinyin) ? [] : [new FormItemDto(1, entry.Pinyin, 0)], []);
 
+    public static SaveEntryContentRequest LinkPronunciations(SaveEntryContentRequest request, LexicalForms forms)
+    {
+        return request with { Homonyms = request.Homonyms.Select(h =>
+        {
+            if (h.PinyinId is null && h.PinyinOrder is null) return h;
+            var pinyin = h.PinyinId is int id ? forms.Pinyins.FirstOrDefault(p => p.Id == id)
+                : forms.Pinyins.FirstOrDefault(p => p.Order == h.PinyinOrder);
+            if (pinyin is null) throw new EntryValidationException("A homograph's linked pronunciation is missing. Select another pronunciation or unlink the homograph before removing it.");
+            return h with { PinyinId = pinyin.Id, PinyinOrder = null, Text = pinyin.Value };
+        }).ToList() };
+    }
+
     public static void SaveForms(Entry entry, List<FormItemDto>? pinyins, List<FormItemDto>? forms)
     {
         var previous = ReadForms(entry);
-        List<FormItemDto> Normalize(List<FormItemDto>? items, List<FormItemDto> old)
+        List<FormItemDto> Normalize(List<FormItemDto>? items, List<FormItemDto> old, int maximum)
         {
             if (items is null) return old;
-            if (items.Count > 100) throw new EntryValidationException("Too many pronunciation or traditional-form values.");
+            if (items.Count > maximum) throw new EntryValidationException($"At most {maximum} values are allowed.");
             var next = old.Select(f => f.Id ?? 0).DefaultIfEmpty().Max() + 1;
             var seen = new HashSet<int>();
             var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -166,7 +181,7 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
                 return new FormItemDto(id, value, index);
             }).ToList();
         }
-        var result = new LexicalForms(Normalize(pinyins, previous.Pinyins), Normalize(forms, previous.ComplexForms));
+        var result = new LexicalForms(Normalize(pinyins, previous.Pinyins, 5), Normalize(forms, previous.ComplexForms, 3));
         entry.LexicalForms = JsonSerializer.Serialize(result, Json);
         entry.Pinyin = result.Pinyins.FirstOrDefault()?.Value;
     }

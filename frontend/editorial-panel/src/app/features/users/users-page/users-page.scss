@@ -41,3 +41,4 @@
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   }
 }
+:host .cge-state.cge-blocked { color: #1a1c1f; }

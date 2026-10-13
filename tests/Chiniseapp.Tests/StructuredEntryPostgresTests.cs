@@ -1,4 +1,6 @@
 using Chiniseapp.Application.Entries;
+using Chiniseapp.Application.Comments;
+using System.Text.Json;
 using Chiniseapp.Domain.Entities;
 using Chiniseapp.Domain.Enums;
 using Chiniseapp.Infrastructure;
@@ -51,6 +53,11 @@ public class StructuredEntryPostgresTests
                 await db.SaveChangesAsync();
                 editorId = editor.Id;
                 var service = scope.ServiceProvider.GetRequiredService<IEntryService>();
+                var draft = await service.CreateAsync(new("草稿", null), editorId, EditorRole.SuperAdmin);
+                var incomplete = await service.SaveContentAsync(draft.Id, new(null, null, [], draft.RowVersion) {
+                    GramGroups = [new() { Senses = [new(1, "", [])] }] }, editorId, EditorRole.SuperAdmin);
+                Assert.Equal("NewEntry", incomplete.Status);
+                await Assert.ThrowsAsync<EntryValidationException>(() => service.ChangeStatusAsync(draft.Id, EntryStatus.ZhReview, editorId));
                 var entry = await service.CreateAsync(new("测试", null) { Pinyins = ["cèshì"] }, editorId, EditorRole.SuperAdmin);
                 entryId = entry.Id;
                 var saved = await service.SaveContentAsync(entryId, new("测试", null, [], entry.RowVersion)
@@ -89,6 +96,56 @@ public class StructuredEntryPostgresTests
                 Assert.Equal(EditorRole.SuperAdmin, reloadedEditor.Role);
                 Assert.False(reloadedEditor.IsCancelled);
                 Assert.Equal(senseId, (await db.Comments.SingleAsync()).TargetSegmentId);
+                var audit = await db.AuditLogEntries.Where(a => a.EntityId == entryId && a.Action == AuditAction.ContentEdited)
+                    .OrderByDescending(a => a.Id).FirstAsync();
+                using var before = JsonDocument.Parse(audit.OldValue!);
+                using var after = JsonDocument.Parse(audit.NewValue!);
+                Assert.Equal("გამარჯობა", before.RootElement.GetProperty("content").GetProperty("Senses")[0].GetProperty("Examples")[0].GetProperty("Ka").GetString());
+                Assert.Equal(saved.GramGroups[0].Senses[0].Id, after.RootElement.GetProperty("content").GetProperty("GramGroups")[0].GetProperty("Senses")[0].GetProperty("Id").GetInt32());
+                var commentService = scope.ServiceProvider.GetRequiredService<ICommentService>();
+                var targeted = await commentService.AddAsync(entryId, new("Targeted note") { TargetSegmentId = senseId }, editorId);
+                var reply = await commentService.AddAsync(entryId, new("Reply") { ReplyToCommentId = targeted.Id }, editorId);
+                Assert.Equal(targeted.Id, reply.ReplyToCommentId);
+                Assert.Equal(senseId, reply.TargetSegmentId);
+                Assert.Equal(nameof(EditorRole.SuperAdmin), targeted.AuthorRole);
+                var linkedComment = await commentService.AddAsync(entryId, new("See 测试"), editorId);
+                Assert.Equal(entryId, Assert.Single(linkedComment.EntryLinks!).EntryId);
+                var linkedEntry = await db.Entries.FindAsync(entryId);
+                var savedLemma = linkedEntry!.Lemma; linkedEntry.Lemma = "测试改名"; await db.SaveChangesAsync();
+                var afterRename = (await commentService.GetForEntryAsync(entryId)).Single(c => c.Id == linkedComment.Id);
+                Assert.Equal(entryId, Assert.Single(afterRename.EntryLinks!).EntryId);
+                var editedAfterRename = await commentService.UpdateTextAsync(linkedComment.Id, "Still see 测试", editorId, EditorRole.SuperAdmin);
+                Assert.Equal(entryId, Assert.Single(editedAfterRename!.EntryLinks!).EntryId);
+                linkedEntry.Lemma = savedLemma; await db.SaveChangesAsync();
+                var other = new Editor { Email = "reply-test@example.test", DisplayName = "Reply Editor", Role = EditorRole.SuperAdmin,
+                    FirstName = "Reply", LastName = "Editor", ChineseName = "回复", WeChatAccount = "reply-wechat", CreatedAtUtc = DateTime.UtcNow };
+                db.Editors.Add(other); await db.SaveChangesAsync();
+                await commentService.AddAsync(entryId, new("Reply from another editor") { ReplyToCommentId = targeted.Id }, other.Id);
+                Assert.True(await db.Notifications.AnyAsync(n => n.EntryId == entryId && n.RecipientEditorId == editorId && n.TriggeredByEditorId == other.Id));
+                var referenceController = new Chiniseapp.Api.Controllers.ReferenceMaterialController(
+                    scope.ServiceProvider.GetRequiredService<Chiniseapp.Application.ReferenceMaterials.IReferenceMaterialService>(), db,
+                    scope.ServiceProvider.GetRequiredService<Chiniseapp.Application.Notifications.INotificationService>(),
+                    scope.ServiceProvider.GetRequiredService<Chiniseapp.Application.Scoring.IScoringService>());
+                referenceController.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext {
+                    HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext {
+                        User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([
+                            new(System.Security.Claims.ClaimTypes.NameIdentifier, other.Id.ToString()),
+                            new(System.Security.Claims.ClaimTypes.Role, nameof(EditorRole.SuperAdmin))], "test")) }};
+                await referenceController.Save(entryId, new("都 dōu\n● all", "", "", "", ""), CancellationToken.None);
+                var referenceAudit = await db.AuditLogEntries.Where(a => a.EntityId == entryId && a.Notes!.StartsWith("Reference materials"))
+                    .OrderByDescending(a => a.Id).FirstAsync();
+                using var referenceSnapshot = JsonDocument.Parse(referenceAudit.NewValue!);
+                Assert.Equal("都 dōu\n● all", referenceSnapshot.RootElement.GetProperty("reference").GetProperty("G1").GetString());
+                Assert.True(referenceSnapshot.RootElement.TryGetProperty("content", out _));
+                referenceController.HttpContext.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([
+                    new(System.Security.Claims.ClaimTypes.NameIdentifier, other.Id.ToString()),
+                    new(System.Security.Claims.ClaimTypes.Role, nameof(EditorRole.KaEditor))], "test"));
+                var deniedReference = await referenceController.Get(entryId, CancellationToken.None);
+                Assert.IsType<Microsoft.AspNetCore.Mvc.NotFoundResult>(deniedReference.Result);
+                var deniedSave = await referenceController.Save(entryId, new("must not save", "", "", "", ""), CancellationToken.None);
+                Assert.IsType<Microsoft.AspNetCore.Mvc.ForbidResult>(deniedSave.Result);
+                Assert.Equal("都 dōu\n● all", (await db.ReferenceMaterials.SingleAsync(r => r.EntryId == entryId)).G1);
+                await Assert.ThrowsAsync<CommentValidationException>(() => commentService.AddAsync(entryId, new("Foreign target") { TargetSegmentId = int.MaxValue }, editorId));
             }
             await using (var scope = provider.CreateAsyncScope())
             {

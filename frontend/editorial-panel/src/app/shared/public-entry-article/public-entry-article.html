@@ -22,9 +22,11 @@
         @if (items?.length) {
           <div class="ie-list" aria-label="ინლაინ ნიშნები">
             @for (marker of items; track $index) {
+              @if (!marker.textField) {
               <span class="ie-marker" [attr.data-category]="marker.category.toLowerCase()">
                 {{ marker.label || marker.value }}
               </span>
+              }
             }
           </div>
         }
@@ -34,6 +36,7 @@
         @if (items.length) {
           <div class="xr-list">
             @for (xr of items; track $index) {
+              @if (!xr.textField) {
               @if (xr.targetEntryId) {
                 <a [routerLink]="['/word', xr.targetEntryId]">
                   <span>{{ xr.label }}</span>
@@ -46,6 +49,7 @@
                   ><span>{{ xr.label }}</span
                   ><strong lang="zh">{{ xr.displayText || xr.target }}</strong></span
                 >
+              }
               }
             }
           </div>
@@ -60,7 +64,7 @@
               [ngTemplateOutlet]="markerView"
               [ngTemplateOutletContext]="{ items: sense.markers }"
             />
-            <p class="definition">{{ sense.definition }}</p>
+            <p class="definition"><app-inline-entry-text [body]="sense.definition" [references]="sense.crossReferences" [markers]="sense.markers" [images]="sense.inlineImages || []" /></p>
             <ng-container
               [ngTemplateOutlet]="xrView"
               [ngTemplateOutletContext]="{ items: sense.crossReferences }"
@@ -75,7 +79,7 @@
                         [ngTemplateOutlet]="markerView"
                         [ngTemplateOutletContext]="{ items: example.markers }"
                       />
-                      <small>{{ example.ka }}</small>
+                      <small><app-inline-entry-text [body]="example.ka" [references]="example.crossReferences" [markers]="example.markers" [images]="example.inlineImages || []" field="ka" /></small>
                     </div>
                     <ng-container
                       [ngTemplateOutlet]="xrView"

@@ -5,6 +5,7 @@ using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Chiniseapp.Api.Controllers;
 
@@ -34,6 +35,32 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         var entry = await db.Entries.FindAsync([entryId], ct);
         if (entry is null) return NotFound();
         if (!EntryPermissionRules.CanEditContent(User.GetEditorRole(), entry.Status)) return Forbid();
+        int? insertedIntoSegmentId = null;
+        if (placement?.StartsWith("inline:", StringComparison.Ordinal) == true)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(placement[7..]);
+                var root = document.RootElement;
+                var kind = root.GetProperty("kind").GetString();
+                var field = root.GetProperty("field").GetString();
+                var nodeId = root.GetProperty("nodeId").GetInt32();
+                var offset = root.GetProperty("offset").GetInt32();
+                var before = root.GetProperty("before").GetString();
+                var after = root.GetProperty("after").GetString();
+                if (offset < 0 || before is null || after is null || before.Length > 32 || after.Length > 32
+                    || !(kind == "sense" && field == "definition" || kind == "example" && field is "ka" or "zh"))
+                    return BadRequest(new { message = "Invalid image insertion position." });
+                var expected = kind == "sense" ? SegmentType.Sense : SegmentType.Example;
+                if (!await db.Segments.AnyAsync(s => s.Id == nodeId && s.EntryId == entryId && s.SegmentType == expected, ct))
+                    return BadRequest(new { message = "Save the target definition or example before inserting an image." });
+                insertedIntoSegmentId = nodeId;
+            }
+            catch (Exception error) when (error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+            {
+                return BadRequest(new { message = "Invalid image insertion position." });
+            }
+        }
         if (file.Length is <= 0 or > 5 * 1024 * 1024) return BadRequest(new { message = "Image must be at most 5 MB." });
         await using var stream = file.OpenReadStream();
         var header = new byte[12];
@@ -53,7 +80,7 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
                 await stream.CopyToAsync(output, ct);
             }
             var item = new MediaAsset { EntryId = entryId, OriginalFilename = Path.GetFileName(file.FileName),
-                SafeStorageName = key, FileType = MediaFileType.Image, MimeType = mime, Placement = placement,
+                SafeStorageName = key, FileType = MediaFileType.Image, MimeType = mime, Placement = placement, InsertedIntoSegmentId = insertedIntoSegmentId,
                 UploadedByEditorId = User.GetEditorId(), UploadedAtUtc = DateTime.UtcNow };
             db.MediaAssets.Add(item);
             await using var transaction = await db.Database.BeginTransactionAsync(ct);

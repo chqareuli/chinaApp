@@ -3,7 +3,10 @@ namespace Chiniseapp.Application.Accounting;
 /// <summary>One row of the 10.2 global accounting page.</summary>
 public record EditorScoreSummary(
     int EditorId, string DisplayName, string Role,
-    int MainScoreTotal, int AdditionalScoreTotal);
+    int MainScoreTotal, int AdditionalScoreTotal)
+{
+    public int TotalEntries { get; init; }
+}
 
 /// <summary>10.2 entry status totals: count per status, plus the grand total.</summary>
 public record EntryStatusTotals(IReadOnlyDictionary<string, int> CountsByStatus, int Total);

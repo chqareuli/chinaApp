@@ -8,10 +8,19 @@ public record CreateEntryRequest(string Lemma, string? Pinyin)
     public List<string>? Pinyins { get; init; }
 }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public record MarkerDto(int? Id, string Category, string Value);
+public record MarkerDto(int? Id, string Category, string Value)
+{
+    public int? TextOffset { get; init; }
+    public string? TextField { get; init; }
+    public string? DisplayText { get; init; }
+}
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public record CrossReferenceDto(int? Id, string Type, string Label, string Target,
-    int? TargetEntryId, string? TargetEntryLemma, string? DisplayText, string Placement);
+    int? TargetEntryId, string? TargetEntryLemma, string? DisplayText, string Placement)
+{
+    public int? TextOffset { get; init; }
+    public string? TextField { get; init; }
+}
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public record FormItemDto(int? Id, string Value, int Order);
 public record LexicalForms(List<FormItemDto> Pinyins, List<FormItemDto> ComplexForms);
@@ -55,6 +64,8 @@ public record DirectPosDto
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public record HomonymDto(List<SenseDto>? Senses)
 {
+    public int? PinyinId { get; init; }
+    public int? PinyinOrder { get; init; }
     public List<SenseDto> DirectSenses { get; init; } = [];
     public int? Id { get; init; }
     public string Text { get; init; } = "";
@@ -101,6 +112,10 @@ public record EntrySummary(
     string Status,
     string? MainAuthorDisplayName,
     string LastEditorDisplayName,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc)
+{
+    public int? MainAuthorEditorId { get; init; }
+    public int LastEditorEditorId { get; init; }
+}
 
 public record PagedResult<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);

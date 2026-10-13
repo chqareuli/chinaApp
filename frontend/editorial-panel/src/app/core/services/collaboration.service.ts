@@ -22,9 +22,10 @@ export class CollaborationService {
     return this.http.get<CommentSummary[]>(`${this.apiBaseUrl}/entries/${entryId}/comments`);
   }
 
-  addComment(entryId: number, commentText: string): Observable<CommentSummary> {
+  addComment(entryId: number, commentText: string, context?: { targetSegmentId?: number | null; replyToCommentId?: number | null }): Observable<CommentSummary> {
     return this.http.post<CommentSummary>(`${this.apiBaseUrl}/entries/${entryId}/comments`, {
       commentText,
+      ...context,
     });
   }
 

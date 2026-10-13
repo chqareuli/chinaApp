@@ -21,6 +21,7 @@ import { EditorsService } from '../../../core/services/editors.service';
 import { EntriesService } from '../../../core/services/entries.service';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 import { canSearchContent } from '../../../core/models/content-search';
+import { editorRoleCodes } from '../../../core/models/auth.models';
 
 @Component({
   selector: 'app-entries-list-page',
@@ -30,6 +31,10 @@ import { canSearchContent } from '../../../core/models/content-search';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EntriesListPage implements OnInit {
+  personRole(id?: number | null): string {
+    const editor = this.editors().find(item => item.id === id);
+    return editor ? editorRoleCodes[editor.editorialRole || editor.role] : '';
+  }
   private readonly entriesService = inject(EntriesService);
   private readonly editorsService = inject(EditorsService);
   private readonly auth = inject(AuthService);
@@ -176,7 +181,7 @@ export class EntriesListPage implements OnInit {
     const options: EntryListQuery = {
       workEditorId: Number(this.route.snapshot.queryParamMap.get('workEditorId')) || undefined,
       scoreKind: this.route.snapshot.queryParamMap.get('scoreKind') || undefined,
-      excludeDrafts: false,
+      excludeDrafts: this.isHome,
       authorId: Number(this.authorControl.value) || undefined,
       page: this.page(),
       pageSize: this.pageSize,

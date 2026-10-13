@@ -17,7 +17,8 @@ public class EntryExportsController(ChiniseDbContext db, IEntryService entries) 
     public async Task<IActionResult> Export(string format, EntryStatus? status, int? editorId, DateOnly? from, DateOnly? to, CancellationToken ct)
     {
         if (format is not ("json" or "xml" or "helper")) return BadRequest(new { message = "Unknown export format." });
-        if (from > to || to == DateOnly.MaxValue) return BadRequest(new { message = "Check the date range." });
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Asia/Tbilisi"));
+        if (from > to || from > today || to > today) return BadRequest(new { message = "Check the date range." });
         if (status is EntryStatus.NewEntry or EntryStatus.Archived) return BadRequest(new { message = "This stage is not eligible for export." });
         var query = db.Entries.AsNoTracking().Where(e => e.Status != EntryStatus.NewEntry && e.Status != EntryStatus.Archived);
         if (status.HasValue) query = query.Where(e => e.Status == status.Value);

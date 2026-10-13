@@ -39,6 +39,7 @@ export interface UpdateEditorRequest {
 }
 
 export interface EditorScoreSummary {
+  totalEntries: number;
   editorId: number;
   displayName: string;
   role: EditorRole;

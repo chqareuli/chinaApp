@@ -19,11 +19,18 @@ public class AccountingService(ChiniseDbContext db) : IAccountingService
         int CountFor(int editorId, ScoreType type) =>
             counts.FirstOrDefault(c => c.EditorId == editorId && c.ScoreType == type)?.Count ?? 0;
 
+        var work = await db.Entries.Where(e => e.Status != EntryStatus.Archived)
+            .Select(e => new { e.Id, e.CreatedByEditorId }).ToListAsync(ct);
+        var scored = await db.ScoreEntries.Where(s => db.Entries.Any(e => e.Id == s.EntryId && e.Status != EntryStatus.Archived))
+            .Select(s => new { s.EntryId, s.EditorId }).Distinct().ToListAsync(ct);
+
         return editors
             .Select(e => new EditorScoreSummary(
                 e.Id, e.DisplayName, e.Role.ToString(),
                 CountFor(e.Id, ScoreType.Main),
-                CountFor(e.Id, ScoreType.Additional)))
+                CountFor(e.Id, ScoreType.Additional))
+                { TotalEntries = work.Where(w => w.CreatedByEditorId == e.Id).Select(w => w.Id)
+                    .Concat(scored.Where(s => s.EditorId == e.Id).Select(s => s.EntryId)).Distinct().Count() })
             .ToList();
     }
 

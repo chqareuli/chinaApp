@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, Injectable, inject, signal } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class PanelAppearance {
-  readonly fontSize = signal(15);
+  readonly fontSize = signal(18.75);
   resize(delta: number): void {
     this.fontSize.update((size) => Math.min(22, Math.max(12, size + delta)));
   }

@@ -15,10 +15,12 @@ public class Comment
 
     /// <summary>Always null in Stage 1; segment-level comments arrive in Stage 2.</summary>
     public int? TargetSegmentId { get; set; }
+    public int? ReplyToCommentId { get; set; }
 
     public int AuthorEditorId { get; set; }
 
     public string CommentText { get; set; } = string.Empty;
+    public string? EntryLinks { get; set; }
 
     public CommentStatus Status { get; set; } = CommentStatus.Open;
 

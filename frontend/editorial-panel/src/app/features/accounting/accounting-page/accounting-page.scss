@@ -1,6 +1,14 @@
 :host {
   display: block;
 }
+.cge-table-area { max-width: 960px; margin: 0 auto; }
+#cge-editorial-statistics-final > .table-responsive { max-width:960px; margin:0 auto; }
+.table-responsive { border: 1px solid #cce5da; }
+.cge-table-area table { min-width: 0; width: 100%; }
+.cge-table-area th:last-child, .cge-table-area td:last-child { width: 100px; }
+.totals-row, .export-format { font-weight: 700; }
+.cge-download { border-top: 4px solid #cce5da; border-bottom: 4px solid #cce5da; margin: 24px 0; padding: 24px 0; }
+.cge-row td:last-child a { color: inherit; }
 .personal-card {
   display: flex;
   gap: 20px;

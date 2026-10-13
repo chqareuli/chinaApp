@@ -13,6 +13,7 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
         builder.HasKey(c => c.Id);
 
         builder.Property(c => c.CommentText).IsRequired();
+        builder.Property(c => c.EntryLinks).HasColumnType("jsonb");
 
         builder.Property(c => c.Status)
             .HasColumnType("comment_status")
@@ -33,5 +34,7 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(c => c.EntryId);
+        builder.HasOne<Comment>().WithMany().HasForeignKey(c => c.ReplyToCommentId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

@@ -27,6 +27,32 @@ describe('EditorialDecorations XR linking', () => {
   let component: EditorialDecorations;
   let entries: EntriesServiceStub;
   const fb = new FormBuilder();
+  it('moves annotations with edits and clears metadata when the marked text is removed', () => {
+    component.fieldName = 'ka';
+    component.markers.push(fb.group({textField:'ka',textOffset:2,displayText:'abc',category:'Abbr',value:'a'}));
+    component.reconcileText('x abc z', 'new x abc z');
+    expect(component.markers.at(0).get('textOffset')?.value).toBe(6);
+    component.reconcileText('new x abc z', 'new x z');
+    expect(component.markers.length).toBe(0);
+  });
+  it('removes inline abbreviation text using its visible remove control', () => {
+    component.textControl = fb.control('x abc z'); component.fieldName = 'ka';
+    component.markers.push(fb.group({textField:'ka',textOffset:2,displayText:'abc',category:'Abbr',value:'a'}));
+    component.removeMarker(0);
+    expect(component.textControl.value).toBe('x  z');
+    expect(component.markers.length).toBe(0);
+  });
+  it('inserts an abbreviation into the selected Georgian text and preserves formatting metadata', () => {
+    component.vocabularies = [{ id: 9, category: 'abbr', code: 'usual', label: 'ჩვეულ.', sortOrder: 1 }];
+    component.textField = document.createElement('textarea');
+    component.textField.value = 'წინ შემდეგ';
+    component.textField.setSelectionRange(4, 4);
+    component.textControl = fb.control('წინ შემდეგ');
+    component.fieldName = 'ka';
+    component.selectMarker('Abbr', { target: { value: 'usual' } } as unknown as Event);
+    expect(component.textControl.value).toBe('წინ ჩვეულ. შემდეგ');
+    expect(component.markers.at(0).getRawValue()).toMatchObject({ textField: 'ka', textOffset: 4, displayText: 'ჩვეულ.' });
+  });
   it('adds controlled Style values without duplicates and limits them to two', () => {
     component.vocabularies = [
       { id: 1, category: 'style', sortOrder: 0, code: 'a', label: 'A' },

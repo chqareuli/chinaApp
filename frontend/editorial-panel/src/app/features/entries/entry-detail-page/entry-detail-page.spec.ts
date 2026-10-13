@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { FormBuilder } from '@angular/forms';
+import { FormBuilder, FormGroup, FormControl } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 import { EntryDetail } from '../../../core/models/entry.models';
@@ -92,6 +92,22 @@ describe('EntryDetailPage status confirmation', () => {
     expect(component.statusConfirmation()).toBe('ZhReview');
     expect(entriesService.statusRequests).toHaveLength(0);
   });
+  it('saves incomplete new-entry structure with a warning instead of blocking the draft', () => {
+    component.startEditing(); component.entryForm.controls.lemma.setValue('草稿');
+    component.startStructure('grammar');
+    const save = vi.fn().mockReturnValue(of(entry));
+    Object.assign(entriesService,{saveContent:save});
+    component.saveContent();
+    expect(save).toHaveBeenCalled(); expect(component.draftWarning()).toContain('Incomplete draft');
+  });
+  it('collapses reference groups independently and opens a private message for the selected author', () => {
+    component.toggleReferenceGroup('g1'); component.toggleReferenceGroup('g3');
+    component.toggleReferenceGroup('g1');
+    expect(component.collapsedReferenceGroups()).toEqual(['g3']);
+    component.openPrivateMessage({authorEditorId:9,authorDisplayName:'Editor'} as any);
+    expect(component.privateMessageRecipient()).toEqual({id:9,name:'Editor'});
+    expect(component.privateMessageText()).toBe('');
+  });
 
   it('cancels a pending status change without sending a request', () => {
     component.changeStatus('ZhReview');
@@ -176,6 +192,17 @@ describe('EntryDetailPage status confirmation', () => {
     expect(childSenses.length).toBe(1);
   });
 
+  it('updates linked homograph labels when pronunciation changes and preserves the selection', () => {
+    component.startStructure('homonym');
+    component.pinyins.push(new FormGroup({id:new FormControl(7),value:new FormControl('hé'),order:new FormControl(0)}));
+    const node = component.homonyms.at(0);
+    component.linkHomographPronunciation(node, '0');
+    expect(component.homographLabel(0)).toBe('hé');
+    component.pinyins.at(0).get('value')?.setValue('huó');
+    expect(component.homographLabel(0)).toBe('huó');
+    expect(node.get('pinyinId')?.value).toBe(7);
+    expect(component.homographPronunciationIndex(node)).toBe('0');
+  });
   it('preserves existing POS and sense controls when adding homographs', () => {
     component.startStructure('grammar');
     const group = component.rootGramGroups.at(0);
@@ -186,21 +213,30 @@ describe('EntryDetailPage status confirmation', () => {
     expect(component.formArrayAt(component.homonyms.at(0), 'gramGroups').at(0)).toBe(group);
   });
 
-  it('uploads media with the selected block placement and shows the returned asset', () => {
+  it('uploads an image at the cursor and resolves its saved placement on reload', () => {
     component.startEditing();
     component.startStructure('sense');
     const sense = component.rootSenses.at(0);
     sense.get('id')?.setValue(71);
-    component.openNodeMedia('sense', sense);
+    const field = document.createElement('textarea');
+    field.value = 'before after';
+    field.setSelectionRange(7, 7);
+    sense.get('definition')?.setValue(field.value);
+    component.openNodeMedia('sense', sense, field, 'definition');
     const file = new File(['image'], 'image.png', {type:'image/png'});
-    const asset = {id:19, placement:'sense:71', storageUrl:'/media/19/content'};
+    const asset = {id:19, originalFilename:'image.png', placement:component.mediaPlacement(), storageUrl:'/media/19/content'};
     const upload = vi.fn().mockReturnValue(of(asset));
     Object.assign(TestBed.inject(MediaService), {upload, getContent: () => of(new Blob(['image']))});
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
     component.selectedMedia.set(file);
     component.uploadMedia();
-    expect(upload).toHaveBeenCalledWith(entry.id, file, 'sense:71');
-    expect(component.nodeMedia('sense', sense)).toEqual([asset]);
+    expect(upload).toHaveBeenCalledWith(entry.id, file, asset.placement);
+    expect(component.nodeMedia('sense', sense)).toEqual([]);
+    expect(component.inlineNodeMedia('sense', sense, 'definition')).toEqual([{offset:7,url:'blob:test',alt:'image.png'}]);
+    const reloaded = JSON.parse(JSON.stringify(asset));
+    component.media.set([reloaded]);
+    sense.get('definition')?.setValue('new before after');
+    expect(component.inlineNodeMedia('sense', sense, 'definition')[0].offset).toBe(11);
     expect(component.selectedMedia()).toBeNull();
     expect(component.mediaSaving()).toBe(false);
   });
@@ -209,13 +245,13 @@ describe('EntryDetailPage status confirmation', () => {
     component.startEditing();
     component.startStructure('sense');
     const sense = component.rootSenses.at(0);
-    component.openNodeMedia('sense', sense);
+    component.openNodeMedia('sense', sense, document.createElement('textarea'), 'definition');
     component.selectedMedia.set(new File(['x'], 'image.png', {type:'image/png'}));
     component.uploadMedia();
     expect(component.mediaSaving()).toBe(false);
     sense.get('id')?.setValue(71);
-    component.openNodeMedia('sense', sense);
-    expect(component.mediaPlacement()).toBe('sense:71');
+    component.openNodeMedia('sense', sense, document.createElement('textarea'), 'definition');
+    expect(JSON.parse(component.mediaPlacement().slice(7)).nodeId).toBe(71);
     component.media.set([
       {id:1, placement:'sense:71'}, {id:2, placement:'example:71'},
     ] as any);

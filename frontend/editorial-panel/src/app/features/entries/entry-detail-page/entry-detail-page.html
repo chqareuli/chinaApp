@@ -6,6 +6,16 @@
   [class.show-structure]="structureVisible()"
   [class.has-homographs]="homonyms.length > 0"
 >
+  @if (draftWarning()) { <div class="warning-banner" role="status">{{ draftWarning() }}</div> }
+  @if (privateMessageRecipient(); as recipient) {
+    <div class="status-confirm-backdrop"><section class="status-confirm" role="dialog" aria-modal="true" aria-label="Private message · 私人消息">
+      <h2>Private message · 私人消息</h2><p>{{ recipient.name }}</p>
+      <textarea aria-label="Message · 消息" [value]="privateMessageText()" (input)="privateMessageText.set($any($event.target).value)" [disabled]="privateMessageSaving()"></textarea>
+      @if (privateMessageError()) { <p role="alert">{{ privateMessageError() }}</p> }
+      <button class="btn" type="button" [disabled]="privateMessageSaving() || !privateMessageText().trim()" (click)="sendPrivateMessage()">Send · 发送</button>
+      <button class="btn" type="button" [disabled]="privateMessageSaving()" (click)="privateMessageRecipient.set(null)">Cancel · 取消</button>
+    </section></div>
+  }
   @if (loading()) {
     <div class="loading-card">სტატია იტვირთება…</div>
   } @else if (error()) {
@@ -17,7 +27,7 @@
         <select
           #stage
           class="form-select stage-select"
-          aria-label="სტატუსის შეცვლა · Stage · 状态" title="Review / Ready / Published — სტატუსის შეცვლა"
+          aria-label="სტატუსის შეცვლა · Stage · 状态" title="STAGE CHANGE · 阶段变更"
           [value]="item.status"
           (change)="changeStatus(stage.value); stage.value = item.status"
           [disabled]="isNew() || saving() || !!changingStatus() || !allowedTransitions().length"
@@ -46,7 +56,7 @@
       <div class="node-media-list">
         @for (asset of nodeMedia(kind, node); track asset.id) {
           @if (mediaUrl(asset.id); as url) { <img [src]="url" [alt]="asset.originalFilename" /> }
-          <span>{{ asset.originalFilename }}</span>
+          @if (canEditFields()) { <span>{{ asset.originalFilename }}</span> }
         }
       </div>
     </ng-template>
@@ -57,11 +67,13 @@
           @if (!target.node.get('id')?.value || isNew()) {
             <p>მედიის მისაბმელად ჯერ შეინახეთ სტატია და ეს ბლოკი, შემდეგ გახსენით მედიის ღილაკი.</p>
           } @else {
-            <p>JPEG, PNG, WebP · მაქს. 5 MB</p>
-            <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose image · 选择图片" [disabled]="mediaSaving()" (change)="selectMedia($event)" />
-            @if (selectedMediaPreview(); as url) { <img class="node-media-preview" [src]="url" alt="არჩეული სურათი" /> }
+            <p>JPEG, PNG, WebP · Max. · 最大 5 MB</p>
+            <label class="btn" for="node-image-file">Choose image · 选择图片</label>
+            <input id="node-image-file" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose image · 选择图片" [disabled]="mediaSaving()" (change)="selectMedia($event)" />
+            <span>{{ selectedMedia()?.name || 'No image selected · 未选择图片' }}</span>
+            @if (selectedMediaPreview(); as url) { <img class="node-media-preview" [src]="url" alt="Selected image · 已选图片" /> }
             <ng-container [ngTemplateOutlet]="nodeMediaList" [ngTemplateOutletContext]="{kind: target.kind, node: target.node}" />
-            <p>ატვირთვა ინახება დაუყოვნებლივ.</p>
+            <p>Insert at the selected cursor position · 在所选光标位置插入</p>
             <button class="btn btn-primary" type="button" [disabled]="!selectedMedia() || mediaSaving()" (click)="uploadMedia()">{{ mediaSaving() ? 'Uploading… · 上传中' : 'Upload · 上传' }}</button>
           }
           @if (mediaError()) { <p role="alert">{{ mediaError() }}</p> }
@@ -139,22 +151,9 @@
         >
           Entry · 词目
         </button>
-        <button
-          type="button"
-          [class.active]="activeTab() === 'reference'"
-          (click)="setTab('reference')"
-        >
-          Reference material · 参考资料
-        </button>
+
         <button type="button" [class.active]="activeTab() === 'media'" (click)="setTab('media')">
           Media · 媒体 <span>{{ media().length }}</span>
-        </button>
-        <button
-          type="button"
-          [class.active]="activeTab() === 'history'"
-          (click)="setTab('history')"
-        >
-          History · 历史 <span>{{ history().length }}</span>
         </button>
       </nav>
     }
@@ -183,19 +182,21 @@
         <div class="entry-written-forms">
           <app-repeatable-text-list
             [items]="pinyins"
+            [maxItems]="5"
             label="Pinyin · 拼音"
             addLabel="Pinyin"
             dialogTitle="Pinyin-ის დამატება"
-            placeholder="Pinyin · 拼音"
+            placeholder="Pinyin · 拼音 (1–5)"
             [readonly]="!canEditFields()"
             (contentChanged)="markContentChanged()"
           />
           <app-repeatable-text-list
             [items]="complexForms"
+            [maxItems]="3"
             label="Traditional form · 繁体"
             addLabel="Traditional form · 繁体"
             dialogTitle="რთული დაწერილობის დამატება"
-            placeholder="Traditional form · 繁体字"
+            placeholder="Traditional form · 繁体字 (0–3)"
             inputLang="zh"
             [readonly]="!canEditFields()"
             (contentChanged)="markContentChanged()"
@@ -258,14 +259,17 @@
                 <label [for]="prefix + '-definition-' + index">Definition · 释义</label>
                 <textarea
                   #definitionField [id]="prefix + '-definition-' + index"
-                  formControlName="definition"
+                  formControlName="definition" [class.rich-text-bridge]="canEditFields()"
                   rows="2"
                   placeholder="Enter definition · 请输入释义"
                   [readOnly]="!canEditFields()"
                 ></textarea>
+                @if (canEditFields()) { <app-inline-rich-field class="formatted-editor-text" [control]="sense.get('definition')!" [value]="sense.get('definition')?.value || ''" [bridge]="definitionField" [annotationArrays]="[formArrayAt(sense, 'markers'), formArrayAt(sense, 'crossReferences')]" [markers]="formArrayAt(sense, 'markers').getRawValue()" [references]="nodeReferences(sense)" label="Enter definition · 请输入释义" /> }
+                @if (!canEditFields() || inlineNodeMedia('sense', sense, 'definition').length) { <div class="formatted-editor-text" [attr.aria-label]="canEditFields() ? 'Preview · 预览' : null"><app-inline-entry-text [images]="inlineNodeMedia('sense', sense, 'definition')" [body]="sense.get('definition')?.value || ''" [references]="nodeReferences(sense)" [markers]="formArrayAt(sense, 'markers').getRawValue()" route="/adminpanel/entries" /></div> }
               </div>
-              <div class="font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost font-control" type="button" title="Decrease text size · 缩小字号" (click)="resizeEditorText([definitionField], -1)">A−</button><button class="btn btn-ghost font-control" type="button" title="Increase text size · 放大字号" (click)="resizeEditorText([definitionField], 1)">A+</button></div>
+              <div class="font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost font-control" type="button" title="Decrease text size · 缩小字号" (click)="resizeEditorText([definitionField], -1)">A−</button><button class="btn btn-ghost font-control" type="button" title="Increase text size · 放大字号" (click)="resizeEditorText([definitionField], 1)">A+</button><button class="btn btn-ghost" type="button" [disabled]="!sense.get('id')?.value" (click)="commentOn(sense)" title="Comment on this definition · 评论此释义">💬</button></div>
               <div class="definition-tools tools"><app-editorial-decorations layout="definition"
+                [textField]="definitionField" [textControl]="sense.get('definition')" fieldName="definition"
                 [markers]="formArrayAt(sense, 'markers')"
                 [crossReferences]="formArrayAt(sense, 'crossReferences')"
                 [vocabularies]="vocabularies()"
@@ -273,7 +277,7 @@
                 (contentChanged)="markContentChanged()"
               >
               <button class="btn btn-ghost" definition-point type="button" title="Add numbered line · 添加带圈编号行" [disabled]="!canEditFields()" (click)="addDefinitionPoint(definitionField, sense)">①</button>
-              <button class="btn btn-ghost" media-tool type="button" title="Add media · 添加媒体" aria-label="Add sense media · 添加义项媒体" [disabled]="!canEditFields()" (click)="openNodeMedia('sense', sense)"><ng-container [ngTemplateOutlet]="mediaIcon" /></button>
+              <button class="btn btn-ghost" media-tool type="button" title="Add media · 添加媒体" aria-label="Add sense media · 添加义项媒体" [disabled]="!canEditFields()" (click)="openNodeMedia('sense', sense, definitionField, 'definition')"><ng-container [ngTemplateOutlet]="mediaIcon" /></button>
               </app-editorial-decorations></div>
             </div>
             <ng-container [ngTemplateOutlet]="nodeMediaList" [ngTemplateOutletContext]="{kind: 'sense', node: sense}" />
@@ -306,33 +310,38 @@
                       <textarea
                         class="form-control" #exampleChinese
                         formControlName="zh"
+                        [class.rich-text-bridge]="!canEditFields() && inlineNodeMedia('example', example, 'zh').length > 0"
                         rows="1"
                         lang="zh"
                         aria-label="Chinese example · 中文例句"
                         placeholder="Enter Chinese example · 请输入中文例句"
                         [readOnly]="!canEditFields()"
                       ></textarea>
+                      @if (inlineNodeMedia('example', example, 'zh').length) { <div class="formatted-editor-text"><app-inline-entry-text [body]="example.get('zh')?.value || ''" [images]="inlineNodeMedia('example', example, 'zh')" field="zh" /></div> }
                       <app-editorial-decorations layout="example" class="tools"
+                        [textField]="exampleGeorgian" [textControl]="example.get('ka')" fieldName="ka"
                         [markers]="formArrayAt(example, 'markers')"
                         [crossReferences]="formArrayAt(example, 'crossReferences')"
                         [vocabularies]="vocabularies()"
                         [readonly]="!canEditFields()"
                         (contentChanged)="markContentChanged()"
                       >
-                      <button media-tool class="btn btn-ghost" type="button" aria-label="Add example media · 添加例句媒体" title="Add media · 添加媒体" [disabled]="!canEditFields()" (click)="openNodeMedia('example', example)"><ng-container [ngTemplateOutlet]="mediaIcon" /></button></app-editorial-decorations>
+                      <button media-tool class="btn btn-ghost" type="button" aria-label="Add Chinese example media · 添加中文例句媒体" title="Chinese example image · 中文例句图片" [disabled]="!canEditFields()" (click)="openNodeMedia('example', example, exampleChinese, 'zh')">中<ng-container [ngTemplateOutlet]="mediaIcon" /></button><button media-tool class="btn btn-ghost" type="button" aria-label="Add example media · 添加例句媒体" title="Add media · 添加媒体" [disabled]="!canEditFields()" (click)="openNodeMedia('example', example, exampleGeorgian, 'ka')"><ng-container [ngTemplateOutlet]="mediaIcon" /></button></app-editorial-decorations>
                       <ng-container [ngTemplateOutlet]="nodeMediaList" [ngTemplateOutletContext]="{kind: 'example', node: example}" />
                     </div>
                     <div class="example-side">
                       <textarea
                         class="form-control" #exampleGeorgian
-                        formControlName="ka"
+                        formControlName="ka" [class.rich-text-bridge]="canEditFields()"
                         rows="1"
                         aria-label="Georgian translation · 格文译文"
                         placeholder="Enter Georgian translation · 请输入格文译文"
                         [readOnly]="!canEditFields()"
                       ></textarea>
+                      @if (canEditFields()) { <app-inline-rich-field class="formatted-editor-text" [control]="example.get('ka')!" [value]="example.get('ka')?.value || ''" [bridge]="exampleGeorgian" [annotationArrays]="[formArrayAt(example, 'markers'), formArrayAt(example, 'crossReferences')]" [markers]="formArrayAt(example, 'markers').getRawValue()" [references]="nodeReferences(example)" field="ka" label="Georgian translation · 格文译文" /> }
+                      @if (!canEditFields() || inlineNodeMedia('example', example, 'ka').length) { <div class="formatted-editor-text" [attr.aria-label]="canEditFields() ? 'Preview · 预览' : null"><app-inline-entry-text [images]="inlineNodeMedia('example', example, 'ka')" [body]="example.get('ka')?.value || ''" [references]="nodeReferences(example)" [markers]="formArrayAt(example, 'markers').getRawValue()" field="ka" route="/adminpanel/entries" /></div> }
                     </div>
-                    <div class="font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost font-control" type="button" title="Decrease text size · 缩小字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], -1)">A−</button><button class="btn btn-ghost font-control" type="button" title="Increase text size · 放大字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], 1)">A+</button></div>
+                    <div class="font-controls" aria-label="Text size · 文字大小"><button class="btn btn-ghost font-control" type="button" title="Decrease text size · 缩小字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], -1)">A−</button><button class="btn btn-ghost font-control" type="button" title="Increase text size · 放大字号" (click)="resizeEditorText([exampleChinese, exampleGeorgian], 1)">A+</button><button class="btn btn-ghost" type="button" [disabled]="!example.get('id')?.value" (click)="commentOn(example)" title="Comment on this example · 评论此例句">💬</button></div>
                   </div>
                 </div>
               }
@@ -459,7 +468,15 @@
             ) {
               <article class="scope structure-node structure-node--homonym" [formGroup]="homonym">
                 <div class="scope-head">
-                  <span class="chip hom-index">H{{ h + 1 }}</span>
+                  <button type="button" class="chip hom-index" [disabled]="!canEditFields()" (click)="editingHomograph.set(h)">{{ homographLabel(h) }}</button>
+                  @if (canEditFields() && (editingHomograph() === h || !homonym.get('text')?.value)) {
+                  <select #pronunciation class="form-select" aria-label="Homograph pronunciation · 同形词读音" [value]="homographPronunciationIndex(homonym)" (change)="linkHomographPronunciation(homonym, pronunciation.value)">
+                    <option value="">Independent label · 独立标识</option>
+                    @for (pinyin of pinyins.controls; track pinyin; let p = $index) {
+                      <option [value]="p">{{ pinyin.get('value')?.value }}</option>
+                    }
+                  </select>
+                  @if (homonym.get('pinyinId')?.value == null && homonym.get('pinyinOrder')?.value == null) {
                   <input
                     class="form-control hom-label grow"
                     formControlName="text"
@@ -467,7 +484,11 @@
                     placeholder="Homograph label · 同形词标识 — Optional · 可选"
                     [readOnly]="!canEditFields()"
                     (input)="markContentChanged()"
+                    (blur)="editingHomograph.set(null)"
+                    (keydown.enter)="$event.preventDefault(); editingHomograph.set(null)"
                   />
+                  }
+                  }
                   <div class="scope-tools">
                     <app-editorial-decorations
                       [scopeOnly]="true"
@@ -743,13 +764,7 @@
               >
                 Comments · 评论 <span>{{ comments().length }}</span>
               </button>
-              <button
-                type="button"
-                [class.active]="notesTab() === 'support'"
-                [disabled]="isNew()" (click)="setNotesTab('support')"
-              >
-                Helper materials · 辅助资料 <span>{{ supportMaterials().length }}</span>
-              </button>
+
             </nav>
             <div class="reference-toolbar-actions">
               <span class="text-small">Internal editorial material · 仅供编辑使用</span
@@ -765,20 +780,33 @@
 
             @if (referenceSaved() && !referenceForm.dirty) { <p role="status">G1–G5 შენახულია · 已保存</p> }
             @if (notesTab() === 'reference') {
-              <div class="entry-notes-body" [formGroup]="referenceForm">
+              <div class="entry-notes-body" [formGroup]="referenceForm" [class.notes-pinned]="referencePinned()" [style.font-size.px]="referenceFontSize()">
+                <div class="notes-toolbar">
+                  <button class="btn" type="button" (click)="resizeNotes('reference', 1)">A+</button><button class="btn" type="button" (click)="resizeNotes('reference', -1)">A−</button>
+                  <button class="btn" type="button" (click)="startEditing()" [disabled]="!canEdit()">Edit · 编辑</button>
+                  <button class="btn" type="button" [attr.aria-pressed]="referenceRaw()" (click)="referenceRaw.set(!referenceRaw())">Raw view · 原始文本</button>
+                  <button class="btn" type="button" [attr.aria-pressed]="referencePinned()" (click)="referencePinned.set(!referencePinned())">Pin · 固定</button>
+                </div>
+                <div class="notes-toolbar"><input class="form-control" placeholder="Search within reference materials · 在参考资料中查找" [value]="referenceQuery()" (input)="referenceQuery.set($any($event.target).value)" />
+                  @for (filter of ['all', 'g1', 'g2', 'g3', 'g4', 'g5']; track filter) { <button class="btn" type="button" [attr.aria-pressed]="referenceGroup() === filter" (click)="referenceGroup.set(filter)">{{ filter === 'all' ? 'All · 全部' : filter.toUpperCase() }}</button> }
+                </div>
                 @if (referenceLoading()) {
                   <div class="empty-state">Loading… · 加载中</div>
                 } @else {
                   <div class="reference-grid">
-                    @for (group of ['g1', 'g2', 'g3', 'g4', 'g5']; track group; let i = $index) {
-                      <div class="field">
-                        <label [for]="'inline-reference-' + group">G{{ i + 1 }}</label
-                        ><textarea
-                          [id]="'inline-reference-' + group"
-                          [formControlName]="group"
-                          rows="3"
-                          [readOnly]="!canEditFields()"
-                        ></textarea>
+                    @for (referenceGroup of referenceGroups; track referenceGroup.key; let i = $index) {
+                      @let group = referenceGroup.key;
+                      <div class="field reference-group" [class]="'field reference-group ' + group" [hidden]="!referenceVisible(group)">
+                        <div class="reference-card-header">
+  <label [for]="'inline-reference-' + group"><b class="reference-group-label">G{{ i + 1 }}</b> {{ referenceGroup.title }}</label>
+  @if (referenceGroup.source) { <span class="text-small">Source · 来源: {{ referenceGroup.source }}</span> }
+  <button class="btn" type="button" [attr.aria-label]="'Toggle ' + group.toUpperCase()" [attr.aria-expanded]="!collapsedReferenceGroups().includes(group)" (click)="toggleReferenceGroup(group)">{{ collapsedReferenceGroups().includes(group) ? '⌄' : '⌃' }}</button>
+</div>
+@if (!collapsedReferenceGroups().includes(group)) {
+  @if (canEditFields()) { <textarea [id]="'inline-reference-' + group" [formControlName]="group" rows="3"></textarea> }
+  @else if (referenceRaw()) { <pre class="raw-reference">{{ referenceForm.get(group)?.value }}</pre> }
+  @else { <div class="reference-content"><app-reference-text [body]="referenceForm.get(group)?.value || ''" [query]="referenceQuery()" /></div> }
+}
                       </div>
                     }
                   </div>
@@ -800,15 +828,19 @@
             }
 
             @if (notesTab() === 'comments') {
-              <div class="entry-notes-body">
+              <div class="entry-notes-body" [class.notes-pinned]="commentsPinned()" [style.font-size.px]="commentFontSize()">
+                <div class="notes-toolbar"><button class="btn" type="button" (click)="resizeNotes('comments', 1)">A+</button><button class="btn" type="button" (click)="resizeNotes('comments', -1)">A−</button><button class="btn" type="button" [attr.aria-pressed]="commentsPinned()" (click)="commentsPinned.set(!commentsPinned())">Pin · 固定</button></div>
                 @if (commentsLoading()) {
                   <div class="empty-state compact">Comments · 评论 იტვირთება…</div>
                 } @else {
                   <ul class="entry-note-list">
                     @for (comment of comments(); track comment.id) {
-                      <li>
+                      <li [class.targeted-comment]="comment.targetSegmentId" [class.reply-comment]="comment.replyToCommentId">
                         <div class="comment-author-line">
-                          <strong>{{ comment.authorDisplayName || 'უცნობი ავტორი' }}</strong>
+                          <button class="btn comment-person" type="button" (click)="openPrivateMessage(comment)" title="Private message · 私人消息">{{ comment.authorDisplayName || 'Unknown editor · 未知编辑' }}</button>@if (comment.authorRole) { <span class="viz-badge comment-role">{{ commentRole(comment.authorRole) }}</span> }
+                          @if (comment.replyToCommentId) { @if (replyParent(comment.replyToCommentId); as parent) { <span>➔</span><button class="btn comment-person" type="button" (click)="openPrivateMessage(parent)" title="Private message · 私人消息">{{ parent.authorDisplayName }}</button>@if (parent.authorRole) { <span class="viz-badge comment-role">{{ commentRole(parent.authorRole) }}</span> } } }
+                          @if (comment.targetSegmentId) { <span class="text-small">{{ commentTargetLabel(comment.targetSegmentId) }}</span> }
+                          <button class="btn" type="button" (click)="replyTo(comment)">Reply · 回复</button>
                           <time>{{
                             comment.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400'
                           }}</time>
@@ -836,7 +868,7 @@
                             </button>
                           </div>
                         } @else {
-                          <p>{{ comment.commentText }}</p>
+                          <p><app-linked-message-body [body]="comment.commentText" [links]="comment.entryLinks ?? null" /></p>
                           @if (canEditComment(comment)) {
                             <div class="inline-actions">
                               <button
@@ -885,11 +917,13 @@
                   <div class="error-banner">{{ commentError() }}</div>
                 }
                 <div class="comment-compose entry-note-compose">
+                  @if (replyingTo(); as parent) { <p>Reply · 回复: {{ parent.authorDisplayName }} — {{ parent.commentText }}</p> }
+                  @if (commentTarget(); as target) { <p>{{ commentTargetLabel(target) }} <button type="button" class="btn" (click)="commentTarget.set(null); replyingTo.set(null)">×</button></p> }
                   <textarea
                     rows="3"
                     maxlength="4000"
-                    placeholder="დაწერეთ კომენტარი…"
-                    aria-label="კომენტარი"
+                    placeholder="Write a comment · 撰写评论"
+                    aria-label="Write a comment · 撰写评论"
                     [value]="commentText()"
                     (input)="updateCommentText($event)"
                   ></textarea>
@@ -899,11 +933,11 @@
                     (click)="addComment()"
                     [disabled]="!commentText().trim() || commentSaving()"
                   >
-                    {{ commentSaving() ? 'ემატება…' : 'კომენტარის დამატება' }}
+                    {{ commentSaving() ? 'Sending… · 发送中' : 'Send · 发送' }}
                   </button>
                 </div>
               </div>
-            } @else {
+            } @else if (notesTab() === 'support') {
               <div class="entry-notes-body">
                 @if (supportMaterialsLoading()) {
                   <div class="empty-state compact">Helper materials · 辅助资料 იტვირთება…</div>
@@ -972,7 +1006,7 @@
                     </select>
                   </div>
                   <div class="field support-comment-field">
-                    <label for="support-material-comment">კომენტარი</label>
+                    <label for="support-material-comment">Write a comment · 撰写评论</label>
                     <textarea
                       id="support-material-comment"
                       formControlName="commentText"
@@ -1086,10 +1120,10 @@
           <div class="media-uploader">
             <label class="media-picker" for="entry-media-input">
               @if (selectedMediaPreview()) {
-                <img [src]="selectedMediaPreview()" alt="არჩეული სურათის წინასწარი ნახვა" />
+                <img [src]="selectedMediaPreview()" alt="Image preview · 图片预览" />
               } @else {
                 <span class="upload-symbol">＋</span>
-                <strong>Select · 选择 სურათი</strong>
+                <strong>Choose image · 选择图片</strong>
                 <small>JPEG, PNG, WebP · მაქს. 5 MB</small>
               }
             </label>
@@ -1109,7 +1143,7 @@
                   [value]="mediaPlacement()"
                   (change)="updateMediaPlacement($event)"
                 >
-                  <option value="cover">მთავარი სურათი</option>
+                  <option value="cover">Cover image · 封面图片</option>
                   <option value="inline">შინაარსში</option>
                   <option value="attached">დანართი</option>
                 </select>
@@ -1129,7 +1163,7 @@
                 (click)="uploadMedia()"
                 [disabled]="!selectedMedia() || mediaSaving()"
               >
-                {{ mediaSaving() ? 'იტვირთება…' : 'სურათის ატვირთვა' }}
+                {{ mediaSaving() ? 'Uploading… · 上传中' : 'Upload · 上传' }}
               </button>
             </div>
           </div>
@@ -1215,25 +1249,12 @@
         @if (historyLoading()) {
           <div class="empty-state">History · 历史 იტვირთება…</div>
         } @else {
-          <ol class="history-list">
-            @for (item of history(); track item.id) {
-              <li>
-                <span class="history-marker" aria-hidden="true"></span>
-                <article>
-                  <header>
-                    <strong>{{ historyActionLabel(item.action) }}</strong>
-                    <time>{{ item.performedAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400' }}</time>
-                  </header>
-                  <p>{{ item.performedByDisplayName }}</p>
-                  @if (historyDetail(item); as detail) {
-                    <span class="history-detail">{{ detail }}</span>
-                  }
-                </article>
-              </li>
-            } @empty {
-              <li class="empty-state">ცვლილებების History · 历史 ჯერ არ არის.</li>
-            }
-          </ol>
+          <div class="table-responsive"><table class="table table-sm history-table">
+            <thead class="cge-header"><tr><th>Date and time · 日期和时间</th><th>Editor · 编辑</th><th>Section · 区域</th><th>Action · 操作</th></tr></thead>
+            <tbody>@for (item of history(); track item.id) {
+              <tr class="cge-row"><td>{{ item.performedAtUtc | date: 'yyyy-MM-dd HH:mm' : '+0400' }}</td><td>{{ item.performedByDisplayName }}@if (item.performedByRole) { <span class="viz-badge">{{ commentRole(item.performedByRole) }}</span> }</td><td>{{ historySection(item) }}</td><td>{{ historyActionLabel(item.action) }}@if (historyDetail(item)) { <small class="history-summary">{{ historyDetail(item) }}</small> }</td></tr>
+            } @empty { <tr><td colspan="4">No history · 暂无历史</td></tr> }</tbody>
+          </table></div>
         }
       </section>
     }

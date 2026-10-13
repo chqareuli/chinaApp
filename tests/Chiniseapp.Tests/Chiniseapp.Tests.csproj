@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Chiniseapp.Api\Chiniseapp.Api.csproj" />
     <ProjectReference Include="..\..\src\Chiniseapp.Domain\Chiniseapp.Domain.csproj" />
     <ProjectReference Include="..\..\src\Chiniseapp.Application\Chiniseapp.Application.csproj" />
     <ProjectReference Include="..\..\src\Chiniseapp.Infrastructure\Chiniseapp.Infrastructure.csproj" />

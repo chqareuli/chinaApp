@@ -5,11 +5,12 @@ import {
   EventEmitter,
   inject,
   Input,
+  OnChanges,
   Output,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   catchError,
   debounceTime,
@@ -18,6 +19,7 @@ import {
   of,
   Subject,
   switchMap,
+  Subscription,
 } from 'rxjs';
 import { EditorialMarker, EntrySummary, VocabularyItem } from '../../core/models/entry.models';
 import { EntriesService } from '../../core/services/entries.service';
@@ -31,7 +33,7 @@ type MarkerCategory = EditorialMarker['category'];
   styleUrl: './editorial-decorations.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EditorialDecorations {
+export class EditorialDecorations implements OnChanges {
   private readonly fb = new FormBuilder();
   private readonly entries = inject(EntriesService);
   private readonly destroyRef = inject(DestroyRef);
@@ -42,12 +44,69 @@ export class EditorialDecorations {
   @Input() vocabularies: VocabularyItem[] = [];
   @Input() readonly = false;
   @Input() scopeOnly = false;
+  @Input() textField?: HTMLTextAreaElement;
+  @Input() textControl: AbstractControl | null = null;
+  @Input() fieldName = 'definition';
+  private insertionRange: { start: number; end: number } | null = null;
+  private observedControl: AbstractControl | null = null;
+  private textSubscription?: Subscription;
+  ngOnChanges(): void {
+    if (this.observedControl === this.textControl) return;
+    this.textSubscription?.unsubscribe();
+    this.observedControl = this.textControl;
+    let previous = String(this.textControl?.value ?? '');
+    this.textSubscription = this.textControl?.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(value => {
+      const next = String(value ?? '');
+      this.reconcileText(previous, next);
+      previous = next;
+    });
+  }
+  reconcileText(previous: string, next: string): void {
+    let start = 0;
+    while (start < previous.length && start < next.length && previous[start] === next[start]) start++;
+    let oldEnd = previous.length, newEnd = next.length;
+    while (oldEnd > start && newEnd > start && previous[oldEnd - 1] === next[newEnd - 1]) { oldEnd--; newEnd--; }
+    for (const annotations of [this.markers, this.crossReferences]) {
+      for (let i = annotations.length - 1; i >= 0; i--) {
+        const item = annotations.at(i);
+        if (item.get('textField')?.value !== this.fieldName) continue;
+        const offset = item.get('textOffset')?.value, text = item.get('displayText')?.value;
+        if (typeof offset !== 'number' || !text) continue;
+        if (offset >= oldEnd) item.get('textOffset')?.setValue(offset + newEnd - oldEnd);
+        else if (offset + text.length > start) annotations.removeAt(i);
+      }
+    }
+  }
+  private insertText(text: string): number | null {
+    if (!this.textControl || !this.textField) return null;
+    const value = String(this.textControl.value ?? '');
+    const range = this.insertionRange ?? { start: this.textField.selectionStart, end: this.textField.selectionEnd };
+    const shift = text.length - (range.end - range.start);
+    for (const annotation of this.observedControl === this.textControl ? [] : [...this.markers.controls, ...this.crossReferences.controls]) {
+      if (annotation.get('textField')?.value !== this.fieldName) continue;
+      const offset = annotation.get('textOffset')?.value;
+      if (typeof offset === 'number' && offset >= range.end) annotation.get('textOffset')?.setValue(offset + shift);
+    }
+    this.textControl.setValue(value.slice(0, range.start) + text + value.slice(range.end));
+    this.textControl.markAsDirty();
+    this.textField.focus();
+    this.textField.setSelectionRange(range.start + text.length, range.start + text.length);
+    this.insertionRange = null;
+    return range.start;
+  }
   @Input() layout: 'default' | 'definition' | 'example' = 'default';
   selectMarker(category: MarkerCategory, event: Event): void {
     const select = event.target as HTMLSelectElement;
     const value = select.value;
     select.value = '';
     if (!value || this.readonly || !this.valuesFor(category).some((v) => v.code === value)) return;
+    if (category === 'Abbr' && this.textControl) {
+      const displayText = this.markerValueLabel(category, value);
+      const textOffset = this.insertText(displayText + ' ');
+      this.markers.push(this.fb.group({ id: [null], category: [category], value: [value], displayText: [displayText], textOffset: [textOffset], textField: [this.fieldName] }));
+      this.contentChanged.emit();
+      return;
+    }
     const same = this.markers.controls.filter((m) => m.get('category')?.value === category);
     if (
       same.some((m) => m.get('value')?.value === value) ||
@@ -177,11 +236,21 @@ export class EditorialDecorations {
   }
 
   removeMarker(index: number): void {
+    const item = this.markers.at(index);
+    const value = String(this.textControl?.value ?? '');
+    const offset = item.get('textOffset')?.value;
+    const text = item.get('displayText')?.value;
     this.markers.removeAt(index);
+    if (item.get('textField')?.value === this.fieldName && typeof offset === 'number' && text && value.slice(offset, offset + text.length) === text) {
+      this.textControl?.setValue(value.slice(0, offset) + value.slice(offset + text.length));
+      this.textControl?.markAsDirty();
+    }
     this.contentChanged.emit();
   }
 
   openXrAdd(): void {
+    if (this.readonly) return;
+    this.insertionRange = this.textField ? { start: this.textField.selectionStart, end: this.textField.selectionEnd } : null;
     this.markerEditorOpen.set(false);
     this.xrEditingIndex.set(null);
     this.xrDraft.setValue({
@@ -235,7 +304,9 @@ export class EditorialDecorations {
     const value = this.xrDraft.getRawValue();
     const label = this.xrTypes.find((item) => item.value === value.type)?.label ?? 'იხ.';
     const editing = this.xrEditingIndex();
-    const payload = { ...value, label };
+    const inlineText = `${label} ${value.displayText || value.target}`;
+    const offset = editing === null ? this.insertText(inlineText) : null;
+    const payload = { ...value, label, ...(offset !== null ? { textOffset: offset, textField: this.fieldName, displayText: inlineText } : {}) };
     if (editing === null) {
       this.crossReferences.push(
         this.fb.group({
@@ -251,13 +322,22 @@ export class EditorialDecorations {
   }
 
   removeXr(index: number): void {
+    const item = this.crossReferences.at(index).getRawValue();
     this.crossReferences.removeAt(index);
+    if (this.textControl && item.textField === this.fieldName && item.displayText) {
+      const value = String(this.textControl.value ?? '');
+      const offset = item.textOffset;
+      if (typeof offset === 'number' && value.slice(offset, offset + item.displayText.length) === item.displayText)
+        this.textControl.setValue(value.slice(0, offset) + value.slice(offset + item.displayText.length));
+    }
     this.contentChanged.emit();
   }
 
   markerText(index: number): string {
     const item = this.markers.at(index).getRawValue();
-    return `${this.categories.find((category) => category.value === item.category)?.label ?? item.category} · ${this.markerValueLabel(item.category, item.value)}`;
+    const label = this.markerValueLabel(item.category, item.value);
+    const symbol = label.split(' · ')[0].trim();
+    return item.category === 'Style' ? `〈${symbol.replace(/[〈〉<>]/g, '')}〉` : item.category === 'Domain' ? `【${symbol.replace(/[【】\[\]]/g, '')}】` : label;
   }
 
   private markerValueLabel(category: MarkerCategory, value: string): string {
@@ -270,7 +350,7 @@ export class EditorialDecorations {
 
   xrText(index: number): string {
     const item = this.crossReferences.at(index).getRawValue();
-    return `${item.label} ${item.displayText || item.target}`;
+    return item.textField ? item.displayText : `${item.label} ${item.displayText || item.target}`;
   }
 
   xrLinkState(index: number): 'linked' | 'unresolved' | 'pending' {

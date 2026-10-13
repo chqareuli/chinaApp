@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 @Component({
   selector: 'app-panel-icon',
   template: `<svg
-    width="27"
-    height="27"
+    width="34"
+    height="34"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"

@@ -109,6 +109,18 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         // since then makes this UPDATE affect 0 rows and throw below.
         db.Entry(entry).Property<uint>("xmin").OriginalValue = request.RowVersion;
 
+        var existing = await db.Segments.Where(s => s.EntryId == id).ToListAsync(ct);
+        var reference = await db.ReferenceMaterials.AsNoTracking().Where(r => r.EntryId == id)
+            .Select(r => new { r.G1, r.G2, r.G3, r.G4, r.G5, r.OriginalRawReferenceMaterial }).FirstOrDefaultAsync(ct);
+        var media = await db.MediaAssets.AsNoTracking().Where(m => m.EntryId == id)
+            .Select(m => new { m.Id, m.Placement, m.OriginalFilename, m.StorageUrl }).ToListAsync(ct);
+        string Snapshot(IReadOnlyList<Segment> segments) => JsonSerializer.Serialize(new
+        {
+            schemaVersion = 1, entry.Id, entry.Lemma, entry.Status,
+            forms = EntryTreeMapper.ReadForms(entry), content = EntryTreeMapper.Read(segments), reference, media
+        });
+        var previousSnapshot = Snapshot(existing);
+
         if (!string.IsNullOrWhiteSpace(request.Lemma))
         {
             entry.Lemma = NormalizeLemma(request.Lemma);
@@ -125,8 +137,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 
         EntryTreeMapper.SaveForms(entry, request.Pinyins ?? (request.Pinyin is not null
             ? (string.IsNullOrWhiteSpace(request.Pinyin) ? [] : [new FormItemDto(null, request.Pinyin, 0)]) : null), request.ComplexForms);
-        var existing = await db.Segments.Where(s => s.EntryId == id).ToListAsync(ct);
         var mapper = new EntryTreeMapper(id, existing, entry.UpdatedAtUtc);
+        request = EntryTreeMapper.LinkPronunciations(request, EntryTreeMapper.ReadForms(entry));
         mapper.Apply(request);
         db.Segments.AddRange(mapper.Nodes.Where(s => s.Id == 0));
 
@@ -135,20 +147,23 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         try
         {
-            db.AuditLogEntries.Add(new AuditLogEntry
+            var audit = new AuditLogEntry
             {
                 EntityType = nameof(Entry),
                 EntityId = entry.Id,
                 Action = AuditAction.ContentEdited,
                 PerformedByEditorId = currentEditorId,
                 PerformedAtUtc = entry.UpdatedAtUtc,
-            });
+                OldValue = previousSnapshot,
+            };
+            db.AuditLogEntries.Add(audit);
 
             await scoringService.AwardForContentEditAsync(entry, currentEditorRole, currentEditorId, ct);
             await notificationService.NotifyEntryChangedAsync(entry, currentEditorId, nameof(AuditAction.ContentEdited), ct);
 
             await db.SaveChangesAsync(ct);
             db.Segments.RemoveRange(mapper.Removed);
+            audit.NewValue = Snapshot(mapper.Nodes);
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
         }
@@ -180,11 +195,15 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             throw new EntryStatusTransitionForbiddenException(previousStatus.ToString(), targetStatus.ToString());
         }
 
-        if (targetStatus == EntryStatus.Published)
+        if (targetStatus == EntryStatus.Published || (previousStatus == EntryStatus.NewEntry && targetStatus == EntryStatus.ZhReview))
         {
             var tree = EntryTreeMapper.Read(await db.Segments.AsNoTracking().Where(s => s.EntryId == id).ToListAsync(ct));
             var groups = tree.GramGroups.Concat(tree.Homonyms.SelectMany(h => h.GramGroups ?? [])).ToList();
             var senses = tree.Senses.Concat(tree.Homonyms.SelectMany(h=>h.DirectSenses)).Concat(groups.SelectMany(g => g.Senses)).Concat(tree.DirectPoses.SelectMany(p => p.Senses)).ToList();
+            var parentPos = new[] { tree.GramGroups.Select(g => g.Pos).Concat(tree.DirectPoses.Select(p => (string?)p.Pos)) }
+                .Concat(tree.Homonyms.Select(h => (h.GramGroups ?? []).Select(g => g.Pos)));
+            if (parentPos.Any(values => { var codes = values.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(); return codes.Distinct().Count() != codes.Count; }))
+                throw new EntryValidationException("Merge duplicate POS groups before review · 送审前请合并重复的词性组");
             if (tree.Homonyms.Any(h => (h.GramGroups is null || h.GramGroups.Count == 0) && h.DirectSenses.Count == 0) ||
                 groups.Any(g => string.IsNullOrWhiteSpace(g.Pos) || g.Senses.Count == 0) ||
                 tree.DirectPoses.Any(p => string.IsNullOrWhiteSpace(p.Pos) || p.Senses.Count == 0) ||
@@ -202,6 +221,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             entry.MainAuthorEditorId = entry.CreatedByEditorId;
         }
 
+        var versionContent = EntryTreeMapper.Read(await db.Segments.AsNoTracking().Where(s => s.EntryId == id).ToListAsync(ct));
+        var versionForms = EntryTreeMapper.ReadForms(entry);
         entry.Status = targetStatus;
         entry.StatusPriority = EntryStatusPriority.For(targetStatus);
         entry.LastEditorEditorId = currentEditorId;
@@ -214,8 +235,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             Action = AuditAction.StatusChanged,
             PerformedByEditorId = currentEditorId,
             PerformedAtUtc = entry.UpdatedAtUtc,
-            OldValue = JsonSerializer.Serialize(new { status = previousStatus.ToString() }),
-            NewValue = JsonSerializer.Serialize(new { status = targetStatus.ToString() }),
+            OldValue = JsonSerializer.Serialize(new { schemaVersion = 1, status = previousStatus.ToString(), entry.Id, entry.Lemma, forms = versionForms, content = versionContent }),
+            NewValue = JsonSerializer.Serialize(new { schemaVersion = 1, status = targetStatus.ToString(), entry.Id, entry.Lemma, forms = versionForms, content = versionContent }),
         });
 
         await scoringService.AwardForStatusChangeAsync(entry, previousStatus, actor.Role, currentEditorId, ct);
@@ -367,5 +388,5 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         entry.Status.ToString(),
         entry.MainAuthorEditorId is int id && names.TryGetValue(id, out var mainName) ? mainName : null,
         names.GetValueOrDefault(entry.LastEditorEditorId, string.Empty),
-        entry.UpdatedAtUtc);
+        entry.UpdatedAtUtc) { MainAuthorEditorId = entry.MainAuthorEditorId, LastEditorEditorId = entry.LastEditorEditorId };
 }

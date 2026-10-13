@@ -2,7 +2,7 @@
   <div class="repeatable-head">
     <strong class="sr-only">{{ label }}</strong>
     @if (!readonly) {
-      <button type="button" class="compact-add" (click)="openAdd()">＋</button>
+      <button type="button" class="compact-add" [disabled]="items.length >= maxItems" (click)="openAdd()">＋</button>
     }
   </div>
 

@@ -8,6 +8,8 @@ export interface PublicDictionarySearchItem {
 }
 
 export interface PublicDictionaryCrossReference {
+  textOffset?: number | null;
+  textField?: string | null;
   type: string;
   label: string;
   target: string;
@@ -18,12 +20,16 @@ export interface PublicDictionaryCrossReference {
 }
 
 export interface PublicDictionaryMarker {
+  textOffset?: number | null;
+  textField?: string | null;
+  displayText?: string | null;
   category: 'Style' | 'Domain' | 'Abbr' | 'Lang';
   value: string;
   label: string;
 }
 
 export interface PublicDictionaryExample {
+  inlineImages?: { offset: number; url: string; alt: string }[];
   zh: string;
   ka: string;
   markers: PublicDictionaryMarker[];
@@ -31,6 +37,7 @@ export interface PublicDictionaryExample {
 }
 
 export interface PublicDictionarySense {
+  inlineImages?: { offset: number; url: string; alt: string }[];
   number: number;
   definition: string;
   markers: PublicDictionaryMarker[];

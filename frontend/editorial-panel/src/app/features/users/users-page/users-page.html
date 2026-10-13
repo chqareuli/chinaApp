@@ -82,6 +82,7 @@
                     class="cge-state"
                     [class.cge-active]="editor.isActive"
                     [class.cge-inactive]="!editor.isActive"
+                    [class.cge-blocked]="stateFor(editor) === 'blocked'"
                     ><span class="cge-mark"></span
                     >{{
                       stateFor(editor) === 'cancelled'

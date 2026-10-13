@@ -1,11 +1,12 @@
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { InlineEntryText } from '../inline-entry-text';
 import { PublicDictionaryEntry } from '../../core/models/public-dictionary.models';
 
 @Component({
   selector: 'app-public-entry-article',
-  imports: [DatePipe, NgTemplateOutlet, RouterLink],
+  imports: [DatePipe, NgTemplateOutlet, RouterLink, InlineEntryText],
   templateUrl: './public-entry-article.html',
   styleUrl: './public-entry-article.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -2,6 +2,16 @@ import { FormArray, FormGroup } from '@angular/forms';
 import { RepeatableTextList } from './repeatable-text-list';
 
 describe('RepeatableTextList', () => {
+  it('blocks extra values at the limit while allowing existing values to be edited', () => {
+    const list = new RepeatableTextList();
+    list.items = new FormArray<FormGroup>([]);
+    list.maxItems = 1;
+    list.addInline('hé');
+    list.addInline('huó');
+    expect(list.items.length).toBe(1);
+    list.editInline(0, 'hè');
+    expect(list.itemValue(0)).toBe('hè');
+  });
   let component: RepeatableTextList;
 
   beforeEach(() => {

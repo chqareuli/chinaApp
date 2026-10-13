@@ -24,6 +24,7 @@ export class RepeatableTextList {
   @Input() inputLang = '';
   @Input() readonly = false;
   @Input() maxLength = 255;
+  @Input() maxItems = Number.POSITIVE_INFINITY;
   @Output() readonly contentChanged = new EventEmitter<void>();
 
   readonly editingIndex = signal<number | null>(null);
@@ -68,6 +69,7 @@ export class RepeatableTextList {
   }
 
   openAdd(): void {
+    if (this.readonly || this.items.length >= this.maxItems) return;
     this.editingIndex.set(null);
     this.draft.setValue('');
     this.duplicateError.set(false);
@@ -99,6 +101,7 @@ export class RepeatableTextList {
     }
 
     const editing = this.editingIndex();
+    if (this.readonly || (editing === null && this.items.length >= this.maxItems)) return;
     const duplicate = this.items.controls.some(
       (item, index) =>
         index !== editing &&

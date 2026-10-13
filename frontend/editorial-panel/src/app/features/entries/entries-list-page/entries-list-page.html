@@ -71,10 +71,10 @@
             @for (entry of entries(); track entry.id) {
               <tr class="cge-row">
                 <td>
-                  <span class="cge-person">{{ entry.mainAuthorDisplayName || '—' }}</span>
+                  <span class="cge-person">@if (personRole(entry.mainAuthorEditorId); as role) { <span class="viz-badge">{{ role }}</span> }<strong>{{ entry.mainAuthorDisplayName || '—' }}</strong></span>
                 </td>
                 <td>
-                  <span class="cge-person">{{ entry.lastEditorDisplayName }}</span>
+                  <span class="cge-person">@if (personRole(entry.lastEditorEditorId); as role) { <span class="viz-badge">{{ role }}</span> }<strong>{{ entry.lastEditorDisplayName }}</strong></span>
                 </td>
                 <td>
                   <a [routerLink]="['/adminpanel/entries', entry.id]" lang="zh">{{

@@ -1,4 +1,8 @@
 export interface CommentSummary {
+  entryLinks?: {offset:number;text:string;entryId:number}[] | null;
+  authorRole?: string | null;
+  targetSegmentId?: number | null;
+  replyToCommentId?: number | null;
   id: number;
   entryId: number;
   authorEditorId: number;

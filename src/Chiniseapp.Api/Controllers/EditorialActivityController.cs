@@ -31,6 +31,6 @@ public class EditorialActivityController(ChiniseDbContext db) : ControllerBase
             where a.EntityType == nameof(Entry) && a.EntityId == id
             orderby a.PerformedAtUtc descending, a.Id descending
             select new { a.Id, Action = a.Action.ToString(), a.PerformedByEditorId,
-                PerformedByDisplayName = editor.DisplayName, a.PerformedAtUtc, a.OldValue, a.NewValue, a.Notes }).ToListAsync(ct));
+                PerformedByDisplayName = editor.DisplayName, PerformedByRole = editor.Role.ToString(), a.PerformedAtUtc, a.OldValue, a.NewValue, a.Notes }).ToListAsync(ct));
     }
 }
