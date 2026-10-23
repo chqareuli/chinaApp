@@ -1,3 +1,4 @@
+import { EditorIdentity } from '../../../shared/editor-identity';
 import { PanelFontControl } from '../../../shared/panel-font-control';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -25,14 +26,21 @@ import { editorRoleCodes } from '../../../core/models/auth.models';
 
 @Component({
   selector: 'app-entries-list-page',
-  imports: [DatePipe, ReactiveFormsModule, RouterLink, StatusBadge, PanelFontControl],
+  imports: [
+    EditorIdentity,
+    DatePipe,
+    ReactiveFormsModule,
+    RouterLink,
+    StatusBadge,
+    PanelFontControl,
+  ],
   templateUrl: './entries-list-page.html',
   styleUrl: './entries-list-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EntriesListPage implements OnInit {
   personRole(id?: number | null): string {
-    const editor = this.editors().find(item => item.id === id);
+    const editor = this.editors().find((item) => item.id === id);
     return editor ? editorRoleCodes[editor.editorialRole || editor.role] : '';
   }
   private readonly entriesService = inject(EntriesService);
@@ -181,7 +189,7 @@ export class EntriesListPage implements OnInit {
     const options: EntryListQuery = {
       workEditorId: Number(this.route.snapshot.queryParamMap.get('workEditorId')) || undefined,
       scoreKind: this.route.snapshot.queryParamMap.get('scoreKind') || undefined,
-      excludeDrafts: this.isHome,
+      excludeDrafts: this.isHome && !this.hasFilters(),
       authorId: Number(this.authorControl.value) || undefined,
       page: this.page(),
       pageSize: this.pageSize,

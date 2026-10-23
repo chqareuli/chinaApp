@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Chiniseapp.Application.Accounting;
 using Chiniseapp.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -29,22 +28,12 @@ public class AccountingController(IAccountingService accountingService) : Contro
         Ok(await accountingService.GetEntryStatusTotalsAsync(ct));
 
     /// <summary>
-    /// 10.2 personal accounting page. Resolved Q5: KA Editor / Assistant Editor may only view
-    /// their own; everyone else may view anyone's.
+    /// EP23: authenticated editorial colleagues may view a profile's work summary.
     /// </summary>
     [HttpGet("editors/{editorId:int}")]
     public async Task<ActionResult<EditorAccountingDetail>> EditorDetail(int editorId, CancellationToken ct)
     {
-        var isSelf = editorId == User.GetEditorId();
-        var role = User.FindFirst(ClaimTypes.Role)?.Value;
-        var isRestricted = role is nameof(EditorRole.KaEditor) or nameof(EditorRole.AssistantEditor);
-        if (!isSelf && isRestricted)
-        {
-            return Problem(
-                detail: "You are only allowed to view your own accounting page.",
-                statusCode: StatusCodes.Status403Forbidden);
-        }
-
+        // EP23: editorial colleagues can inspect a profile's work summary.
         var detail = await accountingService.GetEditorDetailAsync(editorId, ct);
         return detail is null ? NotFound() : Ok(detail);
     }

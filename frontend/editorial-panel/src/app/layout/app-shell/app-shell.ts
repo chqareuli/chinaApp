@@ -1,3 +1,4 @@
+import { EditorIdentity } from '../../shared/editor-identity';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -30,7 +31,7 @@ import { UnreadActivityService } from '../../core/services/unread-activity.servi
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, PanelIcon],
+  imports: [EditorIdentity, RouterLink, RouterLinkActive, RouterOutlet, PanelIcon],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

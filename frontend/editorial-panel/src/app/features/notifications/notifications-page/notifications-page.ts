@@ -1,3 +1,4 @@
+import { EditorIdentity } from '../../../shared/editor-identity';
 import { PanelFontControl } from '../../../shared/panel-font-control';
 import { editorRoleCodes } from '../../../core/models/auth.models';
 import { getStatusMeta } from '../../../shared/status-badge/status-badge';
@@ -20,7 +21,7 @@ import { UnreadActivityService } from '../../../core/services/unread-activity.se
 
 @Component({
   selector: 'app-notifications-page',
-  imports: [DatePipe, RouterLink, PanelFontControl],
+  imports: [EditorIdentity, DatePipe, RouterLink, PanelFontControl],
   templateUrl: './notifications-page.html',
   styleUrl: './notifications-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

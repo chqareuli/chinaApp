@@ -47,12 +47,11 @@
                     >
                   </td>
                   <td>
-                    <span class="cge-person">
-                      @if (notification.triggeredByRole; as role) {
-                        <span class="viz-badge">{{ roleCodes[role] }}</span>
-                      }
-                      {{ notification.triggeredByDisplayName }}</span
-                    >
+                    <app-editor-identity
+                      [id]="notification.triggeredByEditorId"
+                      [name]="notification.triggeredByDisplayName"
+                      [role]="notification.triggeredByRole || ''"
+                    />
                   </td>
                   <td>
                     <span class="cge-entry">
@@ -91,10 +90,11 @@
           >
         </div>
         <div class="cge-preview-person">
-          @if (item.triggeredByRole; as role) {
-            <span class="viz-badge">{{ roleCodes[role] }}</span>
-          }
-          {{ item.triggeredByDisplayName }}
+          <app-editor-identity
+            [id]="item.triggeredByEditorId"
+            [name]="item.triggeredByDisplayName"
+            [role]="item.triggeredByRole || ''"
+          />
         </div>
         <div class="text-small">{{ item.createdAtUtc | date: 'yyyy-MM-dd HH:mm' : '+0400' }}</div>
         <div class="cge-preview-message">

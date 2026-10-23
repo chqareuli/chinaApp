@@ -29,6 +29,10 @@ export interface CreateEditorRequest {
 }
 
 export interface UpdateEditorRequest {
+  firstName?: string;
+  lastName?: string;
+  chineseName?: string;
+  weChatAccount?: string;
   isSupervisor?: boolean;
   isCancelled?: boolean;
   email: string;
@@ -75,5 +79,5 @@ export interface EditorAccountingDetail {
   role: EditorRole;
   createdAtUtc: string;
   scoresByStatus: ScoreCountsByStatus;
-  personalStatistics: PersonalScoreStatistics;
+  personalStatistics?: PersonalScoreStatistics;
 }

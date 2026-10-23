@@ -63,7 +63,7 @@
         title="Statistics · 统计"
         ><app-panel-icon name="statistics"
       /></a>
-      @if (isSuperAdmin()) {
+      @if (editor()) {
         <a
           class="btn btn-ghost"
           routerLink="/adminpanel/users"
@@ -106,8 +106,10 @@
         routerLink="/adminpanel/profile"
         aria-label="My account · 我的账户"
         title="My account · 我的账户"
-        ><span class="viz-badge">{{ roleCode() }}</span
-        >{{ editor()?.displayName }}</a
+        ><app-editor-identity
+          [id]="editor()?.id"
+          [name]="editor()?.displayName"
+          [role]="editor()?.role || ''" /></a
       ><button
         class="btn btn-ghost"
         type="button"

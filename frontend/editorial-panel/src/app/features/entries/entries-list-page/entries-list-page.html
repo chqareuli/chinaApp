@@ -71,10 +71,16 @@
             @for (entry of entries(); track entry.id) {
               <tr class="cge-row">
                 <td>
-                  <span class="cge-person">@if (personRole(entry.mainAuthorEditorId); as role) { <span class="viz-badge">{{ role }}</span> }<strong>{{ entry.mainAuthorDisplayName || '—' }}</strong></span>
+                  <app-editor-identity
+                    [id]="entry.mainAuthorEditorId"
+                    [name]="entry.mainAuthorDisplayName"
+                  />
                 </td>
                 <td>
-                  <span class="cge-person">@if (personRole(entry.lastEditorEditorId); as role) { <span class="viz-badge">{{ role }}</span> }<strong>{{ entry.lastEditorDisplayName }}</strong></span>
+                  <app-editor-identity
+                    [id]="entry.lastEditorEditorId"
+                    [name]="entry.lastEditorDisplayName"
+                  />
                 </td>
                 <td>
                   <a [routerLink]="['/adminpanel/entries', entry.id]" lang="zh">{{
@@ -85,14 +91,7 @@
                 <td class="text-nowrap">
                   {{ entry.updatedAtUtc | date: 'yyyy-MM-dd HH:mm' : '+0400' }}
                 </td>
-                <td>
-                  <a
-                    [routerLink]="['/adminpanel/entries', entry.id]"
-                    class="btn btn-ghost"
-                    aria-label="Open entry · 打开词目"
-                    >↗</a
-                  >
-                </td>
+                <td></td>
               </tr>
             } @empty {
               <tr>

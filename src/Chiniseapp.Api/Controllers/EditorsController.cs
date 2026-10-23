@@ -36,6 +36,10 @@ public record UpdateEditorRequest(
 {
     public bool? IsSupervisor { get; init; }
     public bool? IsCancelled { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public string? ChineseName { get; init; }
+    public string? WeChatAccount { get; init; }
 }
 
 /// <summary>
@@ -226,6 +230,17 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
         }
 
         var previousRole = editor.Role;
+        if (request.FirstName is not null || request.LastName is not null)
+        {
+            if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName) ||
+                new[] {request.FirstName,request.LastName,request.ChineseName,request.WeChatAccount}.Any(value=>value?.Length>200))
+                return BadRequest(new {message="Check the profile fields. · 请检查个人信息。"});
+            editor.FirstName=request.FirstName.Trim();editor.LastName=request.LastName.Trim();
+            editor.ChineseName=request.ChineseName?.Trim();editor.WeChatAccount=request.WeChatAccount?.Trim();
+            displayName=$"{editor.FirstName} {editor.LastName}";
+            if(displayName.Length>200)return BadRequest(new {message="Full name must be at most 200 characters."});
+        }
+        if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email)) return BadRequest(new {message="Enter a valid email."});
         editor.Email = email;
         editor.DisplayName = displayName;
         editor.Role = role;

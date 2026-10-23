@@ -1,4 +1,67 @@
 <section id="cge-editorial-team-refined">
+  @if (profile(); as person) {
+    <div class="status-confirm-backdrop">
+      <section
+        class="status-confirm editor-profile-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Editor profile · 编辑资料"
+      >
+        <app-editor-identity [editor]="person" [team]="true" />
+        <form [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+          <div class="cge-fields">
+            <label>First name · 名<input class="form-control" formControlName="firstName" /></label
+            ><label>Last name · 姓<input class="form-control" formControlName="lastName" /></label>
+            <label
+              >Chinese name · 中文姓名<input
+                class="form-control"
+                formControlName="chineseName" /></label
+            ><label>Email · 邮箱<input class="form-control" formControlName="email" /></label
+            ><label
+              >WeChat · 微信<input class="form-control" formControlName="weChatAccount"
+            /></label>
+          </div>
+          @if (canManage()) {
+            <button class="btn" type="submit" [disabled]="profileForm.invalid || editingSaving()">
+              Save · 保存
+            </button>
+          }
+        </form>
+        <h3>MY WORK · 我的工作</h3>
+        @if (work(); as stats) {
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Stage · 状态</th>
+                <th>Entries · 词目数量</th>
+                <th>Main score · 主分</th>
+                <th>Additional score · 附加分</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (stage of workStatuses; track stage) {
+                <tr>
+                  <td><app-status-badge [status]="stage" /></td>
+                  <td>{{ stats.entriesByStatus?.[stage] || 0 }}</td>
+                  <td>{{ stats.scoresByStatus.main[stage] || 0 }}</td>
+                  <td>{{ stats.scoresByStatus.additional[stage] || 0 }}</td>
+                </tr>
+              }
+              <tr class="fw-bold">
+                <td>Total · 总计</td>
+                <td>{{ totalCount(stats.entriesByStatus) }}</td>
+                <td>{{ totalCount(stats.scoresByStatus.main) }}</td>
+                <td>{{ totalCount(stats.scoresByStatus.additional) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        } @else {
+          <p>{{ workError() || 'Loading… · 加载中' }}</p>
+        }
+        <button class="btn" type="button" (click)="profile.set(null)">Close · 关闭</button>
+      </section>
+    </div>
+  }
   <div class="cge-heading">
     <h2>EDITORIAL TEAM<br />编辑团队</h2>
   </div>
@@ -56,20 +119,12 @@
             @for (editor of filteredEditors(); track editor.id) {
               <tr class="cge-row">
                 <td>
-                  <span class="cge-person"
-                    ><span class="viz-badge">{{ roleCodes[roleFor(editor)] }}</span>
-                    @if (isSupervisor(editor) && roleFor(editor) !== 'SuperAdmin') {
-                      <span class="viz-badge">SV</span>
-                    }
-                    <span class="cge-name"
-                      ><button type="button" class="cge-profile-link" (click)="beginEdit(editor)">
-                        {{ editor.displayName }}
-                      </button>
-                      @if (editor.chineseName) {
-                        <span class="text-small">{{ editor.chineseName }}</span>
-                      }
-                    </span></span
-                  >
+                  <app-editor-identity
+                    [editor]="editor"
+                    [team]="true"
+                    [clickable]="true"
+                    (activate)="openProfile(editor)"
+                  />
                 </td>
                 <td class="role-text">
                   <span class="cge-role"
@@ -97,27 +152,29 @@
                   {{ editor.createdAtUtc | date: 'yyyy-MM-dd' : '+0400' }}
                 </td>
                 <td>
-                  <button
-                    class="btn btn-ghost"
-                    type="button"
-                    (click)="beginEdit(editor)"
-                    [attr.aria-label]="'Edit ' + editor.displayName + ' · 修改'"
-                    title="Edit · 修改"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
+                  @if (canManage()) {
+                    <button
+                      class="btn btn-ghost"
+                      type="button"
+                      (click)="beginEdit(editor)"
+                      [attr.aria-label]="'Edit ' + editor.displayName + ' · 修改'"
+                      title="Edit · 修改"
                     >
-                      <path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z" />
-                    </svg>
-                  </button>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z" />
+                      </svg>
+                    </button>
+                  }
                 </td>
               </tr>
             } @empty {
@@ -134,67 +191,74 @@
   <div class="cge-footer">
     <span class="text-small text-muted"
       >{{ filteredEditors().length }} editors · {{ filteredEditors().length }} 位编辑</span
-    ><button class="btn btn-primary" type="button" (click)="toggleCreate()">
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.8"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M16 21v-2a6 6 0 0 0-6-6H8a6 6 0 0 0-6 6v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M19 8v6M22 11h-6" />
-      </svg>
-      Add editor · 添加编辑
-    </button>
+    >
+    @if (canManage()) {
+      <button class="btn btn-primary" type="button" (click)="toggleCreate()">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M16 21v-2a6 6 0 0 0-6-6H8a6 6 0 0 0-6 6v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M19 8v6M22 11h-6" />
+        </svg>
+        Add editor · 添加编辑
+      </button>
+    }
   </div>
   @if (editingEditor(); as editor) {
-    <section aria-label="Edit editor · 修改编辑">
-      <form
-        class="cge-form"
-        [formGroup]="editForm"
-        (ngSubmit)="saveEdit(editor)"
-        autocomplete="off"
-        novalidate
-      >
-        <div>{{ editor.displayName }} · Edit editor · 修改编辑</div>
-        <div class="cge-fields">
-          <label class="form-label"
-            >Role · 角色<select class="form-select" formControlName="role">
-              @if (roleFor(editor) === 'SuperAdmin') {
-                <option value="SuperAdmin">Supervisor · 主管</option>
-              }
-              @for (role of roles; track role) {
-                <option [value]="role">{{ roleNames[role].en }} · {{ roleNames[role].zh }}</option>
-              }
-            </select></label
-          >
-          <label class="form-label"
-            >Account status · 账户状态<select class="form-select" formControlName="accountStatus">
-              <option value="active">Active · 启用</option>
-              <option value="blocked">Blocked · 已封锁</option>
-              <option value="cancelled">Cancelled · 已注销</option>
-            </select></label
-          >
-        </div>
-        <label class="form-check form-switch"
-          ><input class="form-check-input" type="checkbox" formControlName="isSupervisor" /><span
-            class="form-check-label"
-            >Supervisor · 主管</span
-          ></label
+    <div class="status-confirm-backdrop">
+      <section class="status-confirm editor-profile-dialog" aria-label="Edit editor · 修改编辑">
+        <form
+          class="cge-form"
+          [formGroup]="editForm"
+          (ngSubmit)="saveEdit(editor)"
+          autocomplete="off"
+          novalidate
         >
-        <div class="cge-form-actions">
-          <button class="btn btn-primary" type="submit" [disabled]="editingSaving()">
-            {{ editingSaving() ? 'Saving… · 保存中' : 'Save · 保存' }}</button
-          ><button class="btn" type="button" (click)="cancelEdit()">Cancel · 取消</button>
-        </div>
-      </form>
-    </section>
+          <div>{{ editor.displayName }} · Edit editor · 修改编辑</div>
+          <div class="cge-fields">
+            <label class="form-label"
+              >Role · 角色<select class="form-select" formControlName="role">
+                @if (roleFor(editor) === 'SuperAdmin') {
+                  <option value="SuperAdmin">Supervisor · 主管</option>
+                }
+                @for (role of roles; track role) {
+                  <option [value]="role">
+                    {{ roleNames[role].en }} · {{ roleNames[role].zh }}
+                  </option>
+                }
+              </select></label
+            >
+            <label class="form-label"
+              >Account status · 账户状态<select class="form-select" formControlName="accountStatus">
+                <option value="active">Active · 启用</option>
+                <option value="blocked">Blocked · 已封锁</option>
+                <option value="cancelled">Cancelled · 已注销</option>
+              </select></label
+            >
+          </div>
+          <label class="form-check form-switch"
+            ><input class="form-check-input" type="checkbox" formControlName="isSupervisor" /><span
+              class="form-check-label"
+              >Supervisor · 主管</span
+            ></label
+          >
+          <div class="cge-form-actions">
+            <button class="btn btn-primary" type="submit" [disabled]="editingSaving()">
+              {{ editingSaving() ? 'Saving… · 保存中' : 'Save · 保存' }}</button
+            ><button class="btn" type="button" (click)="cancelEdit()">Cancel · 取消</button>
+          </div>
+        </form>
+      </section>
+    </div>
   }
   @if (createOpen()) {
     <section aria-label="Add editor · 添加编辑">

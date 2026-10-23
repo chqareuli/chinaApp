@@ -3,44 +3,64 @@
     <div class="chips">
       @for (marker of markers.controls; track marker.get('id')?.value ?? $index; let i = $index) {
         @if (!marker.get('textField')?.value || !readonly) {
-        <span
-          class="chip"
-          [class.marker-style]="marker.get('category')?.value === 'Style'"
-          [class.marker-domain]="marker.get('category')?.value === 'Domain'"
-          >{{ markerText(i) }}
-          @if (!readonly) {
-            @if (!marker.get('textField')?.value) { <button type="button" (click)="openMarkerEdit(i)" aria-label="Edit marker · 编辑标记">✎</button> }
-            <button type="button" (click)="removeMarker(i)" aria-label="Remove marker · 删除标记">×</button>
-          }
-        </span>
+          <span
+            class="chip"
+            [class.marker-style]="marker.get('category')?.value === 'Style'"
+            [class.marker-domain]="marker.get('category')?.value === 'Domain'"
+            >{{ markerText(i) }}
+            @if (!readonly) {
+              @if (!marker.get('textField')?.value) {
+                <button
+                  type="button"
+                  (click)="openMarkerEdit(i)"
+                  aria-label="Edit marker · 编辑标记"
+                >
+                  ✎
+                </button>
+              }
+              <button type="button" (click)="removeMarker(i)" aria-label="Remove marker · 删除标记">
+                ×
+              </button>
+            }
+          </span>
         }
       }
       @for (xr of crossReferences.controls; track xr.get('id')?.value ?? $index; let i = $index) {
         @if (!readonly || !xr.get('textField')?.value) {
-        <span class="chip xr"
-          >{{ xrText(i) }}
-          @if (!readonly) { <small
-            class="link-state"
-            [class.linked]="xrLinkState(i) === 'linked'"
-            [class.unresolved]="xrLinkState(i) === 'unresolved'"
-          >
-            {{ xrLinkText(i) }}
-          </small> }
-          @if (!readonly) {
-            <button type="button" (click)="removeXr(i)" aria-label="წაშლა">×</button>
-          }
-        </span>
+          <span class="chip xr"
+            >{{ xrText(i) }}
+            @if (!readonly) {
+              <small
+                class="link-state"
+                [class.linked]="xrLinkState(i) === 'linked'"
+                [class.unresolved]="xrLinkState(i) === 'unresolved'"
+              >
+                {{ xrLinkText(i) }}
+              </small>
+            }
+            @if (!readonly) {
+              <button type="button" (click)="removeXr(i)" aria-label="წაშლა">×</button>
+            }
+          </span>
         }
       }
     </div>
   }
 
   @if (!readonly) {
-    <div class="inline-tools" [class.definition-tool-grid]="layout === 'definition'" [class.example-tool-row]="layout === 'example'">
+    <div
+      class="inline-tools"
+      [class.definition-tool-grid]="layout === 'definition'"
+      [class.example-tool-row]="layout === 'example'"
+    >
       @for (category of categories; track category.value) {
-        @if ((!scopeOnly || category.value === 'Style' || category.value === 'Domain') && (layout === 'default' || category.value !== 'Lang')) {
+        @if (
+          (!scopeOnly || category.value === 'Style' || category.value === 'Domain') &&
+          (layout === 'default' || category.value !== 'Lang')
+        ) {
           <select
-            class="form-select tool-select" [attr.data-category]="category.value"
+            class="form-select tool-select"
+            [attr.data-category]="category.value"
             [attr.aria-label]="
               category.value === 'Style'
                 ? 'Style · 语体'
@@ -65,7 +85,7 @@
               }}
             </option>
             @for (item of valuesFor(category.value); track item.id) {
-              <option [value]="item.code">{{ item.label }}</option>
+              <option [value]="item.code">{{ item.code }} · {{ item.label }}</option>
             }
           </select>
         }
@@ -91,7 +111,7 @@
       <label
         >Value · 值<select formControlName="value">
           @for (item of valuesFor(); track item.id) {
-            <option [value]="item.code">{{ item.label }}</option>
+            <option [value]="item.code">{{ item.code }} · {{ item.label }}</option>
           }
         </select></label
       >

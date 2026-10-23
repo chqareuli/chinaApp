@@ -1,3 +1,4 @@
+import { EditorIdentity } from '../../../shared/editor-identity';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -22,7 +23,7 @@ import { StatusBadge } from '../../../shared/status-badge/status-badge';
 
 @Component({
   selector: 'app-accounting-page',
-  imports: [StatusBadge, PanelFontControl, FormsModule, RouterLink],
+  imports: [EditorIdentity, StatusBadge, PanelFontControl, FormsModule, RouterLink],
   templateUrl: './accounting-page.html',
   styleUrl: './accounting-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,11 +39,20 @@ export class AccountingPage implements OnInit {
   exportEditor = '';
   exportFrom = '';
   exportTo = '';
-  readonly today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  readonly today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tbilisi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
   exportFile(format: 'xml' | 'json' | 'helper'): void {
     if (this.exporting() || !this.canExport()) return;
     this.exportError.set(null);
-    if (this.exportFrom > this.today || this.exportTo > this.today || (this.exportFrom && this.exportTo && this.exportFrom > this.exportTo)) {
+    if (
+      this.exportFrom > this.today ||
+      this.exportTo > this.today ||
+      (this.exportFrom && this.exportTo && this.exportFrom > this.exportTo)
+    ) {
       this.exportError.set('Check dates · 请检查日期');
       return;
     }
@@ -93,7 +103,18 @@ export class AccountingPage implements OnInit {
   readonly roleLabels = editorRoleLabels;
   readonly statuses = ['NewEntry', 'ZhReview', 'KaReview', 'Ready', 'Published', 'Archived'];
   statusColor(status: string): string {
-    return ({ NewEntry: '#85888e', ZhReview: '#a62c2b', KaReview: '#286fac', Ready: '#23743f', Published: '#1a1c1f', Archived: '#85888e' } as Record<string, string>)[status] ?? '#1a1c1f';
+    return (
+      (
+        {
+          NewEntry: '#85888e',
+          ZhReview: '#a62c2b',
+          KaReview: '#286fac',
+          Ready: '#23743f',
+          Published: '#1a1c1f',
+          Archived: '#85888e',
+        } as Record<string, string>
+      )[status] ?? '#1a1c1f'
+    );
   }
   readonly canViewGlobal = computed(() => {
     const role = this.auth.editor()?.role;

@@ -2,7 +2,6 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { entryCreatorGuard } from './core/guards/entry-creator.guard';
 import { guestGuard } from './core/guards/guest.guard';
-import { superAdminGuard } from './core/guards/super-admin.guard';
 
 export const routes: Routes = [
   {
@@ -34,7 +33,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./layout/app-shell/app-shell').then((m) => m.AppShell),
     children: [
-      { path: 'media', loadComponent: () => import('./features/media/media-library').then(m => m.MediaLibrary), title: 'სურათები — სარედაქციო პანელი' },
+      {
+        path: 'media',
+        loadComponent: () => import('./features/media/media-library').then((m) => m.MediaLibrary),
+        title: 'სურათები — სარედაქციო პანელი',
+      },
       {
         path: 'dashboard',
         data: { home: true },
@@ -101,7 +104,7 @@ export const routes: Routes = [
       },
       {
         path: 'users',
-        canActivate: [superAdminGuard],
+
         loadComponent: () =>
           import('./features/users/users-page/users-page').then((m) => m.UsersPage),
         title: 'მომხმარებლები — სარედაქციო პანელი',

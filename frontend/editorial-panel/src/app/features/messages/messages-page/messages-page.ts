@@ -1,3 +1,4 @@
+import { EditorIdentity } from '../../../shared/editor-identity';
 import { PanelFontControl } from '../../../shared/panel-font-control';
 import { PanelSearchService } from '../../../core/services/panel-search.service';
 import { editorRoleCodes } from '../../../core/models/auth.models';
@@ -9,6 +10,11 @@ import {
   inject,
   OnInit,
   signal,
+  ElementRef,
+  ViewChild,
+  effect,
+  afterNextRender,
+  Injector,
 } from '@angular/core';
 import { finalize, forkJoin } from 'rxjs';
 import { EditorListItem } from '../../../core/models/admin.models';
@@ -21,12 +27,27 @@ import { LinkedMessageBody } from '../../../shared/linked-message-body/linked-me
 
 @Component({
   selector: 'app-messages-page',
-  imports: [DatePipe, LinkedMessageBody, PanelFontControl],
+  imports: [EditorIdentity, DatePipe, LinkedMessageBody, PanelFontControl],
   templateUrl: './messages-page.html',
   styleUrl: './messages-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MessagesPage implements OnInit {
+  @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
+  private readonly injector = inject(Injector);
+  constructor() {
+    effect(() => {
+      this.selectedEditorId();
+      this.thread();
+      afterNextRender(
+        () => {
+          const list = this.messageList?.nativeElement;
+          if (list) list.scrollTop = list.scrollHeight;
+        },
+        { injector: this.injector },
+      );
+    });
+  }
   readonly search = inject(PanelSearchService);
   private readonly collaboration = inject(CollaborationService);
   private readonly editorsService = inject(EditorsService);

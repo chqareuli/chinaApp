@@ -9,6 +9,18 @@ namespace Chiniseapp.Tests;
 public class EntrySchemaCompatibilityTests
 {
     [Fact]
+    public void LegacyXrTypeAttributesRemainReadableForEntryAndExport()
+    {
+        var mapper=new EntryTreeMapper(1,[],DateTime.UtcNow);
+        mapper.Apply(new(null,null,[],0){Senses=[new(1,"definition",[]){CrossReferences=[new(null,"see","იხ.","和",1,"和","","Attached")]}]});
+        var segments=Persist(mapper);
+        var reference=segments.Single(s=>s.SegmentType==SegmentType.Xr);
+        reference.Attributes="""{"xrType":"see","label":"იხ.","target":"和","targetEntryId":1,"displayText":""}""";
+        var result=EntryTreeMapper.Read(segments);
+        Assert.Equal("see",result.Senses[0].CrossReferences[0].Type);
+        Assert.Equal(1,result.Senses[0].CrossReferences[0].TargetEntryId);
+    }
+    [Fact]
     public void HomographPronunciationIdentitySurvivesReloadRenameAndReorder()
     {
         var request = new SaveEntryContentRequest(null, null, [new HomonymDto([]) { PinyinId = 2, Text = "stale" }], 0);

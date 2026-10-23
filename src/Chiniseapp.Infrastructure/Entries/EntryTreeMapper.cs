@@ -113,7 +113,7 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
             .OrderBy(s => s.OrderIndex).Select(s => s.Attributes is not null && JsonSerializer.Deserialize<MarkerDto>(s.Attributes, Json) is { } marker
                 ? marker with { Id = s.Id } : new MarkerDto(s.Id, s.SegmentType.ToString(), s.Value ?? "")).ToList();
         List<CrossReferenceDto> References(int id) => Children(id, SegmentType.Xr).Select(s =>
-            (s.Attributes is not null ? JsonSerializer.Deserialize<CrossReferenceDto>(s.Attributes, Json) : null) is { } r
+            (s.Attributes is not null ? ReadReference(s.Attributes) : null) is { } r
                 ? r with { Id = s.Id, Placement = s.Placement?.ToString() ?? "Attached" }
                 : new CrossReferenceDto(s.Id, "see", "", s.Value ?? "", null, null, null, s.Placement?.ToString() ?? "Attached")).ToList();
         List<SenseDto> Senses(int? id) => Children(id, SegmentType.Sense).Select((s, i) =>
@@ -144,6 +144,13 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
             DirectPoses = Children(null, SegmentType.Pos).Select(p => new DirectPosDto
                 { Id = p.Id, Pos = p.Value ?? "", Senses = Senses(p.Id), Markers = Markers(p.Id), CrossReferences = References(p.Id) }).ToList()
         };
+    }
+
+    private static CrossReferenceDto? ReadReference(string attributes)
+    {
+        var data = System.Text.Json.Nodes.JsonNode.Parse(attributes)!.AsObject();
+        if (data.Remove("xrType", out var legacyType) && !data.ContainsKey("type")) data["type"] = legacyType;
+        return data.Deserialize<CrossReferenceDto>(Json);
     }
 
     public static LexicalForms ReadForms(Entry entry) => entry.LexicalForms is not null

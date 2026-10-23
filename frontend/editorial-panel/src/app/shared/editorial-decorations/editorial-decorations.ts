@@ -10,7 +10,14 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormArray,
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import {
   catchError,
   debounceTime,
@@ -55,22 +62,30 @@ export class EditorialDecorations implements OnChanges {
     this.textSubscription?.unsubscribe();
     this.observedControl = this.textControl;
     let previous = String(this.textControl?.value ?? '');
-    this.textSubscription = this.textControl?.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(value => {
-      const next = String(value ?? '');
-      this.reconcileText(previous, next);
-      previous = next;
-    });
+    this.textSubscription = this.textControl?.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => {
+        const next = String(value ?? '');
+        this.reconcileText(previous, next);
+        previous = next;
+      });
   }
   reconcileText(previous: string, next: string): void {
     let start = 0;
-    while (start < previous.length && start < next.length && previous[start] === next[start]) start++;
-    let oldEnd = previous.length, newEnd = next.length;
-    while (oldEnd > start && newEnd > start && previous[oldEnd - 1] === next[newEnd - 1]) { oldEnd--; newEnd--; }
+    while (start < previous.length && start < next.length && previous[start] === next[start])
+      start++;
+    let oldEnd = previous.length,
+      newEnd = next.length;
+    while (oldEnd > start && newEnd > start && previous[oldEnd - 1] === next[newEnd - 1]) {
+      oldEnd--;
+      newEnd--;
+    }
     for (const annotations of [this.markers, this.crossReferences]) {
       for (let i = annotations.length - 1; i >= 0; i--) {
         const item = annotations.at(i);
         if (item.get('textField')?.value !== this.fieldName) continue;
-        const offset = item.get('textOffset')?.value, text = item.get('displayText')?.value;
+        const offset = item.get('textOffset')?.value,
+          text = item.get('displayText')?.value;
         if (typeof offset !== 'number' || !text) continue;
         if (offset >= oldEnd) item.get('textOffset')?.setValue(offset + newEnd - oldEnd);
         else if (offset + text.length > start) annotations.removeAt(i);
@@ -80,12 +95,18 @@ export class EditorialDecorations implements OnChanges {
   private insertText(text: string): number | null {
     if (!this.textControl || !this.textField) return null;
     const value = String(this.textControl.value ?? '');
-    const range = this.insertionRange ?? { start: this.textField.selectionStart, end: this.textField.selectionEnd };
+    const range = this.insertionRange ?? {
+      start: this.textField.selectionStart,
+      end: this.textField.selectionEnd,
+    };
     const shift = text.length - (range.end - range.start);
-    for (const annotation of this.observedControl === this.textControl ? [] : [...this.markers.controls, ...this.crossReferences.controls]) {
+    for (const annotation of this.observedControl === this.textControl
+      ? []
+      : [...this.markers.controls, ...this.crossReferences.controls]) {
       if (annotation.get('textField')?.value !== this.fieldName) continue;
       const offset = annotation.get('textOffset')?.value;
-      if (typeof offset === 'number' && offset >= range.end) annotation.get('textOffset')?.setValue(offset + shift);
+      if (typeof offset === 'number' && offset >= range.end)
+        annotation.get('textOffset')?.setValue(offset + shift);
     }
     this.textControl.setValue(value.slice(0, range.start) + text + value.slice(range.end));
     this.textControl.markAsDirty();
@@ -103,7 +124,16 @@ export class EditorialDecorations implements OnChanges {
     if (category === 'Abbr' && this.textControl) {
       const displayText = this.markerValueLabel(category, value);
       const textOffset = this.insertText(displayText + ' ');
-      this.markers.push(this.fb.group({ id: [null], category: [category], value: [value], displayText: [displayText], textOffset: [textOffset], textField: [this.fieldName] }));
+      this.markers.push(
+        this.fb.group({
+          id: [null],
+          category: [category],
+          value: [value],
+          displayText: [displayText],
+          textOffset: [textOffset],
+          textField: [this.fieldName],
+        }),
+      );
       this.contentChanged.emit();
       return;
     }
@@ -241,7 +271,12 @@ export class EditorialDecorations implements OnChanges {
     const offset = item.get('textOffset')?.value;
     const text = item.get('displayText')?.value;
     this.markers.removeAt(index);
-    if (item.get('textField')?.value === this.fieldName && typeof offset === 'number' && text && value.slice(offset, offset + text.length) === text) {
+    if (
+      item.get('textField')?.value === this.fieldName &&
+      typeof offset === 'number' &&
+      text &&
+      value.slice(offset, offset + text.length) === text
+    ) {
       this.textControl?.setValue(value.slice(0, offset) + value.slice(offset + text.length));
       this.textControl?.markAsDirty();
     }
@@ -250,7 +285,9 @@ export class EditorialDecorations implements OnChanges {
 
   openXrAdd(): void {
     if (this.readonly) return;
-    this.insertionRange = this.textField ? { start: this.textField.selectionStart, end: this.textField.selectionEnd } : null;
+    this.insertionRange = this.textField
+      ? { start: this.textField.selectionStart, end: this.textField.selectionEnd }
+      : null;
     this.markerEditorOpen.set(false);
     this.xrEditingIndex.set(null);
     this.xrDraft.setValue({
@@ -306,7 +343,13 @@ export class EditorialDecorations implements OnChanges {
     const editing = this.xrEditingIndex();
     const inlineText = `${label} ${value.displayText || value.target}`;
     const offset = editing === null ? this.insertText(inlineText) : null;
-    const payload = { ...value, label, ...(offset !== null ? { textOffset: offset, textField: this.fieldName, displayText: inlineText } : {}) };
+    const payload = {
+      ...value,
+      label,
+      ...(offset !== null
+        ? { textOffset: offset, textField: this.fieldName, displayText: inlineText }
+        : {}),
+    };
     if (editing === null) {
       this.crossReferences.push(
         this.fb.group({
@@ -327,8 +370,13 @@ export class EditorialDecorations implements OnChanges {
     if (this.textControl && item.textField === this.fieldName && item.displayText) {
       const value = String(this.textControl.value ?? '');
       const offset = item.textOffset;
-      if (typeof offset === 'number' && value.slice(offset, offset + item.displayText.length) === item.displayText)
-        this.textControl.setValue(value.slice(0, offset) + value.slice(offset + item.displayText.length));
+      if (
+        typeof offset === 'number' &&
+        value.slice(offset, offset + item.displayText.length) === item.displayText
+      )
+        this.textControl.setValue(
+          value.slice(0, offset) + value.slice(offset + item.displayText.length),
+        );
     }
     this.contentChanged.emit();
   }
@@ -336,8 +384,12 @@ export class EditorialDecorations implements OnChanges {
   markerText(index: number): string {
     const item = this.markers.at(index).getRawValue();
     const label = this.markerValueLabel(item.category, item.value);
-    const symbol = label.split(' · ')[0].trim();
-    return item.category === 'Style' ? `〈${symbol.replace(/[〈〉<>]/g, '')}〉` : item.category === 'Domain' ? `【${symbol.replace(/[【】\[\]]/g, '')}】` : label;
+    const symbol = /[\u3400-\u9fff]/u.test(item.value) ? item.value : label.split(' · ')[0].trim();
+    return item.category === 'Style'
+      ? `〈${symbol.replace(/[〈〉<>]/g, '')}〉`
+      : item.category === 'Domain'
+        ? `【${symbol.replace(/[【】\[\]]/g, '')}】`
+        : label;
   }
 
   private markerValueLabel(category: MarkerCategory, value: string): string {

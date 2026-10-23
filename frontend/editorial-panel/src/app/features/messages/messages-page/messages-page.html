@@ -125,14 +125,11 @@
                     >
                   </td>
                   <td>
-                    <span class="cge-person"
-                      ><span class="viz-badge" [hidden]="editor.id === 0">{{
-                        roleCodes[editor.editorialRole || editor.role]
-                      }}</span
-                      ><button class="link-button" type="button" (click)="selectEditor(editor.id)">
-                        {{ editor.displayName }}
-                      </button></span
-                    >
+                    <app-editor-identity
+                      [editor]="editor"
+                      [clickable]="true"
+                      (activate)="selectEditor(editor.id)"
+                    />
                   </td>
                   <td class="text-center">
                     @if (unreadCount(editor.id)) {
@@ -155,15 +152,10 @@
     <section class="cge-thread" aria-label="Selected conversation · 当前会话">
       @if (selectedEditor(); as editor) {
         <div class="cge-thread-header">
-          <div class="cge-thread-person">
-            <span class="viz-badge" [hidden]="editor.id === 0">{{
-              roleCodes[editor.editorialRole || editor.role]
-            }}</span
-            ><strong>{{ editor.displayName }}</strong>
-          </div>
+          <div class="cge-thread-person"><app-editor-identity [editor]="editor" /></div>
           <span class="text-small">{{ editor.id === 0 ? 'Group · 群聊' : 'Private · 私人' }}</span>
         </div>
-        <div class="cge-message-list" aria-live="polite">
+        <div #messageList class="cge-message-list" aria-live="polite">
           @for (message of thread(); track message.id) {
             <article
               class="cge-message"
@@ -171,12 +163,10 @@
               [class.cge-incoming]="message.senderEditorId !== currentEditorId()"
             >
               <div class="cge-message-meta">
-                <strong class="cge-message-author">
-                  @if (senderRole(message.senderEditorId); as role) {
-                    <span class="viz-badge">{{ role }}</span>
-                  }
-                  {{ message.senderDisplayName }}</strong
-                ><time class="text-small">{{
+                <app-editor-identity
+                  [id]="message.senderEditorId"
+                  [name]="message.senderDisplayName"
+                /><time class="text-small">{{
                   message.sentAtUtc | date: 'yyyy-MM-dd HH:mm' : '+0400'
                 }}</time>
               </div>

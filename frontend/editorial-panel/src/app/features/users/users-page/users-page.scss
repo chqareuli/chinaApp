@@ -41,4 +41,14 @@
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   }
 }
-:host .cge-state.cge-blocked { color: #1a1c1f; }
+:host .cge-state.cge-blocked {
+  color: #1a1c1f;
+}
+#cge-editorial-team-refined .editor-profile-dialog .cge-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 640px) {
+  #cge-editorial-team-refined .editor-profile-dialog .cge-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

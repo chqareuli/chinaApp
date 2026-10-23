@@ -1,3 +1,5 @@
+import { AuthService } from '../../../core/services/auth.service';
+import { AccountingService } from '../../../core/services/accounting.service';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import {
@@ -40,7 +42,11 @@ describe('UsersPage reference design', () => {
     service = new ServiceStub();
     await TestBed.configureTestingModule({
       imports: [UsersPage],
-      providers: [{ provide: EditorsService, useValue: service }],
+      providers: [
+        { provide: AuthService, useValue: { editor: () => ({ role: 'SuperAdmin' }) } },
+        { provide: AccountingService, useValue: { getEditorDetail: () => of(null) } },
+        { provide: EditorsService, useValue: service },
+      ],
     }).compileComponents();
     fixture = TestBed.createComponent(UsersPage);
     page = fixture.componentInstance;
@@ -57,6 +63,24 @@ describe('UsersPage reference design', () => {
     expect(form.querySelector('input[formControlName="initialPassword"]').autocomplete).toBe(
       'new-password',
     );
+  });
+  it('renders a colleague work summary and totals from status counts', () => {
+    page.openProfile(editor);
+    page.work.set({
+      editorId: editor.id,
+      displayName: editor.displayName,
+      email: editor.email,
+      role: editor.role,
+      createdAtUtc: editor.createdAtUtc,
+      entriesByStatus: { Ready: 2, Published: 1 },
+      scoresByStatus: { main: { Ready: 2 }, additional: { Published: 1 }, kaEditor: {} },
+    } as import('../../../core/models/admin.models').EditorAccountingDetail);
+    fixture.detectChanges();
+    const rows = fixture.nativeElement.querySelectorAll('[role="dialog"] tbody tr');
+    expect(rows).toHaveLength(7);
+    expect(
+      Array.from(rows[6].querySelectorAll('td'), (cell: any) => cell.textContent.trim()),
+    ).toEqual(['Total · 总计', '3', '2', '1']);
   });
   it('rejects incomplete add forms with bilingual feedback', () => {
     page.toggleCreate();

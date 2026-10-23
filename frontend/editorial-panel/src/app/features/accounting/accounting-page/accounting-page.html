@@ -66,17 +66,31 @@
             </select></label
           >
           <label class="form-label"
-            >From · 起始日期<input class="form-control" type="date" [max]="today" [(ngModel)]="exportFrom"
+            >From · 起始日期<input
+              class="form-control"
+              type="date"
+              [max]="today"
+              [(ngModel)]="exportFrom"
           /></label>
           <label class="form-label"
-            >To · 截止日期<input class="form-control" type="date" [max]="today" [(ngModel)]="exportTo"
+            >To · 截止日期<input
+              class="form-control"
+              type="date"
+              [max]="today"
+              [(ngModel)]="exportTo"
           /></label>
         </div>
         <div class="cge-download-actions">
-          <button class="btn btn-primary export-format" [disabled]="exporting()" (click)="exportFile('xml')">
+          <button
+            class="btn btn-primary export-format"
+            [disabled]="exporting()"
+            (click)="exportFile('xml')"
+          >
             ↓ TEI/XML
           </button>
-          <button class="btn export-format" [disabled]="exporting()" (click)="exportFile('json')">↓ JSON</button>
+          <button class="btn export-format" [disabled]="exporting()" (click)="exportFile('json')">
+            ↓ JSON
+          </button>
           <button class="btn" [disabled]="exporting()" (click)="exportFile('helper')">
             ↓ Helper Materials · 辅助资料
           </button>
@@ -105,14 +119,33 @@
             @for (editor of editors(); track editor.editorId) {
               <tr class="cge-row">
                 <td>
-                  <span class="cge-person"
-                    ><span class="viz-badge">{{ roleCodes[editor.role] }}</span
-                    >{{ editor.displayName }}</span
+                  <app-editor-identity
+                    [id]="editor.editorId"
+                    [name]="editor.displayName"
+                    [role]="editor.role"
+                  />
+                </td>
+                <td class="text-end">
+                  <a
+                    [routerLink]="['/adminpanel/entries']"
+                    [queryParams]="{ workEditorId: editor.editorId, scoreKind: 'main' }"
+                    >{{ editor.mainScoreTotal }}</a
                   >
                 </td>
-                <td class="text-end"><a [routerLink]="['/adminpanel/entries']" [queryParams]="{ workEditorId: editor.editorId, scoreKind: 'main' }">{{ editor.mainScoreTotal }}</a></td>
-                <td class="text-end"><a [routerLink]="['/adminpanel/entries']" [queryParams]="{ workEditorId: editor.editorId, scoreKind: 'additional' }">{{ editor.additionalScoreTotal }}</a></td>
-                <td class="text-end"><a [routerLink]="['/adminpanel/entries']" [queryParams]="{ workEditorId: editor.editorId }">{{ editor.totalEntries }}</a></td>
+                <td class="text-end">
+                  <a
+                    [routerLink]="['/adminpanel/entries']"
+                    [queryParams]="{ workEditorId: editor.editorId, scoreKind: 'additional' }"
+                    >{{ editor.additionalScoreTotal }}</a
+                  >
+                </td>
+                <td class="text-end">
+                  <a
+                    [routerLink]="['/adminpanel/entries']"
+                    [queryParams]="{ workEditorId: editor.editorId }"
+                    >{{ editor.totalEntries }}</a
+                  >
+                </td>
               </tr>
             }
           </tbody>

@@ -1,3 +1,4 @@
+import { EditorIdentity, EditorDirectory } from '../../../shared/editor-identity';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
@@ -14,17 +15,87 @@ import { EditorListItem } from '../../../core/models/admin.models';
 import { EditorRole, editorRoleCodes } from '../../../core/models/auth.models';
 import { EditorsService } from '../../../core/services/editors.service';
 import { PanelFontControl } from '../../../shared/panel-font-control';
+import { AuthService } from '../../../core/services/auth.service';
+import { AccountingService } from '../../../core/services/accounting.service';
+import { EditorAccountingDetail } from '../../../core/models/admin.models';
+import { StatusBadge } from '../../../shared/status-badge/status-badge';
 
 @Component({
   selector: 'app-users-page',
-  imports: [DatePipe, ReactiveFormsModule, PanelFontControl],
+  imports: [StatusBadge, EditorIdentity, DatePipe, ReactiveFormsModule, PanelFontControl],
   templateUrl: './users-page.html',
   styleUrl: './users-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UsersPage implements OnInit {
-  private readonly service = inject(EditorsService);
+  totalCount(counts: Record<string, number> | undefined): number {
+    return Object.values(counts ?? {}).reduce((sum, count) => sum + count, 0);
+  }
   private readonly fb = inject(FormBuilder);
+  readonly canManage = computed(() => this.auth.editor()?.role === 'SuperAdmin');
+  private readonly auth = inject(AuthService);
+  private readonly accounting = inject(AccountingService);
+  private readonly directory = inject(EditorDirectory);
+  readonly profile = signal<EditorListItem | null>(null);
+  readonly work = signal<EditorAccountingDetail | null>(null);
+  readonly workError = signal('');
+  readonly workStatuses = ['NewEntry', 'ZhReview', 'KaReview', 'Ready', 'Published', 'Archived'];
+  readonly profileForm = this.fb.nonNullable.group({
+    firstName: ['', Validators.required],
+    lastName: ['', Validators.required],
+    chineseName: [''],
+    email: ['', [Validators.required, Validators.email]],
+    weChatAccount: [''],
+  });
+  openProfile(editor: EditorListItem): void {
+    this.profile.set(editor);
+    this.work.set(null);
+    this.workError.set('');
+    this.profileForm.reset({
+      firstName: editor.firstName || editor.displayName,
+      lastName: editor.lastName || '',
+      chineseName: editor.chineseName || '',
+      email: editor.email,
+      weChatAccount: editor.weChatAccount || '',
+    });
+    if (this.canManage()) this.profileForm.enable();
+    else this.profileForm.disable();
+    this.accounting.getEditorDetail(editor.id).subscribe({
+      next: (detail) => {
+        if (this.profile()?.id === editor.id) this.work.set(detail);
+      },
+      error: () => this.workError.set('Could not load work · 无法加载工作统计'),
+    });
+  }
+  saveProfile(): void {
+    const editor = this.profile();
+    if (!editor || !this.canManage() || this.profileForm.invalid || this.editingSaving()) return;
+    this.editingSaving.set(true);
+    const values = this.profileForm.getRawValue();
+    this.service
+      .update(editor.id, {
+        ...values,
+        displayName: `${values.firstName} ${values.lastName}`,
+        role: this.roleFor(editor),
+        isActive: editor.isActive,
+        isCancelled: editor.isCancelled,
+        isSupervisor: this.isSupervisor(editor),
+        newPassword: null,
+      })
+      .pipe(finalize(() => this.editingSaving.set(false)))
+      .subscribe({
+        next: (updated) => {
+          this.directory.update(updated);
+          this.editors.update((items) =>
+            items.map((item) => (item.id === updated.id ? updated : item)),
+          );
+          this.profile.set(updated);
+        },
+        error: (error) => this.error.set(this.message(error)),
+      });
+  }
+  private readonly service = inject(EditorsService);
+
   readonly roleCodes = editorRoleCodes;
   readonly roles: EditorRole[] = [
     'ChiefEditor',
@@ -133,6 +204,7 @@ export class UsersPage implements OnInit {
       });
   }
   beginEdit(e: EditorListItem): void {
+    if (!this.canManage()) return;
     this.error.set(null);
     this.createOpen.set(false);
     this.editingId.set(e.id);
@@ -169,6 +241,7 @@ export class UsersPage implements OnInit {
       .pipe(finalize(() => this.editingSaving.set(false)))
       .subscribe({
         next: (updated) => {
+          this.directory.update(updated);
           this.editors.update((items) =>
             items.map((item) => (item.id === updated.id ? updated : item)),
           );
