@@ -103,7 +103,9 @@ public class StructuredEntryPostgresTests
                 Assert.Equal("გამარჯობა", before.RootElement.GetProperty("content").GetProperty("Senses")[0].GetProperty("Examples")[0].GetProperty("Ka").GetString());
                 Assert.Equal(saved.GramGroups[0].Senses[0].Id, after.RootElement.GetProperty("content").GetProperty("GramGroups")[0].GetProperty("Senses")[0].GetProperty("Id").GetInt32());
                 var commentService = scope.ServiceProvider.GetRequiredService<ICommentService>();
+                var beforeComment = await db.Entries.AsNoTracking().Where(e => e.Id == entryId).Select(e => e.UpdatedAtUtc).SingleAsync();
                 var targeted = await commentService.AddAsync(entryId, new("Targeted note") { TargetSegmentId = senseId }, editorId);
+                Assert.True(await db.Entries.AsNoTracking().Where(e => e.Id == entryId).Select(e => e.UpdatedAtUtc > beforeComment).SingleAsync());
                 var reply = await commentService.AddAsync(entryId, new("Reply") { ReplyToCommentId = targeted.Id }, editorId);
                 Assert.Equal(targeted.Id, reply.ReplyToCommentId);
                 Assert.Equal(senseId, reply.TargetSegmentId);

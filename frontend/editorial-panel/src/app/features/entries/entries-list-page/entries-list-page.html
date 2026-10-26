@@ -83,9 +83,13 @@
                   />
                 </td>
                 <td>
-                  <a [routerLink]="['/adminpanel/entries', entry.id]" lang="zh">{{
-                    entry.lemma
-                  }}</a>
+                  <a
+                    [routerLink]="['/adminpanel/entries', entry.id]"
+                    [queryParams]="{ q: queryControl.value.trim() || null }"
+                    [class]="statusClass(entry.status)"
+                    lang="zh"
+                    >{{ entry.lemma }}</a
+                  >
                 </td>
                 <td><app-status-badge [status]="entry.status" /></td>
                 <td class="text-nowrap">

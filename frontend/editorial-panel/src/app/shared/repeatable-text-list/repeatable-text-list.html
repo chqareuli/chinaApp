@@ -2,7 +2,14 @@
   <div class="repeatable-head">
     <strong class="sr-only">{{ label }}</strong>
     @if (!readonly) {
-      <button type="button" class="compact-add" [disabled]="items.length >= maxItems" (click)="openAdd()">＋</button>
+      <button
+        type="button"
+        class="compact-add"
+        [disabled]="items.length >= maxItems"
+        (click)="openAdd()"
+      >
+        ＋
+      </button>
     }
   </div>
 
@@ -26,16 +33,20 @@
     <div class="saved-items" role="list">
       @for (item of items.controls; track item.get('id')?.value ?? $index; let i = $index) {
         <div class="saved-item" role="listitem">
-          <input
-            class="inline-value"
-            [attr.lang]="inputLang || null"
-            [value]="itemValue(i)"
-            [readOnly]="readonly"
-            [attr.aria-label]="label + ' ' + (i + 1)"
-            [maxLength]="maxLength"
-            (input)="queueInline(i, $any($event.target).value)"
-            (blur)="flushInline()"
-          />
+          @if (readonly) {
+            <div class="readonly-value" [attr.lang]="inputLang || null">{{ itemValue(i) }}</div>
+          } @else {
+            <input
+              class="inline-value"
+              [attr.lang]="inputLang || null"
+              [value]="itemValue(i)"
+              [readOnly]="readonly"
+              [attr.aria-label]="label + ' ' + (i + 1)"
+              [maxLength]="maxLength"
+              (input)="queueInline(i, $any($event.target).value)"
+              (blur)="flushInline()"
+            />
+          }
           @if (!readonly) {
             <span class="item-actions">
               <button

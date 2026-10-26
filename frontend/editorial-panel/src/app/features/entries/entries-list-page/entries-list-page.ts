@@ -1,3 +1,4 @@
+import { getStatusMeta } from '../../../shared/status-badge/status-badge';
 import { EditorIdentity } from '../../../shared/editor-identity';
 import { PanelFontControl } from '../../../shared/panel-font-control';
 import { DatePipe } from '@angular/common';
@@ -119,6 +120,9 @@ export class EntriesListPage implements OnInit {
       .subscribe((editors) => this.editors.set(editors));
   }
 
+  statusClass(status: string): string {
+    return getStatusMeta(status).cssClass;
+  }
   hasFilters(): boolean {
     return (
       this.authorControl.value.length > 0 ||

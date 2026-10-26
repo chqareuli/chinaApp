@@ -50,6 +50,7 @@ public class CommentService(ChiniseDbContext db, IScoringService scoringService,
         }
 
         var now = DateTime.UtcNow;
+        entry.UpdatedAtUtc = now;
         var targetSegmentId = request.TargetSegmentId;
         int? replyRecipientId = null;
         if (request.ReplyToCommentId is { } replyId)

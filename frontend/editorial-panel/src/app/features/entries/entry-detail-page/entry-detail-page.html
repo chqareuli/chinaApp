@@ -1,5 +1,7 @@
 <section
   id="cx-entry-v2"
+  [class.reference-docked]="referencePinned()"
+  [class.reader-preview]="readerPreview()"
   class="entry-page"
   [class.frames-hidden]="!framesVisible()"
   [class.is-readonly]="!canEditFields()"
@@ -91,6 +93,15 @@
               <path d="M3 9h18M9 9v12" />
             </svg>
             Frames · 边框
+          </button>
+          <button
+            class="btn"
+            type="button"
+            [disabled]="editing()"
+            [attr.aria-pressed]="readerPreview()"
+            (click)="readerPreview.set(!readerPreview())"
+          >
+            {{ readerPreview() ? 'Editor view · 编辑视图' : 'Preview · 预览' }}
           </button>
           @if (editing()) {
             <button class="btn" type="button" [disabled]="saving()" (click)="cancelEditing()">
@@ -340,25 +351,26 @@
           aria-describedby="entry-status-confirm-description"
         >
           <span class="status-confirm__icon" aria-hidden="true">!</span>
-          <p class="page-kicker">სტატია #{{ item.id }}</p>
-          <h2 id="entry-status-confirm-title">სტატუსის შეცვლის დადასტურება</h2>
+          <p class="page-kicker">Stage change · 状态更改</p>
+          <h2 id="entry-status-confirm-title">
+            Change the entry stage?<br />确定要更改词条阶段吗？
+          </h2>
           <p id="entry-status-confirm-description">
-            ნამდვილად გსურთ სტატიის
+            Entry · 词目:
             <strong lang="zh">{{ item.lemma }}</strong>
-            შემდეგ სტატუსში გადაყვანა?
           </p>
           <div class="status-transition">
             <span>{{ statusLabel(item.status) }}</span>
             <span aria-hidden="true">→</span>
             <strong>{{ statusLabel(targetStatus) }}</strong>
           </div>
-          <small>დადასტურების შემდეგ ცვლილება აისახება სტატიის History · 历史ში.</small>
+          <small>This action will be recorded in History · 此操作将记录在历史中</small>
           <div class="status-confirm__actions">
             <button class="btn btn-secondary" type="button" (click)="cancelStatusChange()">
-              გაუქმება
+              Cancel · 取消
             </button>
             <button class="btn btn-primary" type="button" (click)="confirmStatusChange()">
-              სტატუსის შეცვლის დადასტურება
+              Change stage · 更改状态
             </button>
           </div>
         </section>
@@ -464,7 +476,9 @@
             <div class="sense-head">
               <strong
                 ><span class="node-type">Sense · 义项</span
-                ><span class="node-number">{{ senses.length > 1 ? index + 1 : 'S' }}</span>
+                ><span class="node-number" [class.single-sense]="senses.length <= 1">{{
+                  senses.length > 1 ? index + 1 : 'S'
+                }}</span>
                 <span class="term-note">{{
                   implicit ? 'პირდაპირი Sense · 义项' : 'sense'
                 }}</span></strong
@@ -645,7 +659,7 @@
                           label="Chinese example · 中文例句"
                         />
                       }
-                      @if (!canEditFields() && inlineNodeMedia('example', example, 'zh').length) {
+                      @if (!canEditFields()) {
                         <div class="formatted-editor-text">
                           <app-inline-entry-text
                             [body]="example.get('zh')?.value || ''"
@@ -1299,7 +1313,7 @@
                     [attr.aria-pressed]="referencePinned()"
                     (click)="referencePinned.set(!referencePinned())"
                   >
-                    Pin · 固定
+                    {{ referencePinned() ? 'Unpin · 取消固定' : 'Pin · 固定' }}
                   </button>
                 </div>
                 <div class="notes-toolbar">
@@ -1314,7 +1328,7 @@
                       class="btn"
                       type="button"
                       [attr.aria-pressed]="referenceGroup() === filter"
-                      (click)="referenceGroup.set(filter)"
+                      (click)="selectReferenceGroup(filter)"
                     >
                       {{ filter === 'all' ? 'All · 全部' : filter.toUpperCase() }}
                     </button>
@@ -1352,7 +1366,11 @@
                             [attr.aria-expanded]="!collapsedReferenceGroups().includes(group)"
                             (click)="toggleReferenceGroup(group)"
                           >
-                            {{ collapsedReferenceGroups().includes(group) ? '⌄' : '⌃' }}
+                            {{
+                              collapsedReferenceGroups().includes(group)
+                                ? 'Expand · 展开'
+                                : 'Collapse · 收起'
+                            }}
                           </button>
                         </div>
                         @if (!collapsedReferenceGroups().includes(group)) {
@@ -1488,6 +1506,17 @@
                             </button>
                           </div>
                         } @else {
+                          @if (comment.replyToCommentId) {
+                            @if (replyParent(comment.replyToCommentId); as parent) {
+                              <blockquote class="reply-quote">
+                                <strong>{{ parent.authorDisplayName }}</strong
+                                ><app-linked-message-body
+                                  [body]="parent.commentText"
+                                  [links]="parent.entryLinks ?? null"
+                                />
+                              </blockquote>
+                            }
+                          }
                           <p [style.font-size.px]="commentFontSize()">
                             <app-linked-message-body
                               [body]="comment.commentText"

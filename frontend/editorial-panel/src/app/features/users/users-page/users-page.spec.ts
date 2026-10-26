@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { AccountingService } from '../../../core/services/accounting.service';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -43,6 +44,7 @@ describe('UsersPage reference design', () => {
     await TestBed.configureTestingModule({
       imports: [UsersPage],
       providers: [
+        provideRouter([]),
         { provide: AuthService, useValue: { editor: () => ({ role: 'SuperAdmin' }) } },
         { provide: AccountingService, useValue: { getEditorDetail: () => of(null) } },
         { provide: EditorsService, useValue: service },

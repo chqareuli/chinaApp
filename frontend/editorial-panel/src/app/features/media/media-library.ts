@@ -1,3 +1,5 @@
+import { RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
 import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { EditorIdentity } from '../../shared/editor-identity';
@@ -7,7 +9,7 @@ import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-media-library',
-  imports: [DatePipe, EditorIdentity],
+  imports: [RouterLink, DatePipe, EditorIdentity],
   template: `<section class="panel-card">
     <header>
       <h2>MEDIA LIBRARY<br />媒体库</h2>
@@ -33,7 +35,9 @@ import { Subscription } from 'rxjs';
             <th>Author · 上传者</th>
             <th>Name · 名称</th>
             <th>Preview · 预览</th>
+            <th>Entries · 词目</th>
             <th>Date · 日期</th>
+            <th>Manage · 管理</th>
           </tr>
         </thead>
         <tbody>
@@ -63,11 +67,29 @@ import { Subscription } from 'rxjs';
                   }
                 </button>
               </td>
+              <td>
+                @for (entry of asset.linkedEntries ?? []; track entry.id) {
+                  <a class="linked-entry" [routerLink]="['/adminpanel/entries', entry.id]">{{
+                    entry.lemma
+                  }}</a>
+                }
+              </td>
               <td>{{ asset.uploadedAtUtc | date: 'yyyy-MM-dd HH:mm' }}</td>
+              <td>
+                @if (asset.canManage) {
+                  <button
+                    class="btn"
+                    type="button"
+                    (click)="editAsset.set(asset); manageError.set(''); manage.showModal()"
+                  >
+                    Edit · 编辑
+                  </button>
+                }
+              </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="4">ატვირთული სურათები არ მოიძებნა.</td>
+              <td colspan="6">ატვირთული სურათები არ მოიძებნა.</td>
             </tr>
           }
         </tbody>
@@ -82,6 +104,49 @@ import { Subscription } from 'rxjs';
         ›
       </button>
     </footer>
+    <dialog
+      #manage
+      class="media-manage"
+      aria-label="Manage image · 管理图片"
+      (close)="editAsset.set(null)"
+    >
+      @if (editAsset(); as asset) {
+        <h2>Manage image · 管理图片</h2>
+        <p>Changes apply to every linked entry. · 更改将应用于所有关联词目。</p>
+        <label
+          >Image name · 图片名称<input
+            #imageName
+            class="form-control"
+            [value]="asset.displayName || ''"
+            maxlength="200"
+        /></label>
+        <button
+          class="btn"
+          [disabled]="managing()"
+          (click)="rename(asset, imageName.value, manage)"
+        >
+          Save name · 保存名称
+        </button>
+        <hr />
+        <label
+          >Replace image · 替换图片<input
+            #replacement
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+        /></label>
+        <button
+          class="btn"
+          [disabled]="managing()"
+          (click)="replace(asset, replacement.files?.[0], manage)"
+        >
+          Replace in all entries · 替换所有关联图片
+        </button>
+        @if (manageError()) {
+          <p role="alert">{{ manageError() }}</p>
+        }
+        <button class="btn" [disabled]="managing()" (click)="manage.close()">Close · 关闭</button>
+      }
+    </dialog>
     <dialog
       #viewer
       aria-label="Image preview · 图片预览"
@@ -126,6 +191,28 @@ import { Subscription } from 'rxjs';
         color: #adb5af;
         font-size: 1.45em;
         font-weight: 700;
+      }
+      .linked-entry {
+        display: block;
+        color: #286fac;
+        margin-block: 4px;
+      }
+      .media-manage {
+        width: min(600px, 90vw);
+        box-sizing: border-box;
+      }
+      .media-manage label {
+        display: grid;
+        gap: 8px;
+        margin-block: 16px;
+      }
+      .media-manage input {
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      .media-manage p {
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
       .thumbnail {
         width: 90px;
@@ -201,6 +288,45 @@ import { Subscription } from 'rxjs';
 })
 export class MediaLibrary implements OnDestroy {
   private readonly media = inject(MediaService);
+  readonly editAsset = signal<MediaAssetItem | null>(null);
+  readonly managing = signal(false);
+  readonly manageError = signal('');
+  rename(asset: MediaAssetItem, name: string, dialog: HTMLDialogElement): void {
+    if (!name.trim() || this.managing()) return;
+    this.managing.set(true);
+    this.manageError.set('');
+    this.media
+      .rename(asset.id, name)
+      .pipe(finalize(() => this.managing.set(false)))
+      .subscribe({
+        next: () => {
+          dialog.close();
+          this.load(this.page());
+        },
+        error: (error) =>
+          this.manageError.set(error.error?.message || 'Could not rename image · 无法重命名图片'),
+      });
+  }
+  replace(asset: MediaAssetItem, file: File | undefined, dialog: HTMLDialogElement): void {
+    if (!file) {
+      this.manageError.set('Choose an image · 请选择图片');
+      return;
+    }
+    if (this.managing()) return;
+    this.managing.set(true);
+    this.manageError.set('');
+    this.media
+      .replace(asset.id, file)
+      .pipe(finalize(() => this.managing.set(false)))
+      .subscribe({
+        next: () => {
+          dialog.close();
+          this.load(this.page());
+        },
+        error: (error) =>
+          this.manageError.set(error.error?.message || 'Could not replace image · 无法替换图片'),
+      });
+  }
   readonly thumbnails = signal<Record<number, string>>({});
   private thumbnailRequests = new Subscription();
   readonly items = signal<MediaAssetItem[]>([]);
@@ -239,16 +365,14 @@ export class MediaLibrary implements OnDestroy {
         this.loading.set(false);
         for (const asset of result.items)
           this.thumbnailRequests.add(
-            this.media
-              .getContent(asset.storageUrl)
-              .subscribe({
-                next: (blob) =>
-                  this.thumbnails.update((urls) => ({
-                    ...urls,
-                    [asset.id]: URL.createObjectURL(blob),
-                  })),
-                error: () => {},
-              }),
+            this.media.getContent(asset.storageUrl).subscribe({
+              next: (blob) =>
+                this.thumbnails.update((urls) => ({
+                  ...urls,
+                  [asset.id]: URL.createObjectURL(blob),
+                })),
+              error: () => {},
+            }),
           );
       },
       error: () => {

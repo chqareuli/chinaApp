@@ -15,8 +15,10 @@ import {
   effect,
   afterNextRender,
   Injector,
+  DestroyRef,
 } from '@angular/core';
-import { finalize, forkJoin } from 'rxjs';
+import { finalize, forkJoin, timer, switchMap, catchError, EMPTY } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EditorListItem } from '../../../core/models/admin.models';
 import { DirectMessageSummary } from '../../../core/models/collaboration.models';
 import { AuthService } from '../../../core/services/auth.service';
@@ -33,12 +35,26 @@ import { LinkedMessageBody } from '../../../shared/linked-message-body/linked-me
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MessagesPage implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
   private readonly injector = inject(Injector);
   constructor() {
+    let previousConversation: number | null | undefined;
+    let previousLastMessage: number | undefined;
     effect(() => {
-      this.selectedEditorId();
-      this.thread();
+      const conversation = this.selectedEditorId();
+      const last = this.thread().at(-1);
+      if (previousConversation === conversation && previousLastMessage === last?.id) return;
+      const listBeforeRender = this.messageList?.nativeElement;
+      const follow =
+        previousConversation !== conversation ||
+        last?.senderEditorId === this.currentEditorId() ||
+        !listBeforeRender ||
+        listBeforeRender.scrollHeight - listBeforeRender.scrollTop - listBeforeRender.clientHeight <
+          80;
+      previousConversation = conversation;
+      previousLastMessage = last?.id;
+      if (!follow) return;
       afterNextRender(
         () => {
           const list = this.messageList?.nativeElement;
@@ -97,6 +113,18 @@ export class MessagesPage implements OnInit {
           Date.parse(this.lastMessage(a.id)?.sentAtUtc ?? '1970-01-01'),
       ),
   );
+  readonly conversations = computed(() => {
+    const ids = this.visibleEditors().map((editor) => editor.id);
+    if (this.showGroup()) ids.push(0);
+    return ids.sort(
+      (a, b) =>
+        Date.parse(this.lastMessage(b)?.sentAtUtc ?? '1970-01-01') -
+        Date.parse(this.lastMessage(a)?.sentAtUtc ?? '1970-01-01'),
+    );
+  });
+  conversationEditor(id: number): EditorListItem | undefined {
+    return this.editors().find((editor) => editor.id === id);
+  }
   readonly editors = signal<EditorListItem[]>([]);
   readonly messages = signal<DirectMessageSummary[]>([]);
   readonly selectedEditorId = signal<number | null>(null);
@@ -129,6 +157,16 @@ export class MessagesPage implements OnInit {
       .sort((a, b) => Date.parse(a.sentAtUtc) - Date.parse(b.sentAtUtc));
   });
   ngOnInit(): void {
+    timer(15_000, 15_000)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        switchMap(() => this.collaboration.getMessages().pipe(catchError(() => EMPTY))),
+      )
+      .subscribe((messages) => {
+        this.messages.set(messages);
+        const selected = this.selectedEditorId();
+        if (selected !== null) this.markThreadRead(selected);
+      });
     forkJoin({ editors: this.editorsService.list(), messages: this.collaboration.getMessages() })
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({

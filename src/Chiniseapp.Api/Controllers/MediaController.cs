@@ -15,8 +15,84 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
     private string StorageDirectory => Path.Combine(environment.ContentRootPath, "App_Data", "media");
     private async Task<object> Summary(MediaAsset m, CancellationToken ct) => new {
         m.Id, m.EntryId, m.OriginalFilename, DisplayName = m.DisplayName ?? Path.GetFileNameWithoutExtension(m.OriginalFilename), m.MimeType, m.StorageUrl, m.ThumbnailUrl, m.Placement,
-        m.UploadedByEditorId, UploadedByDisplayName = await db.Editors.Where(e => e.Id == m.UploadedByEditorId).Select(e => e.DisplayName).FirstOrDefaultAsync(ct), m.UploadedAtUtc
+        m.UploadedByEditorId, UploadedByDisplayName = await db.Editors.Where(e => e.Id == m.UploadedByEditorId).Select(e => e.DisplayName).FirstOrDefaultAsync(ct), m.UploadedAtUtc,
+        LinkedEntries = await LinkedEntries(m.SafeStorageName, ct), CanManage = await CanManage(m.SafeStorageName, ct)
     };
+    private async Task<object[]> LinkedEntries(string key, CancellationToken ct)
+    {
+        var entries = await db.Entries.AsNoTracking().Where(e => db.MediaAssets.Any(m => m.SafeStorageName == key && m.EntryId == e.Id)).ToListAsync(ct);
+        return entries.Where(e => EntryPermissionRules.CanView(User.GetEditorRole(), e.Status))
+            .Select(e => (object)new { e.Id, e.Lemma, Status = e.Status.ToString() }).ToArray();
+    }
+    private async Task<bool> CanManage(string key, CancellationToken ct)
+    {
+        var statuses = await db.Entries.Where(e => db.MediaAssets.Any(m => m.SafeStorageName == key && m.EntryId == e.Id)).Select(e => e.Status).ToListAsync(ct);
+        return statuses.Count > 0 && statuses.All(status => EntryPermissionRules.CanEditContent(User.GetEditorRole(), status));
+    }
+
+    public record RenameMediaRequest(string DisplayName);
+    [HttpPut("media/{id:int}/name")]
+    public async Task<IActionResult> Rename(int id, RenameMediaRequest request, CancellationToken ct)
+    {
+        var item = await db.MediaAssets.AsNoTracking().SingleOrDefaultAsync(m => m.Id == id, ct);
+        if (item is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Length > 200)
+            return BadRequest(new { message = "Enter an image name (1–200 characters). · 请输入图片名称。" });
+        var name = request.DisplayName.Trim().ToLowerInvariant();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var nameLock = "media-name:" + name;
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({nameLock}, 0))", ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({item.SafeStorageName}, 0))", ct);
+        if (!await CanManage(item.SafeStorageName, ct)) return Forbid();
+        if (await db.MediaAssets.AnyAsync(m => m.SafeStorageName != item.SafeStorageName && m.DisplayName != null && m.DisplayName.Trim().ToLower() == name, ct))
+            return Conflict(new { message = "სახელი უკვე გამოყენებულია. · 图片名称已被使用。" });
+        await db.MediaAssets.Where(m => m.SafeStorageName == item.SafeStorageName)
+            .ExecuteUpdateAsync(set => set.SetProperty(m => m.DisplayName, request.DisplayName), ct);
+        await transaction.CommitAsync(ct);
+        return NoContent();
+    }
+
+    [HttpPut("media/{id:int}/content"), RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<IActionResult> Replace(int id, IFormFile file, CancellationToken ct)
+    {
+        var item = await db.MediaAssets.AsNoTracking().SingleOrDefaultAsync(m => m.Id == id, ct);
+        if (item is null) return NotFound();
+        if (!Guid.TryParseExact(item.SafeStorageName, "N", out _) || file.Length is <= 0 or > 5 * 1024 * 1024)
+            return BadRequest(new { message = "Choose an image up to 5 MB. · 请选择不超过5 MB的图片。" });
+        await using var input = file.OpenReadStream();
+        var header = new byte[12];
+        var count = await input.ReadAtLeastAsync(header, 12, false, ct);
+        var mime = ImageMime(header, count);
+        if (mime is null) return BadRequest(new { message = "Choose a PNG, JPEG or WebP image." });
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({item.SafeStorageName}, 0))", ct);
+        if (!await CanManage(item.SafeStorageName, ct)) return Forbid();
+        Directory.CreateDirectory(StorageDirectory);
+        var path = Path.Combine(StorageDirectory, item.SafeStorageName);
+        if (!System.IO.File.Exists(path)) return NotFound();
+        var pending = Path.Combine(StorageDirectory, Guid.NewGuid().ToString("N"));
+        var backup = pending + ".backup";
+        try
+        {
+            await using (var output = System.IO.File.Create(pending))
+            {
+                await output.WriteAsync(header.AsMemory(0, count), ct);
+                await input.CopyToAsync(output, ct);
+            }
+            System.IO.File.Copy(path, backup);
+            await db.MediaAssets.Where(m => m.SafeStorageName == item.SafeStorageName).ExecuteUpdateAsync(set => set
+                .SetProperty(m => m.MimeType, mime).SetProperty(m => m.OriginalFilename, Path.GetFileName(file.FileName)), ct);
+            System.IO.File.Move(pending, path, true);
+            await transaction.CommitAsync(ct);
+        }
+        catch { if (System.IO.File.Exists(backup)) System.IO.File.Move(backup, path, true); throw; }
+        finally { System.IO.File.Delete(pending); System.IO.File.Delete(backup); }
+        return NoContent();
+    }
+    private static string? ImageMime(byte[] header, int count) =>
+        count >= 8 && header.AsSpan(0,8).SequenceEqual(new byte[] {137,80,78,71,13,10,26,10}) ? "image/png"
+        : count >= 3 && header[0] == 255 && header[1] == 216 && header[2] == 255 ? "image/jpeg"
+        : count >= 12 && System.Text.Encoding.ASCII.GetString(header,0,4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header,8,4) == "WEBP" ? "image/webp" : null;
     [HttpGet("media")]
     public async Task<IActionResult> Library([FromQuery] int page = 1, [FromQuery] string? q = null, CancellationToken ct = default)
     {
@@ -137,7 +213,9 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         if (position.Error is not null) return BadRequest(new { message = position.Error });
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({source.SafeStorageName}, 0))", ct);
-        if (!await db.MediaAssets.AnyAsync(m => m.Id == source.Id, ct) || !System.IO.File.Exists(Path.Combine(StorageDirectory, source.SafeStorageName))) return NotFound();
+        // A rename or replacement may have finished while reuse waited for the shared-file lock.
+        source = await db.MediaAssets.AsNoTracking().SingleOrDefaultAsync(m => m.Id == request.MediaId, ct);
+        if (source is null || !System.IO.File.Exists(Path.Combine(StorageDirectory, source.SafeStorageName))) return NotFound();
         var item = new MediaAsset { EntryId = entryId, InsertedIntoSegmentId = position.SegmentId,
             OriginalFilename = source.OriginalFilename, DisplayName = source.DisplayName, SafeStorageName = source.SafeStorageName,
             FileType = source.FileType, MimeType = source.MimeType, Placement = request.Placement,

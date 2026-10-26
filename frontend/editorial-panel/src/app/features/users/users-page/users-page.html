@@ -40,18 +40,58 @@
             </thead>
             <tbody>
               @for (stage of workStatuses; track stage) {
-                <tr>
+                <tr [class]="statusMeta(stage).cssClass">
                   <td><app-status-badge [status]="stage" /></td>
-                  <td>{{ stats.entriesByStatus?.[stage] || 0 }}</td>
-                  <td>{{ stats.scoresByStatus.main[stage] || 0 }}</td>
-                  <td>{{ stats.scoresByStatus.additional[stage] || 0 }}</td>
+                  <td>
+                    <a
+                      [routerLink]="['/adminpanel/entries']"
+                      [queryParams]="{ workEditorId: person.id, status: stage }"
+                      >{{ stats.entriesByStatus?.[stage] || 0 }}</a
+                    >
+                  </td>
+                  <td>
+                    <a
+                      [routerLink]="['/adminpanel/entries']"
+                      [queryParams]="{ workEditorId: person.id, status: stage, scoreKind: 'main' }"
+                      >{{ stats.scoresByStatus.main[stage] || 0 }}</a
+                    >
+                  </td>
+                  <td>
+                    <a
+                      [routerLink]="['/adminpanel/entries']"
+                      [queryParams]="{
+                        workEditorId: person.id,
+                        status: stage,
+                        scoreKind: 'additional',
+                      }"
+                      >{{ stats.scoresByStatus.additional[stage] || 0 }}</a
+                    >
+                  </td>
                 </tr>
               }
               <tr class="fw-bold">
                 <td>Total · 总计</td>
-                <td>{{ totalCount(stats.entriesByStatus) }}</td>
-                <td>{{ totalCount(stats.scoresByStatus.main) }}</td>
-                <td>{{ totalCount(stats.scoresByStatus.additional) }}</td>
+                <td>
+                  <a
+                    [routerLink]="['/adminpanel/entries']"
+                    [queryParams]="{ workEditorId: person.id }"
+                    >{{ totalCount(stats.entriesByStatus) }}</a
+                  >
+                </td>
+                <td>
+                  <a
+                    [routerLink]="['/adminpanel/entries']"
+                    [queryParams]="{ workEditorId: person.id, scoreKind: 'main' }"
+                    >{{ totalCount(stats.scoresByStatus.main) }}</a
+                  >
+                </td>
+                <td>
+                  <a
+                    [routerLink]="['/adminpanel/entries']"
+                    [queryParams]="{ workEditorId: person.id, scoreKind: 'additional' }"
+                    >{{ totalCount(stats.scoresByStatus.additional) }}</a
+                  >
+                </td>
               </tr>
             </tbody>
           </table>
@@ -107,13 +147,15 @@
               >
             </th>
             <th class="text-nowrap">Created<br /><span class="text-small">创建时间</span></th>
-            <th class="text-nowrap">Actions<br /><span class="text-small">操作</span></th>
+            @if (canManage()) {
+              <th class="text-nowrap">Actions<br /><span class="text-small">操作</span></th>
+            }
           </tr>
         </thead>
         <tbody>
           @if (loading()) {
             <tr>
-              <td colspan="5">Loading… · 加载中</td>
+              <td [attr.colspan]="canManage() ? 5 : 4">Loading… · 加载中</td>
             </tr>
           } @else {
             @for (editor of filteredEditors(); track editor.id) {
@@ -151,8 +193,8 @@
                 <td class="text-nowrap">
                   {{ editor.createdAtUtc | date: 'yyyy-MM-dd' : '+0400' }}
                 </td>
-                <td>
-                  @if (canManage()) {
+                @if (canManage()) {
+                  <td>
                     <button
                       class="btn btn-ghost"
                       type="button"
@@ -174,12 +216,12 @@
                         <path d="m15 5 4 4M3 21l3.8-.8L19.2 7.8a2.8 2.8 0 0 0-4-4L2.8 16.2 2 20z" />
                       </svg>
                     </button>
-                  }
-                </td>
+                  </td>
+                }
               </tr>
             } @empty {
               <tr>
-                <td colspan="5">No editors · 暂无编辑</td>
+                <td [attr.colspan]="canManage() ? 5 : 4">No editors · 暂无编辑</td>
               </tr>
             }
           }

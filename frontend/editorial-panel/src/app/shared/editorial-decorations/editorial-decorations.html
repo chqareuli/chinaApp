@@ -1,7 +1,8 @@
 <div class="decorations" [class.has-content]="markers.length || crossReferences.length">
   @if (markers.length || crossReferences.length) {
     <div class="chips">
-      @for (marker of markers.controls; track marker.get('id')?.value ?? $index; let i = $index) {
+      @for (i of orderedMarkerIndices(); track i) {
+        @let marker = markers.at(i);
         @if (!marker.get('textField')?.value || !readonly) {
           <span
             class="chip"

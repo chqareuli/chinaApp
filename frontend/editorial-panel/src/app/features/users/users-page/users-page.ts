@@ -1,3 +1,5 @@
+import { RouterLink } from '@angular/router';
+import { getStatusMeta } from '../../../shared/status-badge/status-badge';
 import { EditorIdentity, EditorDirectory } from '../../../shared/editor-identity';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -22,12 +24,20 @@ import { StatusBadge } from '../../../shared/status-badge/status-badge';
 
 @Component({
   selector: 'app-users-page',
-  imports: [StatusBadge, EditorIdentity, DatePipe, ReactiveFormsModule, PanelFontControl],
+  imports: [
+    RouterLink,
+    StatusBadge,
+    EditorIdentity,
+    DatePipe,
+    ReactiveFormsModule,
+    PanelFontControl,
+  ],
   templateUrl: './users-page.html',
   styleUrl: './users-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UsersPage implements OnInit {
+  readonly statusMeta = getStatusMeta;
   totalCount(counts: Record<string, number> | undefined): number {
     return Object.values(counts ?? {}).reduce((sum, count) => sum + count, 0);
   }

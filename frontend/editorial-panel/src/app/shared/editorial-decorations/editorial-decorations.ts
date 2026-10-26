@@ -381,6 +381,16 @@ export class EditorialDecorations implements OnChanges {
     this.contentChanged.emit();
   }
 
+  orderedMarkerIndices(): number[] {
+    const rank: Record<string, number> = { Style: 0, Domain: 1, Lang: 2 };
+    return this.markers.controls
+      .map((_, i) => i)
+      .sort(
+        (a, b) =>
+          (rank[this.markers.at(a).get('category')?.value] ?? 3) -
+          (rank[this.markers.at(b).get('category')?.value] ?? 3),
+      );
+  }
   markerText(index: number): string {
     const item = this.markers.at(index).getRawValue();
     const label = this.markerValueLabel(item.category, item.value);

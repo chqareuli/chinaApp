@@ -57,6 +57,20 @@ describe('Messages handoff behavior', () => {
     expect(service.markMessageRead).toHaveBeenCalledWith(2);
     expect(page.unreadCount(2)).toBe(1);
   });
+  it('orders group and private conversations together by their latest message', () => {
+    const page = TestBed.createComponent(MessagesPage).componentInstance;
+    page.editors.set([{ id: 2, displayName: 'Editor', role: 'Editor', isActive: true } as any]);
+    page.messages.set([
+      base,
+      { ...base, id: 2, broadcastId: 'group', sentAtUtc: '2026-09-16T10:00:00Z' },
+    ]);
+    expect(page.conversations()).toEqual([0, 2]);
+    page.messages.update((items) => [
+      ...items,
+      { ...base, id: 3, sentAtUtc: '2026-09-17T10:00:00Z' },
+    ]);
+    expect(page.conversations()).toEqual([2, 0]);
+  });
   it('opens the selected recipient immediately and sends group messages through the real service contract', () => {
     const page = TestBed.createComponent(MessagesPage).componentInstance;
     page.openNewMessage();

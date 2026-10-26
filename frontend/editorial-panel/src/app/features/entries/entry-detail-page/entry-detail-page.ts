@@ -1,3 +1,4 @@
+import { EntrySearchHighlight } from '../../../shared/entry-search-highlight';
 import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
@@ -45,7 +46,11 @@ import { AuthService } from '../../../core/services/auth.service';
 import { CollaborationService } from '../../../core/services/collaboration.service';
 import { EntriesService } from '../../../core/services/entries.service';
 import { MediaService } from '../../../core/services/media.service';
-import { captureMediaPlacement, readMediaPlacement, resolveMediaOffset } from '../../../shared/inline-media';
+import {
+  captureMediaPlacement,
+  readMediaPlacement,
+  resolveMediaOffset,
+} from '../../../shared/inline-media';
 import { getStatusMeta } from '../../../shared/status-badge/status-badge';
 import { EditorialDecorations } from '../../../shared/editorial-decorations/editorial-decorations';
 import { RepeatableTextList } from '../../../shared/repeatable-text-list/repeatable-text-list';
@@ -76,6 +81,7 @@ type EntryNotesTab = 'reference' | 'comments' | 'support';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EntryDetailPage implements OnInit, OnDestroy {
+  private readonly searchHighlight = inject(EntrySearchHighlight);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly entriesService = inject(EntriesService);
@@ -90,12 +96,16 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   private entryId = 0;
   readonly isNew = signal(false);
-  readonly framesVisible = signal(localStorage.getItem('cx-entry-editor-hierarchy-frames') !== 'off');
+  readonly framesVisible = signal(
+    localStorage.getItem('cx-entry-editor-hierarchy-frames') !== 'off',
+  );
   readonly editing = signal(false);
+  readonly readerPreview = signal(false);
   readonly canEditFields = computed(() => this.canEdit() && this.editing());
   startEditing(): void {
     if (!this.canEdit() || this.saving()) return;
     this.saveSuccess.set(false);
+    this.readerPreview.set(false);
     this.editing.set(true);
   }
   cancelEditing(): void {
@@ -108,33 +118,43 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.editing.set(false);
   }
   toggleFrames(): void {
-    this.framesVisible.update(value => !value);
+    this.framesVisible.update((value) => !value);
     localStorage.setItem('cx-entry-editor-hierarchy-frames', this.framesVisible() ? 'on' : 'off');
   }
   readonly structureVisible = signal(false);
   readonly editingHomograph = signal<number | null>(null);
   homographLabel(index: number): string {
-    const values = this.homonyms.controls.map(node => {
-      const linked = node.get('pinyinId')?.value != null
-        ? this.pinyins.controls.find(p => p.get('id')?.value === node.get('pinyinId')?.value)
-        : node.get('pinyinOrder')?.value != null ? this.pinyins.at(node.get('pinyinOrder')?.value) : null;
+    const values = this.homonyms.controls.map((node) => {
+      const linked =
+        node.get('pinyinId')?.value != null
+          ? this.pinyins.controls.find((p) => p.get('id')?.value === node.get('pinyinId')?.value)
+          : node.get('pinyinOrder')?.value != null
+            ? this.pinyins.at(node.get('pinyinOrder')?.value)
+            : null;
       return String(linked?.get('value')?.value ?? node.get('text')?.value ?? '').trim();
     });
     const value = values[index];
     if (!value) return `H${index + 1}`;
-    const matching = values.filter(item => item === value).length;
-    return matching > 1 ? `${value} ${values.slice(0, index + 1).filter(item => item === value).length}` : value;
+    const matching = values.filter((item) => item === value).length;
+    return matching > 1
+      ? `${value} ${values.slice(0, index + 1).filter((item) => item === value).length}`
+      : value;
   }
   homographPronunciationIndex(node: FormGroup): string {
     const id = node.get('pinyinId')?.value;
-    const index = id != null ? this.pinyins.controls.findIndex(p => p.get('id')?.value === id) : node.get('pinyinOrder')?.value;
+    const index =
+      id != null
+        ? this.pinyins.controls.findIndex((p) => p.get('id')?.value === id)
+        : node.get('pinyinOrder')?.value;
     return index != null && index >= 0 ? String(index) : '';
   }
   linkHomographPronunciation(node: FormGroup, value: string): void {
     const pinyin = value === '' ? null : this.pinyins.at(Number(value));
-    node.patchValue({ pinyinId: pinyin?.get('id')?.value ?? null,
+    node.patchValue({
+      pinyinId: pinyin?.get('id')?.value ?? null,
       pinyinOrder: pinyin && pinyin.get('id')?.value == null ? Number(value) : null,
-      text: pinyin?.get('value')?.value ?? node.get('text')?.value ?? '' });
+      text: pinyin?.get('value')?.value ?? node.get('text')?.value ?? '',
+    });
     this.markContentChanged();
     this.editingHomograph.set(null);
   }
@@ -152,28 +172,54 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   ];
   readonly collapsedReferenceGroups = signal<string[]>([]);
   toggleReferenceGroup(group: string): void {
-    this.collapsedReferenceGroups.update(groups => groups.includes(group) ? groups.filter(item => item !== group) : [...groups, group]);
+    this.collapsedReferenceGroups.update((groups) =>
+      groups.includes(group) ? groups.filter((item) => item !== group) : [...groups, group],
+    );
   }
   readonly privateMessageRecipient = signal<{ id: number; name: string } | null>(null);
   readonly privateMessageText = signal('');
   readonly privateMessageSaving = signal(false);
   readonly privateMessageError = signal<string | null>(null);
   openPrivateMessage(comment: CommentSummary): void {
-    this.privateMessageRecipient.set({id: comment.authorEditorId, name: comment.authorDisplayName});
-    this.privateMessageText.set(''); this.privateMessageError.set(null);
+    this.privateMessageRecipient.set({
+      id: comment.authorEditorId,
+      name: comment.authorDisplayName,
+    });
+    this.privateMessageText.set('');
+    this.privateMessageError.set(null);
   }
-  replyParent(id: number): CommentSummary | undefined { return this.comments().find(comment => comment.id === id); }
+  replyParent(id: number): CommentSummary | undefined {
+    return this.comments().find((comment) => comment.id === id);
+  }
   sendPrivateMessage(): void {
     const recipient = this.privateMessageRecipient();
     if (!recipient || !this.privateMessageText().trim() || this.privateMessageSaving()) return;
     this.privateMessageSaving.set(true);
-    this.collaboration.sendMessage(recipient.id, this.privateMessageText().trim()).pipe(finalize(() => this.privateMessageSaving.set(false))).subscribe({
-      next: () => this.privateMessageRecipient.set(null),
-      error: error => this.privateMessageError.set(this.problemMessage(error, 'Unable to send message · 无法发送消息')),
-    });
+    this.collaboration
+      .sendMessage(recipient.id, this.privateMessageText().trim())
+      .pipe(finalize(() => this.privateMessageSaving.set(false)))
+      .subscribe({
+        next: () => this.privateMessageRecipient.set(null),
+        error: (error) =>
+          this.privateMessageError.set(
+            this.problemMessage(error, 'Unable to send message · 无法发送消息'),
+          ),
+      });
   }
   commentRole(role?: string | null): string {
-    return ({SuperAdmin:'SV · 主管',ChiefEditor:'EC · 主编',DeputyChiefEditor:'DE · 副主编',Editor:'CE · 汉外翻译编辑',KaEditor:'GE · 格文编辑'} as Record<string,string>)[role || ''] || role || '';
+    return (
+      (
+        {
+          SuperAdmin: 'SV · 主管',
+          ChiefEditor: 'EC · 主编',
+          DeputyChiefEditor: 'DE · 副主编',
+          Editor: 'CE · 汉外翻译编辑',
+          KaEditor: 'GE · 格文编辑',
+        } as Record<string, string>
+      )[role || ''] ||
+      role ||
+      ''
+    );
   }
   readonly notesExpanded = signal(false);
   readonly saving = signal(false);
@@ -210,12 +256,16 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.commentTarget.set(comment.targetSegmentId ?? null);
   }
   replyAuthor(id: number): string {
-    return this.comments().find(comment => comment.id === id)?.authorDisplayName ?? '';
+    return this.comments().find((comment) => comment.id === id)?.authorDisplayName ?? '';
   }
   commentTargetLabel(id: number): string {
     const visit = (node: FormGroup | FormArray): string | null => {
       if (node instanceof FormGroup && node.get('id')?.value === id) {
-        return node.get('definition')?.value || [node.get('zh')?.value, node.get('ka')?.value].filter(Boolean).join(' — ') || null;
+        return (
+          node.get('definition')?.value ||
+          [node.get('zh')?.value, node.get('ka')?.value].filter(Boolean).join(' — ') ||
+          null
+        );
       }
       for (const child of Object.values(node.controls)) {
         if (child instanceof FormGroup || child instanceof FormArray) {
@@ -229,16 +279,29 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
   resizeNotes(kind: 'comments' | 'reference', delta: number): void {
     const size = kind === 'comments' ? this.commentFontSize : this.referenceFontSize;
-    size.update(value => Math.min(40, Math.max(12, value + delta)));
+    size.update((value) => Math.min(40, Math.max(12, value + delta)));
+  }
+  selectReferenceGroup(group: string): void {
+    this.referenceGroup.set(group);
+    if (group !== 'all')
+      this.collapsedReferenceGroups.update((items) => items.filter((item) => item !== group));
   }
   referenceVisible(group: string): boolean {
     if (this.referenceGroup() !== 'all' && this.referenceGroup() !== group) return false;
     const query = this.referenceQuery().trim().toLocaleLowerCase();
-    return !query || String(this.referenceForm.get(group)?.value ?? '').toLocaleLowerCase().includes(query);
+    return (
+      !query ||
+      String(this.referenceForm.get(group)?.value ?? '')
+        .toLocaleLowerCase()
+        .includes(query)
+    );
   }
   readonly commentSaving = signal(false);
   referenceLines(group: string): string[] {
-    return String(this.referenceForm.get(group)?.value ?? '').split(/\r?\n|\/{2,}/).map(line => line.trim()).filter(Boolean);
+    return String(this.referenceForm.get(group)?.value ?? '')
+      .split(/\r?\n|\/{2,}/)
+      .map((line) => line.trim())
+      .filter(Boolean);
   }
   readonly editingCommentId = signal<number | null>(null);
   readonly editingCommentText = signal('');
@@ -290,39 +353,90 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   private mediaLibraryQuery = '';
   private mediaLibraryRequest = 0;
   browseMedia(query = this.mediaLibraryQuery, page = 1): void {
-    this.useExistingMedia.set(true); this.mediaLibraryQuery = query;
-    this.mediaLibraryLoading.set(true); this.mediaError.set(null);
+    this.useExistingMedia.set(true);
+    this.mediaLibraryQuery = query;
+    this.mediaLibraryLoading.set(true);
+    this.mediaError.set(null);
     const request = ++this.mediaLibraryRequest;
-    this.mediaService.library(page, query).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next: result => {
-      if (request !== this.mediaLibraryRequest) return;
-      this.mediaLibraryItems.set(result.items); this.mediaLibraryPage.set(result.page); this.mediaLibraryTotal.set(result.total); this.mediaLibraryLoading.set(false);
-      result.items.forEach(item => this.loadMediaUrl(item));
-    }, error: () => { if (request === this.mediaLibraryRequest) {this.mediaLibraryLoading.set(false); this.mediaError.set('სურათების ჩატვირთვა ვერ მოხერხდა.');} }});
+    this.mediaService
+      .library(page, query)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          if (request !== this.mediaLibraryRequest) return;
+          this.mediaLibraryItems.set(result.items);
+          this.mediaLibraryPage.set(result.page);
+          this.mediaLibraryTotal.set(result.total);
+          this.mediaLibraryLoading.set(false);
+          result.items.forEach((item) => this.loadMediaUrl(item));
+        },
+        error: () => {
+          if (request === this.mediaLibraryRequest) {
+            this.mediaLibraryLoading.set(false);
+            this.mediaError.set('სურათების ჩატვირთვა ვერ მოხერხდა.');
+          }
+        },
+      });
   }
   insertExistingMedia(asset: MediaAssetItem): void {
-    if (!this.entryId || !this.canEditFields() || this.mediaSaving() || !this.mediaTarget()?.node.get('id')?.value) return;
-    this.mediaSaving.set(true); this.mediaError.set(null);
-    this.mediaService.reuse(this.entryId, asset.id, this.mediaPlacement()).pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.mediaSaving.set(false))).subscribe({
-      next: item => {this.media.update(items => [item, ...items]); this.loadMediaUrl(item); this.mediaTarget.set(null);},
-      error: (error: HttpErrorResponse) => this.mediaError.set(this.problemMessage(error, 'სურათის ჩასმა ვერ მოხერხდა.')),
-    });
+    if (
+      !this.entryId ||
+      !this.canEditFields() ||
+      this.mediaSaving() ||
+      !this.mediaTarget()?.node.get('id')?.value
+    )
+      return;
+    this.mediaSaving.set(true);
+    this.mediaError.set(null);
+    this.mediaService
+      .reuse(this.entryId, asset.id, this.mediaPlacement())
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.mediaSaving.set(false)),
+      )
+      .subscribe({
+        next: (item) => {
+          this.media.update((items) => [item, ...items]);
+          this.loadMediaUrl(item);
+          this.mediaTarget.set(null);
+        },
+        error: (error: HttpErrorResponse) =>
+          this.mediaError.set(this.problemMessage(error, 'სურათის ჩასმა ვერ მოხერხდა.')),
+      });
   }
   readonly exampleMediaFields = signal(new Map<FormGroup, 'zh' | 'ka'>());
   rememberExampleMediaField(node: FormGroup, field: 'zh' | 'ka'): void {
-    this.exampleMediaFields.update(fields => new Map(fields).set(node, field));
+    this.exampleMediaFields.update((fields) => new Map(fields).set(node, field));
   }
-  openExampleMedia(node: FormGroup, chinese: HTMLTextAreaElement, georgian: HTMLTextAreaElement): void {
+  openExampleMedia(
+    node: FormGroup,
+    chinese: HTMLTextAreaElement,
+    georgian: HTMLTextAreaElement,
+  ): void {
     const field = this.exampleMediaFields().get(node);
     if (field) this.openNodeMedia('example', node, field === 'zh' ? chinese : georgian, field);
   }
-  openNodeMedia(kind: 'sense' | 'example', node: FormGroup, field: HTMLTextAreaElement, fieldName: 'definition' | 'zh' | 'ka'): void {
+  openNodeMedia(
+    kind: 'sense' | 'example',
+    node: FormGroup,
+    field: HTMLTextAreaElement,
+    fieldName: 'definition' | 'zh' | 'ka',
+  ): void {
     if (!this.canEditFields()) return;
     this.clearSelectedMedia();
     this.mediaError.set(null);
     this.useExistingMedia.set(false);
     this.mediaDisplayName.set('');
     this.mediaTarget.set({ kind, node });
-    this.mediaPlacement.set(captureMediaPlacement(kind, node.get('id')?.value, fieldName, field.value, field.selectionStart ?? field.value.length));
+    this.mediaPlacement.set(
+      captureMediaPlacement(
+        kind,
+        node.get('id')?.value,
+        fieldName,
+        field.value,
+        field.selectionStart ?? field.value.length,
+      ),
+    );
   }
   closeNodeMedia(): void {
     if (this.mediaSaving()) return;
@@ -331,20 +445,35 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
   nodeMedia(kind: 'sense' | 'example', node: FormGroup): MediaAssetItem[] {
     const id = node.get('id')?.value;
-    return id ? this.media().filter(item => item.placement === kind + ':' + id) : [];
+    return id ? this.media().filter((item) => item.placement === kind + ':' + id) : [];
   }
   inlineNodeMedia(kind: 'sense' | 'example', node: FormGroup, field: 'definition' | 'zh' | 'ka') {
     const id = node.get('id')?.value;
     const body = node.get(field)?.value || '';
-    return this.media().flatMap(asset => {
+    return this.media().flatMap((asset) => {
       const placement = readMediaPlacement(asset.placement);
       const url = this.mediaUrl(asset.id);
-      return placement && url && placement.kind === kind && placement.nodeId === id && placement.field === field
-        ? [{ id: asset.id, offset: resolveMediaOffset(placement, body), url, alt: asset.displayName || asset.originalFilename, label: asset.displayName || asset.originalFilename.replace(/\.[^.]+$/, '') }] : [];
+      return placement &&
+        url &&
+        placement.kind === kind &&
+        placement.nodeId === id &&
+        placement.field === field
+        ? [
+            {
+              id: asset.id,
+              offset: resolveMediaOffset(placement, body),
+              url,
+              alt: asset.displayName || asset.originalFilename,
+              label: asset.displayName || asset.originalFilename.replace(/\.[^.]+$/, ''),
+            },
+          ]
+        : [];
     });
   }
   hasInlineFormatting(node: FormGroup, field: string): boolean {
-    return ['markers', 'crossReferences'].some(key => this.formArrayAt(node, key).controls.some(item => item.get('textField')?.value === field));
+    return ['markers', 'crossReferences'].some((key) =>
+      this.formArrayAt(node, key).controls.some((item) => item.get('textField')?.value === field),
+    );
   }
   resizeEditorText(fields: HTMLTextAreaElement[], delta: number): void {
     for (const field of fields) {
@@ -361,8 +490,13 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     const count = (value.match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/g) ?? []).length;
     if (count >= 20) return;
     const position = field.selectionStart ?? value.length;
-    const token = (position && value[position - 1] !== '\n' ? '\n' : '') + String.fromCodePoint(0x2460 + count) + ' ';
-    sense.get('definition')?.setValue(value.slice(0, position) + token + value.slice(field.selectionEnd ?? position));
+    const token =
+      (position && value[position - 1] !== '\n' ? '\n' : '') +
+      String.fromCodePoint(0x2460 + count) +
+      ' ';
+    sense
+      .get('definition')
+      ?.setValue(value.slice(0, position) + token + value.slice(field.selectionEnd ?? position));
     this.markContentChanged();
     field.focus();
     field.setSelectionRange(position + token.length, position + token.length);
@@ -383,7 +517,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     senses: this.fb.array<FormGroup>([]),
   });
 
-  private referenceBaseline = {g1: '', g2: '', g3: '', g4: '', g5: ''};
+  private referenceBaseline = { g1: '', g2: '', g3: '', g4: '', g5: '' };
   readonly referenceSaved = signal(false);
   readonly referenceForm = this.fb.group({
     g1: [''],
@@ -470,6 +604,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       this.loadVocabularies();
       return;
     }
+    this.searchHighlight.query.set(this.route.snapshot.queryParamMap.get('q') ?? '');
     this.entryId = Number(this.route.snapshot.paramMap.get('id'));
     if (!Number.isInteger(this.entryId) || this.entryId < 1) {
       this.error.set('სტატიის ნომერი არასწორია.');
@@ -487,6 +622,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.searchHighlight.query.set('');
     const selectedPreview = this.selectedMediaPreview();
     if (selectedPreview) URL.revokeObjectURL(selectedPreview);
     Object.values(this.mediaUrls()).forEach((url) => URL.revokeObjectURL(url));
@@ -497,6 +633,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   setNotesTab(tab: EntryNotesTab): void {
+    if (tab !== 'reference') this.referencePinned.set(false);
     this.notesTab.set(tab);
     this.notesExpanded.set(true);
   }
@@ -564,20 +701,30 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   structureLines(): string[] {
     const lines: string[] = [];
-    const senses = (items: FormArray<FormGroup>, prefix: string) => items.controls.forEach((sense, i) => {
-      const examples = this.formArrayAt(sense, 'examples').length;
-      lines.push(prefix + ' → S' + (i + 1) + (examples ? ' → E (' + examples + ')' : ' → ∅ E'));
-    });
-    const groups = (items: FormArray<FormGroup>, prefix: string) => items.controls.forEach((group, i) => {
-      const label = prefix + ' → POS ' + this.toRoman(i + 1) + ' [' + (group.get('pos')?.value || 'არ არის არჩეული') + ']';
-      const children = this.formArrayAt(group, 'senses');
-      if (children.length) senses(children, label); else lines.push(label + ' → ∅ S');
-    });
+    const senses = (items: FormArray<FormGroup>, prefix: string) =>
+      items.controls.forEach((sense, i) => {
+        const examples = this.formArrayAt(sense, 'examples').length;
+        lines.push(prefix + ' → S' + (i + 1) + (examples ? ' → E (' + examples + ')' : ' → ∅ E'));
+      });
+    const groups = (items: FormArray<FormGroup>, prefix: string) =>
+      items.controls.forEach((group, i) => {
+        const label =
+          prefix +
+          ' → POS ' +
+          this.toRoman(i + 1) +
+          ' [' +
+          (group.get('pos')?.value || 'არ არის არჩეული') +
+          ']';
+        const children = this.formArrayAt(group, 'senses');
+        if (children.length) senses(children, label);
+        else lines.push(label + ' → ∅ S');
+      });
     this.homonyms.controls.forEach((h, i) => {
       const prefix = 'Entry → H' + (i + 1);
       const children = this.formArrayAt(h, 'gramGroups');
       const direct = this.formArrayAt(h, 'directSenses');
-      groups(children, prefix); senses(direct, prefix + ' → ∅ POS');
+      groups(children, prefix);
+      senses(direct, prefix + ' → ∅ POS');
       if (!children.length && !direct.length) lines.push(prefix + ' → ∅ POS → ∅ S');
     });
     groups(this.rootGramGroups, 'Entry → ∅ H');
@@ -609,7 +756,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   addHomonym(): void {
     if (!this.homonyms.length && (this.rootGramGroups.length || this.rootSenses.length)) {
       const first = this.createHomonym();
-      for (const [source, key] of [[this.rootGramGroups, 'gramGroups'], [this.rootSenses, 'directSenses']] as const) {
+      for (const [source, key] of [
+        [this.rootGramGroups, 'gramGroups'],
+        [this.rootSenses, 'directSenses'],
+      ] as const) {
         const destination = this.formArrayAt(first, key);
         while (source.length) {
           const control = source.at(0);
@@ -673,7 +823,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   addSenseTo(senses: FormArray<FormGroup>): void {
-    if (senses.parent?.get('directSenses') === senses && senses.parent?.get('gramGroups')?.value?.length) return;
+    if (
+      senses.parent?.get('directSenses') === senses &&
+      senses.parent?.get('gramGroups')?.value?.length
+    )
+      return;
     senses.push(this.createSense(senses.length + 1));
     this.entryForm.markAsDirty();
   }
@@ -741,14 +895,21 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       return;
     }
 
-    const parents = [this.rootGramGroups, ...this.homonyms.controls.map(h => this.formArrayAt(h, 'gramGroups'))];
+    const parents = [
+      this.rootGramGroups,
+      ...this.homonyms.controls.map((h) => this.formArrayAt(h, 'gramGroups')),
+    ];
     const isDraft = item.status === 'NewEntry';
-    const duplicatePos = parents.some(groups => {
-      const values = groups.controls.map(g => String(g.get('pos')?.value ?? '').trim()).filter(Boolean);
+    const duplicatePos = parents.some((groups) => {
+      const values = groups.controls
+        .map((g) => String(g.get('pos')?.value ?? '').trim())
+        .filter(Boolean);
       return new Set(values).size !== values.length;
     });
     if (duplicatePos && !isDraft) {
-      this.saveError.set('ერთი მშობლის ქვეშ ერთი და იგივე POS არ უნდა მეორდებოდეს — მნიშვნელობები ერთ POS ჯგუფში დაამატეთ.');
+      this.saveError.set(
+        'ერთი მშობლის ქვეშ ერთი და იგივე POS არ უნდა მეორდებოდეს — მნიშვნელობები ერთ POS ჯგუფში დაამატეთ.',
+      );
       return;
     }
     this.entryForm.markAllAsTouched();
@@ -756,8 +917,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       this.saveError.set('შეავსეთ სტატიის სათაური და გადაამოწმეთ ფორმა.');
       return;
     }
-    this.draftWarning.set(isDraft && (this.entryForm.invalid || duplicatePos)
-      ? 'Incomplete draft; complete its structure before review · 草稿尚未完成，请在送审前补全结构' : null);
+    this.draftWarning.set(
+      isDraft && (this.entryForm.invalid || duplicatePos)
+        ? 'Incomplete draft; complete its structure before review · 草稿尚未完成，请在送审前补全结构'
+        : null,
+    );
 
     this.saving.set(true);
     this.saveError.set(null);
@@ -779,44 +943,60 @@ export class EntryDetailPage implements OnInit, OnDestroy {
             ),
           )
       : this.entriesService.saveContent(item.id, this.toSaveRequest(item.rowVersion));
-    source.pipe(
-      tap(updated => this.entry.set(updated)),
-      switchMap(updated => {
-        if (!this.referenceForm.dirty) return of(updated);
-        const value = this.referenceForm.getRawValue();
-        return this.collaboration.saveReferenceMaterial(updated.id, {
-          g1: value.g1 ?? '', g2: value.g2 ?? '', g3: value.g3 ?? '', g4: value.g4 ?? '', g5: value.g5 ?? '',
-        }).pipe(tap(detail => {
-          this.populateReference(detail);
-          this.referenceForm.markAsPristine();
-          this.referenceSaved.set(true);
-        }), switchMap(() => of(updated)), catchError(error => {
-          this.referenceError.set('სტატია შეინახა, მაგრამ G1–G5 ვერ შეინახა. ხელახლა დააჭირეთ Save-ს.');
-          throw error;
-        }));
-      }),
-      finalize(() => this.saving.set(false))
-    ).subscribe({
-      next: (updated) => {
-        this.entry.set(updated);
-        this.populateEntryForm(updated);
-        this.editing.set(false);
-        this.saveSuccess.set(true);
-        if (this.isNew()) {
-          this.isNew.set(false);
-          void this.router.navigate(['/adminpanel/entries', updated.id], { replaceUrl: true });
-        }
-        this.loadHistory();
-      },
-      error: (error: HttpErrorResponse) => {
-        if (error.status === 409) {
-          this.concurrencyConflict.set(true);
-          this.saveError.set('სტატია სხვამ შეცვალა. განაახლეთ მონაცემები და შემდეგ შეინახეთ.');
-          return;
-        }
-        this.saveError.set(this.referenceError() ?? this.problemMessage(error, 'სტატიის შენახვა ვერ მოხერხდა.'));
-      },
-    });
+    source
+      .pipe(
+        tap((updated) => this.entry.set(updated)),
+        switchMap((updated) => {
+          if (!this.referenceForm.dirty) return of(updated);
+          const value = this.referenceForm.getRawValue();
+          return this.collaboration
+            .saveReferenceMaterial(updated.id, {
+              g1: value.g1 ?? '',
+              g2: value.g2 ?? '',
+              g3: value.g3 ?? '',
+              g4: value.g4 ?? '',
+              g5: value.g5 ?? '',
+            })
+            .pipe(
+              tap((detail) => {
+                this.populateReference(detail);
+                this.referenceForm.markAsPristine();
+                this.referenceSaved.set(true);
+              }),
+              switchMap(() => of(updated)),
+              catchError((error) => {
+                this.referenceError.set(
+                  'სტატია შეინახა, მაგრამ G1–G5 ვერ შეინახა. ხელახლა დააჭირეთ Save-ს.',
+                );
+                throw error;
+              }),
+            );
+        }),
+        finalize(() => this.saving.set(false)),
+      )
+      .subscribe({
+        next: (updated) => {
+          this.entry.set(updated);
+          this.populateEntryForm(updated);
+          this.editing.set(false);
+          this.saveSuccess.set(true);
+          if (this.isNew()) {
+            this.isNew.set(false);
+            void this.router.navigate(['/adminpanel/entries', updated.id], { replaceUrl: true });
+          }
+          this.loadHistory();
+        },
+        error: (error: HttpErrorResponse) => {
+          if (error.status === 409) {
+            this.concurrencyConflict.set(true);
+            this.saveError.set('სტატია სხვამ შეცვალა. განაახლეთ მონაცემები და შემდეგ შეინახეთ.');
+            return;
+          }
+          this.saveError.set(
+            this.referenceError() ?? this.problemMessage(error, 'სტატიის შენახვა ვერ მოხერხდა.'),
+          );
+        },
+      });
   }
 
   reloadAfterConflict(): void {
@@ -878,7 +1058,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.commentSaving.set(true);
     this.commentError.set(null);
     this.collaboration
-      .addComment(this.entryId, text, { targetSegmentId: this.commentTarget(), replyToCommentId: this.replyingTo()?.id })
+      .addComment(this.entryId, text, {
+        targetSegmentId: this.commentTarget(),
+        replyToCommentId: this.replyingTo()?.id,
+      })
       .pipe(finalize(() => this.commentSaving.set(false)))
       .subscribe({
         next: (comment) => {
@@ -1005,7 +1188,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
 
   saveReferenceMaterial(): void {
     if (!this.canEditFields() || this.referenceSaving() || this.saving()) return;
-    if (!this.entryId) { this.saveContent(); return; }
+    if (!this.entryId) {
+      this.saveContent();
+      return;
+    }
     this.referenceSaving.set(true);
     this.referenceSaved.set(false);
     this.referenceError.set(null);
@@ -1063,7 +1249,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   uploadMedia(): void {
     const file = this.selectedMedia();
     if (!file || !this.canEditFields() || !this.entryId || this.mediaSaving()) return;
-    if (!this.mediaDisplayName().trim()) { this.mediaError.set('შეიყვანეთ სურათის სახელი.'); return; }
+    if (!this.mediaDisplayName().trim()) {
+      this.mediaError.set('შეიყვანეთ სურათის სახელი.');
+      return;
+    }
     if (this.mediaTarget() && !this.mediaTarget()!.node.get('id')?.value) return;
 
     this.mediaSaving.set(true);
@@ -1147,7 +1336,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       const after = this.statusFromAuditValue(item.newValue);
       if (before && after) return `${this.statusLabel(before)} → ${this.statusLabel(after)}`;
     }
-    return item.notes || (item.action === 'ContentEdited' ? 'Entry content updated · 词目内容已更新' : null);
+    return (
+      item.notes ||
+      (item.action === 'ContentEdited' ? 'Entry content updated · 词目内容已更新' : null)
+    );
   }
   historySection(item: EntryHistoryItem): string {
     if (item.action === 'StatusChanged') return 'Stage · 状态';
@@ -1290,7 +1482,13 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       g4: detail.g4,
       g5: detail.g5,
     });
-    this.referenceBaseline = {g1: detail.g1 ?? '', g2: detail.g2 ?? '', g3: detail.g3 ?? '', g4: detail.g4 ?? '', g5: detail.g5 ?? ''};
+    this.referenceBaseline = {
+      g1: detail.g1 ?? '',
+      g2: detail.g2 ?? '',
+      g3: detail.g3 ?? '',
+      g4: detail.g4 ?? '',
+      g5: detail.g5 ?? '',
+    };
     this.referenceForm.markAsPristine();
   }
 
@@ -1402,7 +1600,14 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   private createMarkers(items: EditorialMarker[] = []): FormArray<FormGroup> {
     return this.fb.array<FormGroup>(
       items.map((item) =>
-        this.fb.group({ id: [item.id], category: [item.category], value: [item.value], textOffset: [item.textOffset ?? null], textField: [item.textField ?? null], displayText: [item.displayText ?? null] }),
+        this.fb.group({
+          id: [item.id],
+          category: [item.category],
+          value: [item.value],
+          textOffset: [item.textOffset ?? null],
+          textField: [item.textField ?? null],
+          displayText: [item.displayText ?? null],
+        }),
       ),
     );
   }
