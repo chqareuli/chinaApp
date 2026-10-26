@@ -904,7 +904,9 @@
                     [disabled]="!canEditFields()"
                     (click)="editingHomograph.set(h)"
                   >
-                    {{ homographLabel(h) }}
+                    @let label = homographParts(h);
+                    <span class="homonym-caption">{{label.text}}</span>
+                    @if(label.number){<span class="homonym-number">{{label.number}}</span>}
                   </button>
                   @if (
                     canEditFields() && (editingHomograph() === h || !homonym.get('text')?.value)

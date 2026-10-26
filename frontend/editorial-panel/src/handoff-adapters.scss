@@ -1374,3 +1374,8 @@
 #cx-entry-v2.reader-preview .example-grid {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
+
+/* Long homograph labels must wrap without clipping; numbering remains distinct. */
+#cx-entry-v2 .scope-head .hom-index,#cx-entry-v2 .scope.has-hom-label .hom-index{flex:0 1 auto;width:auto;height:auto;min-width:47px;max-width:100%;padding:10px 14px;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.35;gap:12px;box-sizing:border-box;text-align:left}
+#cx-entry-v2 .homonym-caption{min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+#cx-entry-v2 .homonym-number{flex:none;margin-left:4px;align-self:center}

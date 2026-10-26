@@ -124,6 +124,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly structureVisible = signal(false);
   readonly editingHomograph = signal<number | null>(null);
   homographLabel(index: number): string {
+    const label = this.homographParts(index);
+    return label.number ? `${label.text} ${label.number}` : label.text;
+  }
+  homographParts(index: number): {text:string;number:number|null} {
     const values = this.homonyms.controls.map((node) => {
       const linked =
         node.get('pinyinId')?.value != null
@@ -134,11 +138,9 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       return String(linked?.get('value')?.value ?? node.get('text')?.value ?? '').trim();
     });
     const value = values[index];
-    if (!value) return `H${index + 1}`;
+    if (!value) return {text:`H${index + 1}`,number:null};
     const matching = values.filter((item) => item === value).length;
-    return matching > 1
-      ? `${value} ${values.slice(0, index + 1).filter((item) => item === value).length}`
-      : value;
+    return {text:value,number:matching > 1 ? values.slice(0,index+1).filter(item=>item===value).length : null};
   }
   homographPronunciationIndex(node: FormGroup): string {
     const id = node.get('pinyinId')?.value;
