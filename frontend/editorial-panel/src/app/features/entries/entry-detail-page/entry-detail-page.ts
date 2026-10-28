@@ -1044,6 +1044,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
           this.loadHistory();
         },
         error: (error: HttpErrorResponse) => {
+          if (error.status === 409 && error.error?.code === 'duplicate_title') {
+            this.concurrencyConflict.set(false);
+            this.saveError.set(this.problemMessage(error, 'სტატია ამ სათაურით უკვე არსებობს.'));
+            return;
+          }
           if (error.status === 409) {
             this.concurrencyConflict.set(true);
             this.saveError.set('სტატია სხვამ შეცვალა. განაახლეთ მონაცემები და შემდეგ შეინახეთ.');

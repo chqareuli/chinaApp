@@ -62,6 +62,10 @@ public class EntriesController(IEntryService entryService) : ControllerBase
             var entry = await entryService.CreateAsync(request, User.GetEditorId(), User.GetEditorRole(), ct);
             return CreatedAtAction(nameof(Get), new { id = entry.Id }, entry);
         }
+        catch (EntryDuplicateTitleException ex)
+        {
+            return Conflict(new { code = "duplicate_title", message = ex.Message });
+        }
         catch (EntryValidationException ex)
         {
             return BadRequest(new { message = ex.Message });
@@ -92,6 +96,10 @@ public class EntriesController(IEntryService entryService) : ControllerBase
         catch (EntryConcurrencyException)
         {
             return Conflict(new { message = "This entry was modified by someone else since you loaded it. Reload and try again." });
+        }
+        catch (EntryDuplicateTitleException ex)
+        {
+            return Conflict(new { code = "duplicate_title", message = ex.Message });
         }
         catch (EntryValidationException ex)
         {

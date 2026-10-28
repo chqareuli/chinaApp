@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { FormBuilder, FormGroup, FormControl } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { EntryDetail } from '../../../core/models/entry.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { CollaborationService } from '../../../core/services/collaboration.service';
@@ -91,6 +92,25 @@ describe('EntryDetailPage status confirmation', () => {
 
     expect(component.statusConfirmation()).toBe('ZhReview');
     expect(entriesService.statusRequests).toHaveLength(0);
+  });
+  it('keeps the draft editable when its title duplicates another entry', () => {
+    component.startEditing();
+    component.entryForm.controls.lemma.setValue('duplicate');
+    Object.assign(entriesService, {
+      saveContent: () =>
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: { code: 'duplicate_title', message: 'სტატია ამ სათაურით უკვე არსებობს.' },
+            }),
+        ),
+    });
+    component.saveContent();
+    expect(component.saveError()).toContain('ამ სათაურით უკვე არსებობს');
+    expect(component.concurrencyConflict()).toBe(false);
+    expect(component.editing()).toBe(true);
+    expect(component.entryForm.controls.lemma.value).toBe('duplicate');
   });
   it('saves incomplete new-entry structure with a warning instead of blocking the draft', () => {
     component.startEditing();

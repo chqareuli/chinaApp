@@ -7,11 +7,19 @@ using Chiniseapp.Domain.Enums;
 using Chiniseapp.Domain.Rules;
 using Chiniseapp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Chiniseapp.Infrastructure.Entries;
 
 public class EntryService(ChiniseDbContext db, IScoringService scoringService, INotificationService notificationService) : IEntryService
 {
+    private async Task EnsureUniqueTitle(string title, int exceptId, CancellationToken ct)
+    {
+        if (await db.Database.SqlQuery<int>($"SELECT id AS \"Value\" FROM entries WHERE entry_title_key(lemma) = entry_title_key({title}) AND id <> {exceptId}").AnyAsync(ct))
+            throw new EntryDuplicateTitleException();
+    }
+    private static bool IsDuplicateTitle(DbUpdateException error) =>
+        error.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "uq_entries_title" };
     public async Task<IReadOnlyList<VocabularyListItem>> GetVocabulariesAsync(CancellationToken ct = default)
     {
         var items = await db.ControlledVocabularies.AsNoTracking().Where(v => v.IsActive)
@@ -51,6 +59,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         }
 
         var lemma = NormalizeLemma(request.Lemma);
+        await EnsureUniqueTitle(lemma, 0, ct);
 
         var now = DateTime.UtcNow;
         var entry = new Entry
@@ -69,7 +78,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         EntryTreeMapper.SaveForms(entry,
             request.Pinyins?.Select((value, i) => new FormItemDto(null, value, i)).ToList(), null);
         db.Entries.Add(entry);
-        await db.SaveChangesAsync(ct);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException error) when (IsDuplicateTitle(error)) { throw new EntryDuplicateTitleException(); }
 
         return await BuildDetailAsync(entry, [], currentEditorRole, ct);
     }
@@ -123,7 +133,9 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
 
         if (!string.IsNullOrWhiteSpace(request.Lemma))
         {
-            entry.Lemma = NormalizeLemma(request.Lemma);
+            var title = NormalizeLemma(request.Lemma);
+            if (title != entry.Lemma) await EnsureUniqueTitle(title, id, ct);
+            entry.Lemma = title;
             entry.SearchNormalizedTitle = TitleNormalizer.Normalize(entry.Lemma);
         }
 
@@ -166,6 +178,11 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             audit.NewValue = Snapshot(mapper.Nodes);
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
+        }
+        catch (DbUpdateException error) when (IsDuplicateTitle(error))
+        {
+            await transaction.RollbackAsync(ct);
+            throw new EntryDuplicateTitleException();
         }
         catch (DbUpdateConcurrencyException)
         {
