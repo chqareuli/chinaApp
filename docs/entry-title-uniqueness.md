@@ -7,6 +7,6 @@ Titles are reserved across every entry status, including drafts and archived ent
 - Migration `20261028150000_EnforceEntryTitleUniqueness` installs a canonical key function, a uniquely constrained title-reservation table, an expression index, and transactional triggers. Concurrent/direct database writes are protected by the unique constraint; reservations roll back with failed transactions and are released when a title is no longer used.
 - Existing duplicate entries are preserved. Unchanged content can still be saved; new duplicate creation and conflicting renames are blocked. This permits deployment without deleting or inventing dictionary content.
 
-Test-server audit on 2026-10-28 found one existing duplicate group: 「新诉」, entry IDs 7 and 23. Its editorial resolution is pending user review. No existing title or entry was changed automatically.
+The initial test-server audit on 2026-10-28 found 「新诉」 at IDs 7 and 23. A subsequent audit found ID 23 already renamed to 「铁柜」 and no remaining duplicate canonical titles; no automatic content rename was needed. Migration `20261028160000_AddUniqueEntryTitleIndex` additionally enforces a unique canonical title index directly on `entries`. Migration intentionally fails if unresolved duplicates exist rather than changing editorial content.
 
 Verification: 288 backend tests (zero skipped), including migration over legacy duplicates, create/rename normalization, concurrent service/direct writes, and transaction rollback; 117 frontend tests and production build passed.

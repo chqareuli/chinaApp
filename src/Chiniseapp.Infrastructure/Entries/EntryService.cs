@@ -19,7 +19,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             throw new EntryDuplicateTitleException();
     }
     private static bool IsDuplicateTitle(DbUpdateException error) =>
-        error.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "uq_entries_title" };
+        error.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "uq_entries_title" or "uq_entries_lemma_title" };
     public async Task<IReadOnlyList<VocabularyListItem>> GetVocabulariesAsync(CancellationToken ct = default)
     {
         var items = await db.ControlledVocabularies.AsNoTracking().Where(v => v.IsActive)

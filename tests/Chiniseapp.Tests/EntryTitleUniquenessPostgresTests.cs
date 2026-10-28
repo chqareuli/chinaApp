@@ -37,8 +37,15 @@ public class EntryTitleUniquenessPostgresTests
                 var editor=new Editor{Email="titles@example.test",DisplayName="Editor",Role=EditorRole.SuperAdmin,IsActive=true,CreatedAtUtc=DateTime.UtcNow};
                 db.Editors.Add(editor);await db.SaveChangesAsync();editorId=editor.Id;
                 var legacy=Row("旧词");db.Entries.AddRange(legacy,Row("旧词"));await db.SaveChangesAsync();legacyId=legacy.Id;
-                await db.Database.MigrateAsync();
+                await db.GetService<IMigrator>().MigrateAsync("20261028150000_EnforceEntryTitleUniqueness");
                 Assert.Equal(2,await db.Entries.CountAsync(e=>e.Lemma=="旧词"));
+                var duplicate=await db.Entries.SingleAsync(e=>e.Lemma=="旧词" && e.Id!=legacyId);
+                duplicate.Lemma="旧词1";
+                duplicate.SearchNormalizedTitle="旧词1";
+                await db.SaveChangesAsync();
+                await db.Database.MigrateAsync();
+                var uniqueIndex=await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM pg_indexes WHERE indexname='uq_entries_lemma_title' AND indexdef LIKE 'CREATE UNIQUE INDEX%'").SingleAsync();
+                Assert.Equal(1,uniqueIndex);
             }
             async Task<EntryDetail> Create(string title)
             {
