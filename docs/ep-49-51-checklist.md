@@ -1,0 +1,9 @@
+# EP49–51 — 2026-10-28
+
+- EP49: cross-reference chips expose an Edit link control instead of covering adjacent tools with target/status text. Inline editing replaces the original token, retains its segment identity, and adjusts other annotations through the existing text reconciliation. POS/shared-scope links use Attached placement. Lookup choices separate the lemma and pinyin and only auto-select an unambiguous exact match. Tool rows wrap in normal flow. Traditional-form size is reduced. Structure controls are hidden in saved read-only views. Style markers remain per definition, the alternative explicitly allowed in the screenshot; existing homograph/POS scope markers can apply to their child definitions.
+- EP50: independently entered names are normalized without trailing manually appended display numbers, both in the panel and on save. Numbering is computed separately for matching names, recalculated after edits/deletions, and omitted for a single remaining name. Filled homograph removal asks for confirmation; empty blocks are removed directly. The previous two-block removal restriction is gone. Removal remains an unsaved form change until Save.
+- EP51: comments are grouped by their original root comment, including nested and late replies. New topics remain separate. Each reply keeps its direct parent's quote and author. Preview removes structure controls and empty header space, exposes POS symbols in green, keeps markers visible, and places example markers by the Georgian translation. No separate public-site deployment is included.
+
+Verification: 116 frontend tests; 287 backend tests with zero skipped, including name normalization persistence. Production build checked. Browser verified confirmation/removal in an unsaved local form: two homographs became one and its automatic number disappeared; no entry was saved. Preview inspected locally.
+
+Deferred as previously agreed: legacy photo import.

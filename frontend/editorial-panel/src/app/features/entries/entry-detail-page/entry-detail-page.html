@@ -8,6 +8,27 @@
   [class.show-structure]="structureVisible()"
   [class.has-homographs]="homonyms.length > 0"
 >
+  @if (pendingHomonymRemoval() !== null) {
+    <div class="status-confirm-backdrop">
+      <section
+        class="status-confirm"
+        role="alertdialog"
+        aria-modal="true"
+        aria-label="Remove homograph · 删除同形词"
+      >
+        <h2>Remove this homograph? · 删除此同形词？</h2>
+        <p>
+          Its definitions and examples will also be removed. Changes apply only after Save. ·
+          同时删除其释义和例句；保存后生效。
+        </p>
+        <button class="btn" type="button" (click)="pendingHomonymRemoval.set(null)">
+          Cancel · 取消</button
+        ><button class="btn btn-primary" type="button" (click)="confirmHomonymRemoval()">
+          Remove block · 删除区块
+        </button>
+      </section>
+    </div>
+  }
   @if (draftWarning()) {
     <div class="warning-banner" role="status">{{ draftWarning() }}</div>
   }
@@ -698,6 +719,19 @@
                       />
                     </div>
                     <div class="example-side">
+                      @if (
+                        readerPreview() &&
+                        (formArrayAt(example, 'markers').length ||
+                          formArrayAt(example, 'crossReferences').length)
+                      ) {
+                        <app-editorial-decorations
+                          class="preview-example-markers"
+                          [markers]="formArrayAt(example, 'markers')"
+                          [crossReferences]="formArrayAt(example, 'crossReferences')"
+                          [vocabularies]="vocabularies()"
+                          [readonly]="true"
+                        />
+                      }
                       <textarea
                         class="form-control"
                         #exampleGeorgian
@@ -809,6 +843,9 @@
                   <option [value]="pos.code">{{ pos.code }}</option>
                 }
               </select>
+              @if (!canEditFields() && group.get('pos')?.value) {
+                <span class="pos-symbol">{{ group.get('pos')?.value }}</span>
+              }
               @if (showDecorations !== false) {
                 <div class="grammar-tools">
                   <app-editorial-decorations
@@ -901,12 +938,19 @@
                   <button
                     type="button"
                     class="chip hom-index"
+                    [class.placeholder-homonym]="
+                      !homonym.get('text')?.value &&
+                      homonym.get('pinyinId')?.value == null &&
+                      homonym.get('pinyinOrder')?.value == null
+                    "
                     [disabled]="!canEditFields()"
                     (click)="editingHomograph.set(h)"
                   >
                     @let label = homographParts(h);
-                    <span class="homonym-caption">{{label.text}}</span>
-                    @if(label.number){<span class="homonym-number">{{label.number}}</span>}
+                    <span class="homonym-caption">{{ label.text }}</span>
+                    @if (label.number) {
+                      <span class="homonym-number">{{ label.number }}</span>
+                    }
                   </button>
                   @if (
                     canEditFields() && (editingHomograph() === h || !homonym.get('text')?.value)
@@ -934,7 +978,7 @@
                         placeholder="Homograph label · 同形词标识 — Optional · 可选"
                         [readOnly]="!canEditFields()"
                         (input)="markContentChanged()"
-                        (blur)="editingHomograph.set(null)"
+                        (blur)="normalizeHomograph(homonym); editingHomograph.set(null)"
                         (keydown.enter)="$event.preventDefault(); editingHomograph.set(null)"
                       />
                     }
@@ -1134,6 +1178,9 @@
                       }
                     </select>
                   </div>
+                  @if (!canEditFields() && posGroup.get('pos')?.value) {
+                    <span class="pos-symbol">{{ posGroup.get('pos')?.value }}</span>
+                  }
                   <app-editorial-decorations
                     [markers]="formArrayAt(posGroup, 'markers')"
                     [crossReferences]="formArrayAt(posGroup, 'crossReferences')"
@@ -1436,133 +1483,141 @@
                   <div class="empty-state compact">Comments · 评论 იტვირთება…</div>
                 } @else {
                   <ul class="entry-note-list">
-                    @for (comment of comments(); track comment.id) {
-                      <li
-                        [class.targeted-comment]="comment.targetSegmentId"
-                        [class.reply-comment]="comment.replyToCommentId"
-                      >
-                        <div class="comment-author-line">
-                          <button
-                            class="btn comment-person"
-                            type="button"
-                            (click)="openPrivateMessage(comment)"
-                            title="Private message · 私人消息"
-                          >
-                            {{ comment.authorDisplayName || 'Unknown editor · 未知编辑' }}
-                          </button>
-                          @if (comment.authorRole) {
-                            <span class="viz-badge comment-role">{{
-                              commentRole(comment.authorRole)
-                            }}</span>
-                          }
-                          @if (comment.replyToCommentId) {
-                            @if (replyParent(comment.replyToCommentId); as parent) {
-                              <span>➔</span
-                              ><button
-                                class="btn comment-person"
-                                type="button"
-                                (click)="openPrivateMessage(parent)"
-                                title="Private message · 私人消息"
-                              >
-                                {{ parent.authorDisplayName }}
-                              </button>
-                              @if (parent.authorRole) {
-                                <span class="viz-badge comment-role">{{
-                                  commentRole(parent.authorRole)
-                                }}</span>
-                              }
-                            }
-                          }
-                          @if (comment.targetSegmentId) {
-                            <span class="text-small">{{
-                              commentTargetLabel(comment.targetSegmentId)
-                            }}</span>
-                          }
-                          <button class="btn" type="button" (click)="replyTo(comment)">
-                            Reply · 回复
-                          </button>
-                          <time>{{
-                            comment.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400'
-                          }}</time>
-                        </div>
-                        @if (editingCommentId() === comment.id) {
-                          <textarea
-                            rows="3"
-                            [value]="editingCommentText()"
-                            (input)="updateEditingCommentText($event)"
-                          ></textarea>
-                          <div class="inline-actions">
-                            <button
-                              class="btn btn-primary"
-                              type="button"
-                              (click)="saveCommentEdit()"
+                    @for (thread of commentThreads(); track thread.id) {
+                      <li class="comment-thread">
+                        <ul>
+                          @for (comment of thread.comments; track comment.id) {
+                            <li
+                              [class.targeted-comment]="comment.targetSegmentId"
+                              [class.reply-comment]="comment.replyToCommentId"
                             >
-                              შენახვა
-                            </button>
-                            <button
-                              class="btn btn-secondary"
-                              type="button"
-                              (click)="editingCommentId.set(null)"
-                            >
-                              გაუქმება
-                            </button>
-                          </div>
-                        } @else {
-                          @if (comment.replyToCommentId) {
-                            @if (replyParent(comment.replyToCommentId); as parent) {
-                              <blockquote class="reply-quote">
-                                <strong>{{ parent.authorDisplayName }}</strong
-                                ><app-linked-message-body
-                                  [body]="parent.commentText"
-                                  [links]="parent.entryLinks ?? null"
-                                />
-                              </blockquote>
-                            }
-                          }
-                          <p [style.font-size.px]="commentFontSize()">
-                            <app-linked-message-body
-                              [body]="comment.commentText"
-                              [links]="comment.entryLinks ?? null"
-                            />
-                          </p>
-                          @if (canEditComment(comment)) {
-                            <div class="inline-actions">
-                              <button
-                                class="text-button"
-                                type="button"
-                                (click)="startCommentEdit(comment)"
-                              >
-                                შეცვლა
-                              </button>
-                              @if (pendingCommentDeleteId() === comment.id) {
-                                <span>ნამდვილად წავშალოთ კომენტარი?</span>
+                              <div class="comment-author-line">
                                 <button
-                                  class="text-button danger"
+                                  class="btn comment-person"
                                   type="button"
-                                  (click)="deleteComment(comment.id)"
-                                  [disabled]="deletingCommentId() === comment.id"
+                                  (click)="openPrivateMessage(comment)"
+                                  title="Private message · 私人消息"
                                 >
-                                  {{ deletingCommentId() === comment.id ? 'იშლება…' : 'დიახ' }}
+                                  {{ comment.authorDisplayName || 'Unknown editor · 未知编辑' }}
                                 </button>
-                                <button
-                                  class="text-button"
-                                  type="button"
-                                  (click)="pendingCommentDeleteId.set(null)"
-                                >
-                                  არა
+                                @if (comment.authorRole) {
+                                  <span class="viz-badge comment-role">{{
+                                    commentRole(comment.authorRole)
+                                  }}</span>
+                                }
+                                @if (comment.replyToCommentId) {
+                                  @if (replyParent(comment.replyToCommentId); as parent) {
+                                    <span>➔</span
+                                    ><button
+                                      class="btn comment-person"
+                                      type="button"
+                                      (click)="openPrivateMessage(parent)"
+                                      title="Private message · 私人消息"
+                                    >
+                                      {{ parent.authorDisplayName }}
+                                    </button>
+                                    @if (parent.authorRole) {
+                                      <span class="viz-badge comment-role">{{
+                                        commentRole(parent.authorRole)
+                                      }}</span>
+                                    }
+                                  }
+                                }
+                                @if (comment.targetSegmentId) {
+                                  <span class="text-small">{{
+                                    commentTargetLabel(comment.targetSegmentId)
+                                  }}</span>
+                                }
+                                <button class="btn" type="button" (click)="replyTo(comment)">
+                                  Reply · 回复
                                 </button>
+                                <time>{{
+                                  comment.createdAtUtc | date: 'dd MMM yyyy, HH:mm' : '+0400'
+                                }}</time>
+                              </div>
+                              @if (editingCommentId() === comment.id) {
+                                <textarea
+                                  rows="3"
+                                  [value]="editingCommentText()"
+                                  (input)="updateEditingCommentText($event)"
+                                ></textarea>
+                                <div class="inline-actions">
+                                  <button
+                                    class="btn btn-primary"
+                                    type="button"
+                                    (click)="saveCommentEdit()"
+                                  >
+                                    შენახვა
+                                  </button>
+                                  <button
+                                    class="btn btn-secondary"
+                                    type="button"
+                                    (click)="editingCommentId.set(null)"
+                                  >
+                                    გაუქმება
+                                  </button>
+                                </div>
                               } @else {
-                                <button
-                                  class="text-button danger"
-                                  type="button"
-                                  (click)="requestCommentDelete(comment.id)"
-                                >
-                                  ×
-                                </button>
+                                @if (comment.replyToCommentId) {
+                                  @if (replyParent(comment.replyToCommentId); as parent) {
+                                    <blockquote class="reply-quote">
+                                      <strong>{{ parent.authorDisplayName }}</strong
+                                      ><app-linked-message-body
+                                        [body]="parent.commentText"
+                                        [links]="parent.entryLinks ?? null"
+                                      />
+                                    </blockquote>
+                                  }
+                                }
+                                <p [style.font-size.px]="commentFontSize()">
+                                  <app-linked-message-body
+                                    [body]="comment.commentText"
+                                    [links]="comment.entryLinks ?? null"
+                                  />
+                                </p>
+                                @if (canEditComment(comment)) {
+                                  <div class="inline-actions">
+                                    <button
+                                      class="text-button"
+                                      type="button"
+                                      (click)="startCommentEdit(comment)"
+                                    >
+                                      შეცვლა
+                                    </button>
+                                    @if (pendingCommentDeleteId() === comment.id) {
+                                      <span>ნამდვილად წავშალოთ კომენტარი?</span>
+                                      <button
+                                        class="text-button danger"
+                                        type="button"
+                                        (click)="deleteComment(comment.id)"
+                                        [disabled]="deletingCommentId() === comment.id"
+                                      >
+                                        {{
+                                          deletingCommentId() === comment.id ? 'იშლება…' : 'დიახ'
+                                        }}
+                                      </button>
+                                      <button
+                                        class="text-button"
+                                        type="button"
+                                        (click)="pendingCommentDeleteId.set(null)"
+                                      >
+                                        არა
+                                      </button>
+                                    } @else {
+                                      <button
+                                        class="text-button danger"
+                                        type="button"
+                                        (click)="requestCommentDelete(comment.id)"
+                                      >
+                                        ×
+                                      </button>
+                                    }
+                                  </div>
+                                }
                               }
-                            </div>
+                            </li>
                           }
-                        }
+                        </ul>
                       </li>
                     } @empty {
                       <li class="entry-note-empty">Comments · 评论 ჯერ არ არის.</li>

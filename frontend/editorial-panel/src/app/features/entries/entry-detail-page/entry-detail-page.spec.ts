@@ -93,19 +93,22 @@ describe('EntryDetailPage status confirmation', () => {
     expect(entriesService.statusRequests).toHaveLength(0);
   });
   it('saves incomplete new-entry structure with a warning instead of blocking the draft', () => {
-    component.startEditing(); component.entryForm.controls.lemma.setValue('草稿');
+    component.startEditing();
+    component.entryForm.controls.lemma.setValue('草稿');
     component.startStructure('grammar');
     const save = vi.fn().mockReturnValue(of(entry));
-    Object.assign(entriesService,{saveContent:save});
+    Object.assign(entriesService, { saveContent: save });
     component.saveContent();
-    expect(save).toHaveBeenCalled(); expect(component.draftWarning()).toContain('Incomplete draft');
+    expect(save).toHaveBeenCalled();
+    expect(component.draftWarning()).toContain('Incomplete draft');
   });
   it('collapses reference groups independently and opens a private message for the selected author', () => {
-    component.toggleReferenceGroup('g1'); component.toggleReferenceGroup('g3');
+    component.toggleReferenceGroup('g1');
+    component.toggleReferenceGroup('g3');
     component.toggleReferenceGroup('g1');
     expect(component.collapsedReferenceGroups()).toEqual(['g3']);
-    component.openPrivateMessage({authorEditorId:9,authorDisplayName:'Editor'} as any);
-    expect(component.privateMessageRecipient()).toEqual({id:9,name:'Editor'});
+    component.openPrivateMessage({ authorEditorId: 9, authorDisplayName: 'Editor' } as any);
+    expect(component.privateMessageRecipient()).toEqual({ id: 9, name: 'Editor' });
     expect(component.privateMessageText()).toBe('');
   });
 
@@ -129,14 +132,47 @@ describe('EntryDetailPage status confirmation', () => {
   it('starts exactly two empty homographs and lets the editor choose POS or direct sense', () => {
     component.startStructure('homonym');
     expect(component.homonyms.length).toBe(2);
-    const first=component.homonyms.at(0);
-    expect(component.formArrayAt(first,'gramGroups').length).toBe(0);
-    component.addSenseTo(component.formArrayAt(first,'directSenses'));
-    expect(component.formArrayAt(first,'directSenses').length).toBe(1);
-    component.addGroupTo(component.formArrayAt(component.homonyms.at(1),'gramGroups'));
-    expect(component.formArrayAt(component.homonyms.at(1),'gramGroups').length).toBe(1);
+    const first = component.homonyms.at(0);
+    expect(component.formArrayAt(first, 'gramGroups').length).toBe(0);
+    component.addSenseTo(component.formArrayAt(first, 'directSenses'));
+    expect(component.formArrayAt(first, 'directSenses').length).toBe(1);
+    component.addGroupTo(component.formArrayAt(component.homonyms.at(1), 'gramGroups'));
+    expect(component.formArrayAt(component.homonyms.at(1), 'gramGroups').length).toBe(1);
     component.removeHomonym(0);
     expect(component.homonyms.length).toBe(2);
+    expect(component.pendingHomonymRemoval()).toBe(0);
+    component.confirmHomonymRemoval();
+    expect(component.homonyms.length).toBe(1);
+  });
+  it('keeps numbering separate from manually entered homograph suffixes and recalculates it', () => {
+    component.startStructure('homonym');
+    component.homonyms.at(0).get('text')!.setValue('XINGHUA 1');
+    component.homonyms.at(1).get('text')!.setValue('XINGHUA 2');
+    expect(component.homographParts(0)).toEqual({ text: 'XINGHUA', number: 1 });
+    expect(component.homographParts(1)).toEqual({ text: 'XINGHUA', number: 2 });
+    component.removeHomonym(0);
+    component.pendingHomonymRemoval.set(null);
+    expect(component.homonyms.length).toBe(2);
+    component.removeHomonym(0);
+    component.confirmHomonymRemoval();
+    expect(component.homographParts(0)).toEqual({ text: 'XINGHUA', number: null });
+  });
+  it('groups late and nested replies with their original topic while new topics remain separate', () => {
+    const comment = (id: number, parent: number | null, time: number) =>
+      ({ id, replyToCommentId: parent, createdAtUtc: `2026-10-28T10:0${time}:00Z` }) as any;
+    component.comments.set([
+      comment(1, null, 0),
+      comment(2, null, 1),
+      comment(3, 1, 2),
+      comment(4, 3, 3),
+      comment(5, 2, 4),
+    ]);
+    expect(
+      component.commentThreads().map((thread) => thread.comments.map((comment) => comment.id)),
+    ).toEqual([
+      [1, 3, 4],
+      [2, 5],
+    ]);
   });
   it('includes the entered homonym text in the save request', () => {
     component.startStructure('homonym');
@@ -175,7 +211,7 @@ describe('EntryDetailPage status confirmation', () => {
 
   it('limits homographs and prevents mixed direct-sense/POS structures', () => {
     component.startStructure('homonym');
-    for (let i=0; i<12; i++) component.addHomonym();
+    for (let i = 0; i < 12; i++) component.addHomonym();
     expect(component.homonyms.length).toBe(10);
     const h = component.homonyms.at(0);
     const groups = component.formArrayAt(h, 'gramGroups');
@@ -194,7 +230,13 @@ describe('EntryDetailPage status confirmation', () => {
 
   it('updates linked homograph labels when pronunciation changes and preserves the selection', () => {
     component.startStructure('homonym');
-    component.pinyins.push(new FormGroup({id:new FormControl(7),value:new FormControl('hé'),order:new FormControl(0)}));
+    component.pinyins.push(
+      new FormGroup({
+        id: new FormControl(7),
+        value: new FormControl('hé'),
+        order: new FormControl(0),
+      }),
+    );
     const node = component.homonyms.at(0);
     component.linkHomographPronunciation(node, '0');
     expect(component.homographLabel(0)).toBe('hé');
@@ -215,16 +257,20 @@ describe('EntryDetailPage status confirmation', () => {
 
   it('preserves the typed image name when selecting an image file', () => {
     component.mediaDisplayName.set('ჩემი სურათი');
-    const input=document.createElement('input');
-    Object.defineProperty(input,'files',{value:[new File(['image'],'different-filename.png',{type:'image/png'})]});
-    vi.spyOn(URL,'createObjectURL').mockReturnValue('blob:test');
-    component.selectMedia({target:input} as unknown as Event);
+    const input = document.createElement('input');
+    Object.defineProperty(input, 'files', {
+      value: [new File(['image'], 'different-filename.png', { type: 'image/png' })],
+    });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
+    component.selectMedia({ target: input } as unknown as Event);
     expect(component.mediaDisplayName()).toBe('ჩემი სურათი');
   });
 
   it('uses the last focused field of each example for the single image button', () => {
-    const first = new FormGroup({}), second = new FormGroup({});
-    const chinese = document.createElement('textarea'), georgian = document.createElement('textarea');
+    const first = new FormGroup({}),
+      second = new FormGroup({});
+    const chinese = document.createElement('textarea'),
+      georgian = document.createElement('textarea');
     const open = vi.spyOn(component, 'openNodeMedia').mockImplementation(() => {});
     component.openExampleMedia(first, chinese, georgian);
     expect(open).not.toHaveBeenCalled();
@@ -247,17 +293,32 @@ describe('EntryDetailPage status confirmation', () => {
     field.setSelectionRange(7, 7);
     sense.get('definition')?.setValue(field.value);
     component.openNodeMedia('sense', sense, field, 'definition');
-    const file = new File(['image'], 'image.png', {type:'image/png'});
-    const asset = {id:19, originalFilename:'image.png', placement:component.mediaPlacement(), storageUrl:'/media/19/content'};
+    const file = new File(['image'], 'image.png', { type: 'image/png' });
+    const asset = {
+      id: 19,
+      originalFilename: 'image.png',
+      placement: component.mediaPlacement(),
+      storageUrl: '/media/19/content',
+    };
     const upload = vi.fn().mockReturnValue(of(asset));
-    Object.assign(TestBed.inject(MediaService), {upload, getContent: () => of(new Blob(['image']))});
+    Object.assign(TestBed.inject(MediaService), {
+      upload,
+      getContent: () => of(new Blob(['image'])),
+    });
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
     component.selectedMedia.set(file);
     component.mediaDisplayName.set('image');
     component.uploadMedia();
-    expect(upload).toHaveBeenCalledWith(entry.id, file, asset.placement, component.mediaDisplayName());
+    expect(upload).toHaveBeenCalledWith(
+      entry.id,
+      file,
+      asset.placement,
+      component.mediaDisplayName(),
+    );
     expect(component.nodeMedia('sense', sense)).toEqual([]);
-    expect(component.inlineNodeMedia('sense', sense, 'definition')).toEqual([{id:19,offset:7,url:'blob:test',alt:'image.png',label:'image'}]);
+    expect(component.inlineNodeMedia('sense', sense, 'definition')).toEqual([
+      { id: 19, offset: 7, url: 'blob:test', alt: 'image.png', label: 'image' },
+    ]);
     const reloaded = JSON.parse(JSON.stringify(asset));
     component.media.set([reloaded]);
     sense.get('definition')?.setValue('new before after');
@@ -271,23 +332,26 @@ describe('EntryDetailPage status confirmation', () => {
     component.startStructure('sense');
     const sense = component.rootSenses.at(0);
     component.openNodeMedia('sense', sense, document.createElement('textarea'), 'definition');
-    component.selectedMedia.set(new File(['x'], 'image.png', {type:'image/png'}));
+    component.selectedMedia.set(new File(['x'], 'image.png', { type: 'image/png' }));
     component.uploadMedia();
     expect(component.mediaSaving()).toBe(false);
     sense.get('id')?.setValue(71);
     component.openNodeMedia('sense', sense, document.createElement('textarea'), 'definition');
     expect(JSON.parse(component.mediaPlacement().slice(7)).nodeId).toBe(71);
     component.media.set([
-      {id:1, placement:'sense:71'}, {id:2, placement:'example:71'},
+      { id: 1, placement: 'sense:71' },
+      { id: 2, placement: 'example:71' },
     ] as any);
-    expect(component.nodeMedia('sense', sense).map(x => x.id)).toEqual([1]);
+    expect(component.nodeMedia('sense', sense).map((x) => x.id)).toEqual([1]);
   });
 
   it('resizes paired example text within reference limits without editing content', () => {
     const first = document.createElement('textarea');
     const second = document.createElement('textarea');
-    first.style.fontSize = '16px'; second.style.fontSize = '16px';
-    first.value = '中文'; second.value = 'ქართული';
+    first.style.fontSize = '16px';
+    second.style.fontSize = '16px';
+    first.value = '中文';
+    second.value = 'ქართული';
     document.body.append(first, second);
     component.resizeEditorText([first, second], 1);
     expect(first.style.fontSize).toBe('17px');
@@ -298,7 +362,8 @@ describe('EntryDetailPage status confirmation', () => {
     expect(second.style.fontSize).toBe('12px');
     expect(first.value).toBe('中文');
     expect(second.value).toBe('ქართული');
-    first.remove(); second.remove();
+    first.remove();
+    second.remove();
   });
 
   it('blocks a status transition when reference changes are unsaved', () => {

@@ -161,7 +161,7 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
     {
         return request with { Homonyms = request.Homonyms.Select(h =>
         {
-            if (h.PinyinId is null && h.PinyinOrder is null) return h;
+            if (h.PinyinId is null && h.PinyinOrder is null) return h with { Text = h.Text is null ? string.Empty : System.Text.RegularExpressions.Regex.Replace(h.Text.Normalize().Trim(), @"(?:\s+\d+)+$", "").Trim() };
             var pinyin = h.PinyinId is int id ? forms.Pinyins.FirstOrDefault(p => p.Id == id)
                 : forms.Pinyins.FirstOrDefault(p => p.Order == h.PinyinOrder);
             if (pinyin is null) throw new EntryValidationException("A homograph's linked pronunciation is missing. Select another pronunciation or unlink the homograph before removing it.");

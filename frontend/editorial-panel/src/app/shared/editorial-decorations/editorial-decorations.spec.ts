@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { FormArray, FormBuilder, FormGroup } from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup, FormControl } from '@angular/forms';
 import { of } from 'rxjs';
 import { EntriesService } from '../../core/services/entries.service';
 import { EditorialDecorations } from './editorial-decorations';
@@ -27,23 +27,68 @@ describe('EditorialDecorations XR linking', () => {
   let component: EditorialDecorations;
   let entries: EntriesServiceStub;
   const fb = new FormBuilder();
+  it('edits the inline target and text without duplicating its prefix or losing its identity', () => {
+    component.textControl = new FormControl('იხ. 中国 tail');
+    component.textField = document.createElement('textarea');
+    component.textField.value = 'იხ. 中国 tail';
+    component.ngOnChanges();
+    component.crossReferences.push(
+      fb.group({
+        id: 14,
+        type: 'see',
+        label: 'იხ.',
+        target: '中国',
+        targetEntryId: 4,
+        targetEntryLemma: '中国',
+        displayText: 'იხ. 中国',
+        placement: 'Inline',
+        textField: 'definition',
+        textOffset: 0,
+      }),
+    );
+    component.openXrEdit(0);
+    component.selectTarget({ id: 9, lemma: '学习' } as any);
+    component.saveXr();
+    expect(component.textControl.value).toBe('იხ. 学习 tail');
+    expect(component.crossReferences.at(0).get('id')?.value).toBe(14);
+    expect(component.crossReferences.at(0).get('targetEntryId')?.value).toBe(9);
+  });
   it('moves annotations with edits and clears metadata when the marked text is removed', () => {
     component.fieldName = 'ka';
-    component.markers.push(fb.group({textField:'ka',textOffset:2,displayText:'abc',category:'Abbr',value:'a'}));
+    component.markers.push(
+      fb.group({
+        textField: 'ka',
+        textOffset: 2,
+        displayText: 'abc',
+        category: 'Abbr',
+        value: 'a',
+      }),
+    );
     component.reconcileText('x abc z', 'new x abc z');
     expect(component.markers.at(0).get('textOffset')?.value).toBe(6);
     component.reconcileText('new x abc z', 'new x z');
     expect(component.markers.length).toBe(0);
   });
   it('removes inline abbreviation text using its visible remove control', () => {
-    component.textControl = fb.control('x abc z'); component.fieldName = 'ka';
-    component.markers.push(fb.group({textField:'ka',textOffset:2,displayText:'abc',category:'Abbr',value:'a'}));
+    component.textControl = fb.control('x abc z');
+    component.fieldName = 'ka';
+    component.markers.push(
+      fb.group({
+        textField: 'ka',
+        textOffset: 2,
+        displayText: 'abc',
+        category: 'Abbr',
+        value: 'a',
+      }),
+    );
     component.removeMarker(0);
     expect(component.textControl.value).toBe('x  z');
     expect(component.markers.length).toBe(0);
   });
   it('inserts an abbreviation into the selected Georgian text and preserves formatting metadata', () => {
-    component.vocabularies = [{ id: 9, category: 'abbr', code: 'usual', label: 'ჩვეულ.', sortOrder: 1 }];
+    component.vocabularies = [
+      { id: 9, category: 'abbr', code: 'usual', label: 'ჩვეულ.', sortOrder: 1 },
+    ];
     component.textField = document.createElement('textarea');
     component.textField.value = 'წინ შემდეგ';
     component.textField.setSelectionRange(4, 4);
@@ -51,7 +96,11 @@ describe('EditorialDecorations XR linking', () => {
     component.fieldName = 'ka';
     component.selectMarker('Abbr', { target: { value: 'usual' } } as unknown as Event);
     expect(component.textControl.value).toBe('წინ ჩვეულ. შემდეგ');
-    expect(component.markers.at(0).getRawValue()).toMatchObject({ textField: 'ka', textOffset: 4, displayText: 'ჩვეულ.' });
+    expect(component.markers.at(0).getRawValue()).toMatchObject({
+      textField: 'ka',
+      textOffset: 4,
+      displayText: 'ჩვეულ.',
+    });
   });
   it('adds controlled Style values without duplicates and limits them to two', () => {
     component.vocabularies = [

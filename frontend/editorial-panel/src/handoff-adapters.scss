@@ -1376,6 +1376,241 @@
 }
 
 /* Long homograph labels must wrap without clipping; numbering remains distinct. */
-#cx-entry-v2 .scope-head .hom-index,#cx-entry-v2 .scope.has-hom-label .hom-index{flex:0 1 auto;width:auto;height:auto;min-width:47px;max-width:100%;padding:10px 14px;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.35;gap:12px;box-sizing:border-box;text-align:left}
-#cx-entry-v2 .homonym-caption{min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
-#cx-entry-v2 .homonym-number{flex:none;margin-left:4px;align-self:center}
+#cx-entry-v2 .scope-head .hom-index,
+#cx-entry-v2 .scope.has-hom-label .hom-index {
+  flex: 0 1 auto;
+  width: auto;
+  height: auto;
+  min-width: 47px;
+  max-width: 100%;
+  padding: 10px 14px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.35;
+  gap: 12px;
+  box-sizing: border-box;
+  text-align: left;
+}
+#cx-entry-v2 .homonym-caption {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#cx-entry-v2 .homonym-number {
+  flex: none;
+  margin-left: 4px;
+  align-self: center;
+}
+
+/* EP49–51: tool rows, readable markers, compact reader preview, and threaded comments. */
+#cx-entry-v2.is-readonly .mode,
+#cx-entry-v2.is-readonly .initial-scope {
+  display: none !important;
+}
+#cx-entry-v2 .definition-line > .definition-tools {
+  display: block;
+  position: static;
+  grid-column: 1;
+  grid-row: 1;
+  width: auto;
+  max-width: none;
+}
+#cx-entry-v2 .definition-line > .definition-tools app-editorial-decorations,
+#cx-entry-v2 .definition-tools .decorations {
+  display: block;
+}
+#cx-entry-v2 .definition-line .field,
+#cx-entry-v2 .definition-line > .font-controls {
+  grid-row: 2;
+}
+#cx-entry-v2 .definition-tools .chips,
+#cx-entry-v2 .definition-tools .inline-tools,
+#cx-entry-v2 .example-side .tools .chips,
+#cx-entry-v2 .example-side .tools .inline-tools {
+  position: static;
+  max-width: none;
+}
+#cx-entry-v2 .decorations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+#cx-entry-v2 .decorations .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+}
+#cx-entry-v2 .decorations .chip {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#cx-entry-v2 .xr-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+}
+#cx-entry-v2 .xr-suggestions button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  white-space: normal;
+  text-align: left;
+  padding: 8px;
+  min-width: 0;
+}
+#cx-entry-v2 .xr-suggestions button strong {
+  font-size: 1.2em;
+  flex-shrink: 0;
+}
+#cx-entry-v2 .xr-form {
+  width: min(100%, 640px);
+  box-sizing: border-box;
+}
+#cx-entry-v2 .xr-form input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+#cx-entry-v2.is-readonly .tools,
+#cx-entry-v2.is-readonly .decorations {
+  opacity: 1;
+}
+#cx-entry-v2 app-repeatable-text-list[inputlang='zh'] input,
+#cx-entry-v2 .readonly-value[lang='zh'] {
+  font-size: 1.35em;
+}
+#cx-entry-v2 .pos-symbol {
+  display: none;
+}
+#cx-entry-v2.reader-preview .pos-symbol {
+  display: inline;
+  color: #158244;
+  font-weight: 700;
+  font-size: 1em;
+}
+#cx-entry-v2.reader-preview select[formcontrolname='pos'] {
+  display: none;
+}
+#cx-entry-v2.reader-preview .scope,
+#cx-entry-v2.reader-preview .pos,
+#cx-entry-v2.reader-preview .sense,
+#cx-entry-v2.reader-preview .example {
+  margin: 0 !important;
+  padding: 3px 0 !important;
+  gap: 3px;
+  background: transparent !important;
+  border: 0 !important;
+}
+#cx-entry-v2.reader-preview .sense-head {
+  min-height: 0;
+  height: auto;
+  margin: 0;
+}
+#cx-entry-v2.reader-preview .formatted-editor-text {
+  padding: 0 !important;
+  min-height: 0 !important;
+}
+#cx-entry-v2.reader-preview .example-grid {
+  gap: 10px;
+  align-items: baseline;
+}
+#cx-entry-v2.reader-preview .example-side .tools {
+  display: contents;
+}
+#cx-entry-v2.reader-preview .example-side .tools .chips {
+  display: inline-flex;
+}
+#cx-entry-v2.reader-preview .chip {
+  padding: 0 3px;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  font-weight: 700;
+}
+#cx-entry-v2 .comment-thread {
+  padding: 12px !important;
+  margin-block: 14px !important;
+  border: 1px solid #d5e2df;
+  border-left: 4px solid #79a69d;
+  background: #f8fbfa;
+}
+#cx-entry-v2 .comment-thread > ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+#cx-entry-v2 .comment-thread > ul > li {
+  margin: 0;
+  padding: 12px;
+  border-bottom: 1px solid #dde8e5;
+}
+#cx-entry-v2 .comment-thread > ul > li:last-child {
+  border-bottom: 0;
+}
+#cx-entry-v2 .comment-thread .reply-comment {
+  margin-left: 12px;
+}
+
+#cx-entry-v2.reader-preview .grammar-tools {
+  order: -1;
+}
+#cx-entry-v2.reader-preview .direct-pos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+#cx-entry-v2.reader-preview .direct-pos > app-editorial-decorations {
+  order: -1;
+}
+#cx-entry-v2.reader-preview .direct-pos > .sense-list {
+  flex-basis: 100%;
+}
+
+#cx-entry-v2.reader-preview .example-side:first-child > .tools {
+  display: none;
+}
+#cx-entry-v2.reader-preview .preview-example-markers {
+  display: inline;
+}
+#cx-entry-v2.reader-preview .example-side:nth-child(2) > .formatted-editor-text {
+  display: inline;
+}
+#cx-entry-v2.reader-preview .preview-example-markers .decorations,
+#cx-entry-v2.reader-preview .preview-example-markers .chips {
+  display: inline-flex;
+}
+
+#cx-entry-v2.reader-preview .example > .row {
+  display: none;
+}
+#cx-entry-v2.reader-preview .example-side {
+  display: block;
+}
+#cx-entry-v2.reader-preview .example-grid {
+  align-items: start;
+}
+#cx-entry-v2.reader-preview .hom-index.placeholder-homonym {
+  display: none !important;
+}
+#cx-entry-v2.reader-preview .scope-head {
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  padding: 0;
+}
+#cx-entry-v2.reader-preview .scope-head .scope-tools:has(.decorations:not(.has-content)) {
+  display: none;
+}
+#cx-entry-v2.reader-preview .example > .row {
+  display: none !important;
+  min-height: 0 !important;
+}
+#cx-entry-v2.reader-preview .example-side {
+  display: block !important;
+}

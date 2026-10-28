@@ -127,7 +127,20 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     const label = this.homographParts(index);
     return label.number ? `${label.text} ${label.number}` : label.text;
   }
-  homographParts(index: number): {text:string;number:number|null} {
+  normalizeHomographName(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFC')
+      .trim()
+      .replace(/(?:\s+\d+)+$/u, '')
+      .trim();
+  }
+  normalizeHomograph(node: FormGroup): void {
+    if (node.get('pinyinId')?.value == null && node.get('pinyinOrder')?.value == null) {
+      node.get('text')?.setValue(this.normalizeHomographName(node.get('text')?.value));
+      this.markContentChanged();
+    }
+  }
+  homographParts(index: number): { text: string; number: number | null } {
     const values = this.homonyms.controls.map((node) => {
       const linked =
         node.get('pinyinId')?.value != null
@@ -135,12 +148,22 @@ export class EntryDetailPage implements OnInit, OnDestroy {
           : node.get('pinyinOrder')?.value != null
             ? this.pinyins.at(node.get('pinyinOrder')?.value)
             : null;
-      return String(linked?.get('value')?.value ?? node.get('text')?.value ?? '').trim();
+      return this.normalizeHomographName(linked?.get('value')?.value ?? node.get('text')?.value);
     });
     const value = values[index];
-    if (!value) return {text:`H${index + 1}`,number:null};
-    const matching = values.filter((item) => item === value).length;
-    return {text:value,number:matching > 1 ? values.slice(0,index+1).filter(item=>item===value).length : null};
+    if (!value) return { text: `H${index + 1}`, number: null };
+    const matching = values.filter(
+      (item) => item.toLocaleLowerCase() === value.toLocaleLowerCase(),
+    ).length;
+    return {
+      text: value,
+      number:
+        matching > 1
+          ? values
+              .slice(0, index + 1)
+              .filter((item) => item.toLocaleLowerCase() === value.toLocaleLowerCase()).length
+          : null,
+    };
   }
   homographPronunciationIndex(node: FormGroup): string {
     const id = node.get('pinyinId')?.value;
@@ -234,6 +257,32 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   readonly statusConfirmation = signal<string | null>(null);
 
   readonly comments = signal<CommentSummary[]>([]);
+  readonly commentThreads = computed(() => {
+    const comments = this.comments();
+    const byId = new Map(comments.map((comment) => [comment.id, comment]));
+    const threads = new Map<number, { id: number; comments: CommentSummary[] }>();
+    for (const comment of [...comments].sort(
+      (a, b) => Date.parse(a.createdAtUtc) - Date.parse(b.createdAtUtc) || a.id - b.id,
+    )) {
+      let root = comment;
+      const visited = new Set<number>([root.id]);
+      while (
+        root.replyToCommentId &&
+        byId.has(root.replyToCommentId) &&
+        !visited.has(root.replyToCommentId)
+      ) {
+        root = byId.get(root.replyToCommentId)!;
+        visited.add(root.id);
+      }
+      let thread = threads.get(root.id);
+      if (!thread) {
+        thread = { id: root.id, comments: [] };
+        threads.set(root.id, thread);
+      }
+      thread.comments.push(comment);
+    }
+    return [...threads.values()];
+  });
   readonly commentsLoading = signal(false);
   readonly commentText = signal('');
   readonly commentTarget = signal<number | null>(null);
@@ -776,23 +825,29 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.entryForm.markAsDirty();
   }
 
+  readonly pendingHomonymRemoval = signal<number | null>(null);
   removeHomonym(index: number): void {
-    if (this.homonyms.length === 2) {
-      const other = this.homonyms.at(index === 0 ? 1 : 0);
-      if (
-        ['gramGroups', 'directSenses', 'markers', 'crossReferences'].every(
-          (key) => this.formArrayAt(other, key).length === 0,
-        ) &&
-        !other.get('text')?.value
-      ) {
-        this.homonyms.clear();
-        this.entryForm.markAsDirty();
-        return;
-      }
-      this.statusError.set('Homographs require at least two blocks. · 同形词至少需要两个区块。');
+    const node = this.homonyms.at(index);
+    if (!node) return;
+    if (
+      node.get('text')?.value ||
+      ['gramGroups', 'directSenses', 'markers', 'crossReferences'].some(
+        (key) => this.formArrayAt(node, key).length,
+      )
+    ) {
+      this.pendingHomonymRemoval.set(index);
       return;
     }
+    this.deleteHomonym(index);
+  }
+  confirmHomonymRemoval(): void {
+    const index = this.pendingHomonymRemoval();
+    if (index !== null) this.deleteHomonym(index);
+    this.pendingHomonymRemoval.set(null);
+  }
+  private deleteHomonym(index: number): void {
     this.homonyms.removeAt(index);
+    this.editingHomograph.set(null);
     this.entryForm.markAsDirty();
   }
 

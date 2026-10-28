@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -35,7 +36,7 @@ type MarkerCategory = EditorialMarker['category'];
 
 @Component({
   selector: 'app-editorial-decorations',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './editorial-decorations.html',
   styleUrl: './editorial-decorations.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -162,6 +163,7 @@ export class EditorialDecorations implements OnChanges {
   readonly xrEditingIndex = signal<number | null>(null);
   readonly xrSuggestions = signal<EntrySummary[]>([]);
   readonly xrSearching = signal(false);
+  readonly xrError = signal('');
 
   readonly markerDraft = this.fb.group({
     category: ['Style' as MarkerCategory, Validators.required],
@@ -212,7 +214,10 @@ export class EditorialDecorations implements OnChanges {
       .subscribe((suggestions) => {
         this.xrSuggestions.set(suggestions);
         const target = this.normalizeTarget(this.xrDraft.controls.target.value ?? '');
-        const exact = suggestions.find((item) => this.normalizeTarget(item.lemma) === target);
+        const exactMatches = suggestions.filter(
+          (item) => this.normalizeTarget(item.lemma) === target,
+        );
+        const exact = exactMatches.length === 1 ? exactMatches[0] : null;
         if (exact) {
           this.xrDraft.patchValue(
             { targetEntryId: exact.id, targetEntryLemma: exact.lemma },
@@ -289,6 +294,7 @@ export class EditorialDecorations implements OnChanges {
       ? { start: this.textField.selectionStart, end: this.textField.selectionEnd }
       : null;
     this.markerEditorOpen.set(false);
+    this.xrError.set('');
     this.xrEditingIndex.set(null);
     this.xrDraft.setValue({
       type: 'see',
@@ -296,13 +302,14 @@ export class EditorialDecorations implements OnChanges {
       targetEntryId: null,
       targetEntryLemma: null,
       displayText: '',
-      placement: 'Inline',
+      placement: this.textControl && this.textField ? 'Inline' : 'Attached',
     });
     this.xrSuggestions.set([]);
     this.xrEditorOpen.set(true);
   }
 
   openXrEdit(index: number): void {
+    this.xrError.set('');
     const item = this.crossReferences.at(index).getRawValue();
     this.xrEditingIndex.set(index);
     this.xrDraft.setValue({
@@ -341,8 +348,32 @@ export class EditorialDecorations implements OnChanges {
     const value = this.xrDraft.getRawValue();
     const label = this.xrTypes.find((item) => item.value === value.type)?.label ?? 'იხ.';
     const editing = this.xrEditingIndex();
-    const inlineText = `${label} ${value.displayText || value.target}`;
-    const offset = editing === null ? this.insertText(inlineText) : null;
+    const inlineText = `${label} ${value.target}`;
+    let offset = editing === null ? this.insertText(inlineText) : null;
+    let editedGroup: FormGroup | null = null;
+    if (editing !== null) {
+      editedGroup = this.crossReferences.at(editing);
+      const old = editedGroup.getRawValue();
+      if (this.textControl && old.textField === this.fieldName && old.displayText) {
+        const body = String(this.textControl.value ?? '');
+        let start = old.textOffset;
+        if (
+          typeof start !== 'number' ||
+          body.slice(start, start + old.displayText.length) !== old.displayText
+        ) {
+          start = body.indexOf(old.displayText);
+          if (start < 0 || body.indexOf(old.displayText, start + 1) >= 0) {
+            this.xrError.set(
+              'Locate the original link in the text before changing it. · 请先定位原链接。',
+            );
+            return;
+          }
+        }
+        this.crossReferences.removeAt(editing);
+        this.insertionRange = { start, end: start + old.displayText.length };
+        offset = this.insertText(inlineText);
+      }
+    }
     const payload = {
       ...value,
       label,
@@ -358,7 +389,9 @@ export class EditorialDecorations implements OnChanges {
         }),
       );
     } else {
-      this.crossReferences.at(editing).patchValue(payload);
+      editedGroup!.patchValue(payload);
+      if (this.crossReferences.controls.indexOf(editedGroup!) < 0)
+        this.crossReferences.insert(Math.min(editing, this.crossReferences.length), editedGroup!);
     }
     this.xrEditorOpen.set(false);
     this.contentChanged.emit();

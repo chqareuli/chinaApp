@@ -8,6 +8,16 @@ namespace Chiniseapp.Tests;
 
 public class EntrySchemaCompatibilityTests
 {
+    [Theory]
+    [InlineData("XINGHUA 1 2", "XINGHUA")]
+    [InlineData("点 2", "点")]
+    [InlineData("diǎn", "diǎn")]
+    public void HomographLabelsDoNotStoreManuallyAppendedDisplayNumbers(string input, string expected)
+    {
+        var request=new SaveEntryContentRequest(null,null,[new HomonymDto([]){Text=input}],0);
+        var result=EntryTreeMapper.LinkPronunciations(request,new([],[]));
+        Assert.Equal(expected,result.Homonyms[0].Text);
+    }
     [Fact]
     public void LegacyXrTypeAttributesRemainReadableForEntryAndExport()
     {

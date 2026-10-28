@@ -28,11 +28,28 @@
       }
       @for (xr of crossReferences.controls; track xr.get('id')?.value ?? $index; let i = $index) {
         @if (!readonly || !xr.get('textField')?.value) {
-          <span class="chip xr"
-            >{{ xrText(i) }}
+          <span class="chip xr">
+            @if (readonly) {
+              @if (xr.get('targetEntryId')?.value) {
+                <a [routerLink]="['/adminpanel/entries', xr.get('targetEntryId')?.value]">{{
+                  xrText(i)
+                }}</a>
+              } @else {
+                {{ xrText(i) }}
+              }
+            } @else {
+              <button
+                type="button"
+                (click)="openXrEdit(i)"
+                [title]="xrText(i)"
+                aria-label="Edit link · 编辑链接"
+              >
+                Link · 链接
+              </button>
+            }
             @if (!readonly) {
               <small
-                class="link-state"
+                class="link-state sr-only"
                 [class.linked]="xrLinkState(i) === 'linked'"
                 [class.unresolved]="xrLinkState(i) === 'unresolved'"
               >
@@ -93,11 +110,9 @@
       }
       <ng-content select="[definition-point]" />
       <ng-content select="[media-tool]" />
-      @if (!scopeOnly) {
-        <button class="btn btn-ghost xr-trigger" type="button" (click)="openXrAdd()">
-          Link · 链接
-        </button>
-      }
+      <button class="btn btn-ghost xr-trigger" type="button" (click)="openXrAdd()">
+        Link · 链接
+      </button>
     </div>
   }
   @if (!readonly && markerEditorOpen()) {
@@ -149,8 +164,8 @@
           <span class="xr-suggestions">
             @for (entry of xrSuggestions(); track entry.id) {
               <button type="button" (click)="selectTarget(entry)">
-                <strong lang="zh">{{ entry.lemma }}</strong
-                ><small>{{ entry.pinyin || entry.status }}</small>
+                <strong lang="zh">{{ entry.lemma }}</strong>
+                <small>{{ entry.pinyin || entry.status }}</small>
               </button>
             }
           </span>
@@ -167,6 +182,9 @@
           >
         }
       </label>
+      @if (xrError()) {
+        <p role="alert">{{ xrError() }}</p>
+      }
       <div class="mini-actions">
         <button class="primary" type="button" (click)="saveXr()" [disabled]="xrDraft.invalid">
           ლინკის Add · 添加</button
