@@ -73,14 +73,26 @@ public class EntrySchemaCompatibilityTests
     public void WrittenFormsEnforceIndependentLimitsWithoutChangingPersistedData()
     {
         var entry = new Entry { Lemma = "测试" };
-        var pinyins = Enumerable.Range(1, 5).Select(i => new FormItemDto(null, $"pinyin{i}", i)).ToList();
+        var pinyins = Enumerable.Range(1, 6).Select(i => new FormItemDto(null, $"pinyin{i}", i)).ToList();
         var forms = Enumerable.Range(1, 3).Select(i => new FormItemDto(null, $"form{i}", i)).ToList();
         EntryTreeMapper.SaveForms(entry, pinyins, forms);
         var original = entry.LexicalForms;
-        Assert.Throws<EntryValidationException>(() => EntryTreeMapper.SaveForms(entry, [.. pinyins, new(null, "extra", 5)], null));
+        Assert.Throws<EntryValidationException>(() => EntryTreeMapper.SaveForms(entry, [.. pinyins, new(null, "extra", 6)], null));
         Assert.Equal(original, entry.LexicalForms);
         Assert.Throws<EntryValidationException>(() => EntryTreeMapper.SaveForms(entry, null, [.. forms, new(null, "extra", 3)]));
         Assert.Equal(original, entry.LexicalForms);
+    }
+    [Fact]
+    public void TextEditUpdatesSavedInlinePositionsAndRejectsAmbiguousRelocation()
+    {
+        var reference = new CrossReferenceDto(null, "see", "იხ.", "中国", 2, null, "中国", "Inline") { TextField = "definition", TextOffset = 0 };
+        var mapper = new EntryTreeMapper(1, [], DateTime.UtcNow);
+        mapper.Apply(new(null, null, [], 0) { Senses = [new(1, "😀 中国", []) { CrossReferences = [reference] }] });
+        var reloaded = EntryTreeMapper.Read(Persist(mapper));
+        Assert.Equal(3, reloaded.Senses[0].CrossReferences[0].TextOffset);
+        var ambiguous = new EntryTreeMapper(1, [], DateTime.UtcNow);
+        Assert.Throws<EntryValidationException>(() => ambiguous.Apply(new(null, null, [], 0) {
+            Senses = [new(1, "😀 中国 中国", []) { CrossReferences = [reference] }] }));
     }
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private static List<Segment> Persist(EntryTreeMapper mapper)

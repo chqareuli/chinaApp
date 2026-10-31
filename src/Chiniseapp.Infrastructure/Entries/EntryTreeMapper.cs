@@ -73,13 +73,15 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
             var node = Node(s.Id, SegmentType.Sense, parent, i);
             node.Number = i + 1;
             Node(s.DefinitionId, SegmentType.Definition, node, 0, s.Definition ?? "");
-            Decorations(node, s.Markers, s.CrossReferences);
+            var annotations = InlineAnnotationPositions.Resolve(s.Id, new Dictionary<string, string> { ["definition"] = s.Definition ?? "" }, s.Markers, s.CrossReferences);
+            Decorations(node, annotations.Markers, annotations.References);
             foreach (var (e, j) in (s.Examples ?? []).Select((x, i) => (x, i)))
             {
                 var example = Node(e.Id, SegmentType.Example, node, j + 1);
                 Node(e.ZhSegmentId, SegmentType.ZhSegment, example, 0, e.Zh ?? "");
                 Node(e.KaSegmentId, SegmentType.KaSegment, example, 1, e.Ka ?? "");
-                Decorations(example, e.Markers, e.CrossReferences);
+                var exampleAnnotations = InlineAnnotationPositions.Resolve(e.Id, new Dictionary<string, string> { ["zh"] = e.Zh ?? "", ["ka"] = e.Ka ?? "" }, e.Markers, e.CrossReferences);
+                Decorations(example, exampleAnnotations.Markers, exampleAnnotations.References);
             }
         }
     }
@@ -188,7 +190,7 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
                 return new FormItemDto(id, value, index);
             }).ToList();
         }
-        var result = new LexicalForms(Normalize(pinyins, previous.Pinyins, 5), Normalize(forms, previous.ComplexForms, 3));
+        var result = new LexicalForms(Normalize(pinyins, previous.Pinyins, 6), Normalize(forms, previous.ComplexForms, 3));
         entry.LexicalForms = JsonSerializer.Serialize(result, Json);
         entry.Pinyin = result.Pinyins.FirstOrDefault()?.Value;
     }

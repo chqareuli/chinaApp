@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { FormBuilder, FormGroup, FormControl } from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup, FormControl } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -92,6 +92,38 @@ describe('EntryDetailPage status confirmation', () => {
 
     expect(component.statusConfirmation()).toBe('ZhReview');
     expect(entriesService.statusRequests).toHaveLength(0);
+  });
+  it('blocks publishing without Pinyin even when a definition is complete', () => {
+    component.startEditing();
+    component.entryForm.controls.lemma.setValue('中国');
+    component.startStructure('sense');
+    component.rootSenses.at(0).get('definition')?.setValue('განმარტება');
+    component.pinyins.clear();
+    component.entryForm.markAsPristine();
+    component.changeStatus('Published');
+    expect(component.statusConfirmation()).toBeNull();
+    expect(component.statusError()).toContain('ფინინი');
+    expect(entriesService.statusRequests).toHaveLength(0);
+  });
+  it('accepts a reference-only sense for publication and rejects its empty target', () => {
+    component.startEditing();
+    component.entryForm.controls.lemma.setValue('中国');
+    component.startStructure('sense');
+    const fb = TestBed.inject(FormBuilder);
+    component.pinyins.clear();
+    component.pinyins.push(fb.group({ id: [1], value: ['Zhōngguó'], order: [0] }));
+    const references = component.rootSenses.at(0).get('crossReferences') as FormArray<FormGroup>;
+    references.push(fb.group({ type: ['equivalent'], target: ['测试'], targetEntryId: [9], placement: ['Attached'] }));
+    component.entryForm.markAsPristine();
+    component.changeStatus('Published');
+    expect(component.statusError()).toBeNull();
+    expect(component.statusConfirmation()).toBe('Published');
+    component.cancelStatusChange();
+    references.at(0).patchValue({ target: '', targetEntryId: null });
+    component.entryForm.markAsPristine();
+    component.changeStatus('Published');
+    expect(component.statusConfirmation()).toBeNull();
+    expect(component.statusError()).toContain('განმარტება ან მოქმედი ბმული');
   });
   it('keeps the draft editable when its title duplicates another entry', () => {
     component.startEditing();

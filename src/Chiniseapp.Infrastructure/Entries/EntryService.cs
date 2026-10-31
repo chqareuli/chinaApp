@@ -151,6 +151,8 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
             ? (string.IsNullOrWhiteSpace(request.Pinyin) ? [] : [new FormItemDto(null, request.Pinyin, 0)]) : null), request.ComplexForms);
         var mapper = new EntryTreeMapper(id, existing, entry.UpdatedAtUtc);
         request = EntryTreeMapper.LinkPronunciations(request, EntryTreeMapper.ReadForms(entry));
+        if (entry.Status == EntryStatus.Published)
+            EntryPublicationValidator.Validate(request, EntryTreeMapper.ReadForms(entry));
         mapper.Apply(request);
         db.Segments.AddRange(mapper.Nodes.Where(s => s.Id == 0));
 
@@ -215,17 +217,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         if (targetStatus == EntryStatus.Published || (previousStatus == EntryStatus.NewEntry && targetStatus == EntryStatus.ZhReview))
         {
             var tree = EntryTreeMapper.Read(await db.Segments.AsNoTracking().Where(s => s.EntryId == id).ToListAsync(ct));
-            var groups = tree.GramGroups.Concat(tree.Homonyms.SelectMany(h => h.GramGroups ?? [])).ToList();
-            var senses = tree.Senses.Concat(tree.Homonyms.SelectMany(h=>h.DirectSenses)).Concat(groups.SelectMany(g => g.Senses)).Concat(tree.DirectPoses.SelectMany(p => p.Senses)).ToList();
-            var parentPos = new[] { tree.GramGroups.Select(g => g.Pos).Concat(tree.DirectPoses.Select(p => (string?)p.Pos)) }
-                .Concat(tree.Homonyms.Select(h => (h.GramGroups ?? []).Select(g => g.Pos)));
-            if (parentPos.Any(values => { var codes = values.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(); return codes.Distinct().Count() != codes.Count; }))
-                throw new EntryValidationException("Merge duplicate POS groups before review · 送审前请合并重复的词性组");
-            if (tree.Homonyms.Any(h => (h.GramGroups is null || h.GramGroups.Count == 0) && h.DirectSenses.Count == 0) ||
-                groups.Any(g => string.IsNullOrWhiteSpace(g.Pos) || g.Senses.Count == 0) ||
-                tree.DirectPoses.Any(p => string.IsNullOrWhiteSpace(p.Pos) || p.Senses.Count == 0) ||
-                senses.Count == 0 || senses.Any(s => string.IsNullOrWhiteSpace(s.Definition)))
-                throw new EntryValidationException("Complete the POS, senses and definitions, then save before publishing.");
+            EntryPublicationValidator.Validate(tree, EntryTreeMapper.ReadForms(entry), targetStatus == EntryStatus.Published);
         }
 
         // main_author locks the first time an entry leaves new_entry, to the

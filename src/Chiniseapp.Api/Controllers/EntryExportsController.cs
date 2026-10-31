@@ -26,6 +26,7 @@ public class EntryExportsController(ChiniseDbContext db, IEntryService entries) 
         // Inclusive calendar dates in UTC, based on persisted last-modified time.
         if (from.HasValue) { var start = from.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc); query = query.Where(e => e.UpdatedAtUtc >= start); }
         if (to.HasValue) { var end = to.Value.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc); query = query.Where(e => e.UpdatedAtUtc < end); }
+        await using var snapshot = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct);
         var ids = await query.OrderBy(e => e.Id).Select(e => e.Id).Take(5001).ToListAsync(ct);
         if (ids.Count > 5000) return BadRequest(new { message = "Select a narrower date or editor filter (maximum 5,000 entries per download)." });
         var json = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
@@ -37,8 +38,20 @@ public class EntryExportsController(ChiniseDbContext db, IEntryService entries) 
         }
         var result = new List<EntryDetail>();
         foreach (var id in ids) { var entry = await entries.GetAsync(id, User.GetEditorRole(), ct); if (entry is not null) result.Add(entry); }
-        return format == "xml"
-            ? File(Encoding.UTF8.GetBytes(EntryExportSerializer.Xml(result)), "application/xml", "chinese-ge.xml")
-            : File(JsonSerializer.SerializeToUtf8Bytes(result.Select(EntryExportSerializer.DictionaryContent), json), "application/json", "chinese-ge.json");
+        var media = await db.MediaAssets.AsNoTracking().Where(m => m.EntryId != null && ids.Contains(m.EntryId.Value))
+            .OrderBy(m => m.Id).ToListAsync(ct);
+        foreach (var asset in media)
+            if (asset.StorageUrl.StartsWith('/'))
+                asset.StorageUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}{asset.StorageUrl}";
+        try
+        {
+            return format == "xml"
+                ? File(Encoding.UTF8.GetBytes(EntryExportSerializer.Xml(result, media)), "application/xml", "chinese-ge.xml")
+                : File(JsonSerializer.SerializeToUtf8Bytes(result.Select(e => EntryExportSerializer.DictionaryContent(e, media)), json), "application/json", "chinese-ge.json");
+        }
+        catch (EntryValidationException error)
+        {
+            return BadRequest(new { message = error.Message });
+        }
     }
 }

@@ -1775,6 +1775,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     const content = this.toSaveRequest(this.entry()?.rowVersion ?? 0);
     const errors: string[] = [];
     if (!content.lemma) errors.push('გამოქვეყნებისთვის სათაური აუცილებელია.');
+    if (!content.pinyins.length) errors.push('გამოქვეყნებისთვის საჭიროა მინიმუმ ერთი ფინინი.');
     if (
       content.homonyms.some(
         (homonym) => !homonym.gramGroups.length && !homonym.directSenses?.length,
@@ -1802,8 +1803,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       ...content.senses,
     ];
     if (!senses.length) errors.push('გამოქვეყნებისთვის საჭიროა მინიმუმ ერთი მნიშვნელობა.');
-    if (senses.some((sense) => !sense.definition)) {
-      errors.push('ყველა მნიშვნელობას უნდა ჰქონდეს განმარტება.');
+    if (senses.some((sense) => !sense.definition?.trim() && !sense.crossReferences.some(
+      (reference) => (reference.targetEntryId ?? 0) > 0 || !!reference.target?.trim(),
+    ))) {
+      errors.push('ყველა მნიშვნელობას უნდა ჰქონდეს განმარტება ან მოქმედი ბმული.');
     }
     return errors;
   }
