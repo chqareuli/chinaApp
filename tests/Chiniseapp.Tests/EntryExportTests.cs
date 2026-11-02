@@ -93,6 +93,40 @@ public class EntryExportTests
         Assert.True(XNode.DeepEquals(individual.Descendants(Tei + "entryFree").First(), xml.Descendants(Tei + "entryFree").First()));
     }
 
+    [Theory]
+    [InlineData("sense", "definition")]
+    [InlineData("example", "zh")]
+    [InlineData("example", "ka")]
+    public void DeletedMediaTargetDoesNotBlockBulkExportOrLoseTheOriginalLink(string kind, string field)
+    {
+        var entry = Entry() with { Senses = [new(1, "Current definition", []) { Id = 30 }] };
+        var media = new MediaAsset { Id = 12, EntryId = entry.Id, InsertedIntoSegmentId = 138,
+            SafeStorageName = "shared-image", StorageUrl = "/media/12/content", MimeType = "image/png", DisplayName = "Image",
+            Placement = "inline:" + JsonSerializer.Serialize(new { kind, nodeId = 138, field, offset = 4, before = "old ", after = "text" }) };
+        var originalPlacement = media.Placement;
+        var json = Json(entry, media);
+        var asset = Assert.Single(json.GetProperty("media").EnumerateArray());
+        Assert.Equal(138, asset.GetProperty("parentSegmentId").GetInt32());
+        Assert.Equal(media.Placement, asset.GetProperty("placement").GetString());
+        Assert.Equal(JsonValueKind.Null, asset.GetProperty("position").ValueKind);
+        var warning = Assert.Single(json.GetProperty("exportWarnings").EnumerateArray());
+        Assert.Equal("missingMediaTarget", warning.GetProperty("code").GetString());
+        Assert.Equal(12, warning.GetProperty("mediaId").GetInt32());
+        Assert.Equal(138, warning.GetProperty("targetSegmentId").GetInt32());
+        var second = Entry() with { Id = 2 };
+        var document = XDocument.Parse(EntryExportSerializer.Xml([entry, second], [media]));
+        Assert.Equal(2, document.Descendants(Tei + "body").Single().Elements(Tei + "entryFree").Count());
+        var figure = document.Descendants(Tei + "figure").Single();
+        Assert.Equal("unresolvedPlacement", figure.Attribute("type")!.Value);
+        Assert.Null(figure.Attribute("corresp"));
+        Assert.Equal("/media/12/content", figure.Element(Tei + "graphic")!.Attribute("url")!.Value);
+        Assert.Equal(media.Placement, figure.Elements(Tei + "note").Single(n => (string?)n.Attribute("type") == "placement").Value);
+        Assert.Contains("138", figure.Elements(Tei + "note").Single(n => (string?)n.Attribute("type") == "exportWarning").Value);
+        Assert.Empty(document.Descendants(Tei + "def").Single().Descendants(Tei + "figure"));
+        Assert.Equal(originalPlacement, media.Placement);
+        Assert.Equal(138, media.InsertedIntoSegmentId);
+    }
+
     [Fact]
     public void InvalidInlineOffsetsFailWithTheParentAndFieldInsteadOfDroppingLinks()
     {

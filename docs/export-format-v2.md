@@ -26,6 +26,8 @@ XML uses `figure/graphic`, with `idno[@type='media']` for shared identity and `f
 
 The controller makes local media URLs absolute. These remain authenticated application endpoints; file binaries are not bundled. An importer needs access to the source host and credentials. A self-contained migration package and media-file copying are separate work.
 
+If an inline media target was deleted or recreated, the download still includes the asset at entry level. JSON preserves `parentSegmentId` and the original `placement`, sets resolved `position` to null, and adds a `missingMediaTarget` item to `exportWarnings` with entry, media and target IDs. XML retains the figure at entry level with `type="unresolvedPlacement"`, original placement and an `exportWarning` note; it does not emit a dangling `corresp`. Export does not guess a new parent or rewrite the database. The editor must reattach the image to restore its inline position.
+
 ## Publication and verification
 
 The Pinyin limit is six on both client and server. Publishing, and saving an already published entry, requires 1–6 distinct nonempty Pinyin values. Empty definitions are permitted when a sense has a reference with a positive target entry ID or nonempty textual target. Target existence/resolution across the full dictionary is not certified by this check. Example-only and empty senses remain incomplete. Ready-stage rules are unchanged pending editorial agreement.

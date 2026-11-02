@@ -32,7 +32,8 @@ public static class EntryExportSerializer
         Media = assets.Select(m => new {
             m.Id, MediaId = MediaKey(m), m.EntryId, ParentSegmentId = MediaParent(m), m.StorageUrl,
             m.MimeType, m.OriginalFilename, m.DisplayName, m.Placement, Position = ExportMediaPosition(m, e)
-        })
+        }),
+        ExportWarnings = assets.Select(m => MediaWarning(m, e)).OfType<MediaExportWarning>().ToList()
         };
     }
     private static object GroupContent(GramGroupDto g) => new { g.Id, g.PosSegmentId, g.Number, g.Pos,
@@ -78,6 +79,15 @@ public static class EntryExportSerializer
     private static string ReferenceText(CrossReferenceDto r) => r.DisplayText ?? r.Label;
     private static string MediaKey(MediaAsset m) => string.IsNullOrEmpty(m.SafeStorageName) ? $"media-{m.Id}" : m.SafeStorageName;
     private sealed record Position(string Kind, int NodeId, string Field, int Offset, string Before = "", string After = "");
+    private sealed record MediaExportWarning(string Code, int EntryId, int MediaId, int TargetSegmentId, string Message);
+    private static MediaExportWarning? MediaWarning(MediaAsset media, EntryDetail entry)
+    {
+        var original = MediaPosition(media);
+        return original is not null && MediaPosition(media, entry) is null
+            ? new("missingMediaTarget", entry.Id, media.Id, original.NodeId,
+                $"Media {media.Id}: target segment {original.NodeId} is missing. The media and original placement are preserved at entry level.")
+            : null;
+    }
     private static IEnumerable<SenseDto> AllSenses(EntryDetail e) => e.Senses.Concat(e.GramGroups.SelectMany(g => g.Senses))
         .Concat(e.DirectPoses.SelectMany(p => p.Senses)).Concat(e.Homonyms.SelectMany(h => h.DirectSenses.Concat((h.GramGroups ?? []).SelectMany(g => g.Senses))));
     private static int? MediaParent(MediaAsset m)
@@ -106,7 +116,9 @@ public static class EntryExportSerializer
             var senses = AllSenses(entry).ToList();
             var text = position.Kind == "sense" ? senses.FirstOrDefault(s => s.Id == position.NodeId)?.Definition
                 : senses.SelectMany(s => s.Examples).Where(e => e.Id == position.NodeId).Select(e => position.Field == "zh" ? e.Zh : e.Ka).FirstOrDefault();
-            if (text is null) throw new EntryValidationException($"Media {m.Id}: target segment {position.NodeId} is missing.");
+            // A deleted/recreated editor node must not block the whole dictionary download.
+            // Keep the original placement separately; do not guess a replacement parent.
+            if (text is null) return null;
             // Match the editor's context anchors after text edits; consumers receive the resolved offset.
             foreach (var (context, delta) in new[] { (position.Before + position.After, position.Before.Length), (position.After, 0), (position.Before, position.Before.Length) })
             {
@@ -225,12 +237,15 @@ public static class EntryExportSerializer
         private XElement Figure(MediaAsset m)
         {
             renderedMedia.Add(m.Id);
+            var warning = MediaWarning(m, entry);
             return new XElement(Tei + "figure", new XAttribute(XNamespace.Xml + "id", $"media-link-{m.Id}"),
-                MediaParent(m) is int parent ? new XAttribute("corresp", $"#segment-{parent}") : null,
+                warning is not null ? new XAttribute("type", "unresolvedPlacement") : null,
+                warning is null && MediaParent(m) is int parent ? new XAttribute("corresp", $"#segment-{parent}") : null,
                 new XElement(Tei + "graphic", new XAttribute("url", m.StorageUrl), new XAttribute("mimeType", m.MimeType)),
                 new XElement(Tei + "idno", new XAttribute("type", "media"), MediaKey(m)),
                 new XElement(Tei + "figDesc", m.DisplayName ?? m.OriginalFilename),
-                m.Placement is null ? null : new XElement(Tei + "note", new XAttribute("type", "placement"), m.Placement));
+                m.Placement is null ? null : new XElement(Tei + "note", new XAttribute("type", "placement"), m.Placement),
+                warning is null ? null : new XElement(Tei + "note", new XAttribute("type", "exportWarning"), warning.Message));
         }
         private IEnumerable<XElement> Decorations(List<MarkerDto> markers, List<CrossReferenceDto> refs)
         {
