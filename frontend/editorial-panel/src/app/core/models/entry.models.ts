@@ -71,6 +71,7 @@ export interface DirectPos {
 }
 
 export interface Homonym {
+  labelMode?: 'independent' | 'pinyin' | 'labelWithPinyin' | null;
   pinyinId?: number | null;
   pinyinOrder?: number | null;
   directSenses?: Sense[];
@@ -103,6 +104,7 @@ export interface EditorialMarker {
 }
 
 export interface CrossReference {
+  targets?: CrossReferenceTarget[];
   textOffset?: number | null;
   textField?: string | null;
   id: number | null;
@@ -113,6 +115,15 @@ export interface CrossReference {
   targetEntryLemma: string | null;
   displayText: string | null;
   placement: 'Inline' | 'Attached' | 'Standalone';
+}
+
+export interface CrossReferenceTarget {
+  id: string | null;
+  target: string;
+  targetEntryId: number | null;
+  targetEntryLemma: string | null;
+  displayText: string;
+  textOffset: number;
 }
 
 export interface VocabularyItem {

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { FormArray, FormBuilder, FormGroup, FormControl } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { EntryDetail } from '../../../core/models/entry.models';
 import { AuthService } from '../../../core/services/auth.service';
@@ -93,6 +93,92 @@ describe('EntryDetailPage status confirmation', () => {
     expect(component.statusConfirmation()).toBe('ZhReview');
     expect(entriesService.statusRequests).toHaveLength(0);
   });
+  it('keeps a Chinese homograph label when its linked pronunciation changes', () => {
+    component.startStructure('homonym');
+    const node = component.homonyms.at(0);
+    node.get('text')?.setValue('介');
+    component.pinyins.push(new FormBuilder().group({ id: [1], value: ['jiè'], order: [0] }));
+    component.setHomographLabelMode(node, 'labelWithPinyin');
+    component.linkHomographPronunciation(node, '0');
+    expect(component.homographParts(0).text).toBe('介');
+    expect(node.getRawValue()).toMatchObject({
+      text: '介',
+      pinyinId: 1,
+      labelMode: 'labelWithPinyin',
+    });
+  });
+  it('shows inherited markers without adding copies to the child form', () => {
+    component.startStructure('homonym');
+    const homonym = component.homonyms.at(0),
+      fb = new FormBuilder();
+    component
+      .formArrayAt(homonym, 'markers')
+      .push(fb.group({ id: [1], category: ['Style'], value: ['文'] }));
+    const groups = component.formArrayAt(homonym, 'gramGroups');
+    component.addGroupTo(groups);
+    component
+      .formArrayAt(groups.at(0), 'markers')
+      .push(fb.group({ id: [2], category: ['Domain'], value: ['法'] }));
+    const senses = component.formArrayAt(groups.at(0), 'senses');
+    if (!senses.length) component.addSenseTo(senses);
+    expect(component.inheritedNodeMarkers(senses.at(0)).map((m) => m.value)).toEqual(['文', '法']);
+    expect(component.formArrayAt(senses.at(0), 'markers').length).toBe(0);
+  });
+  it('loads route changes and ignores a delayed response from the previous entry', () => {
+    const params = new BehaviorSubject(convertToParamMap({ id: '14' }));
+    const oldResponse = new Subject<EntryDetail>(),
+      newResponse = new Subject<EntryDetail>();
+    const getById = vi.fn((id: number) => (id === 14 ? oldResponse : newResponse));
+    Object.assign(TestBed.inject(ActivatedRoute), {
+      paramMap: params,
+      snapshot: {
+        data: {},
+        queryParamMap: convertToParamMap({}),
+        paramMap: convertToParamMap({ id: '14' }),
+      },
+    });
+    Object.assign(entriesService, { getById, getVocabularies: () => of([]) });
+    Object.assign(collaborationService, {
+      getComments: () => of([]),
+      getSupportMaterials: () => of([]),
+      getReferenceMaterial: () => of(null),
+    });
+    Object.assign(TestBed.inject(MediaService), { listForEntry: () => of([]) });
+    component.ngOnInit();
+    params.next(convertToParamMap({ id: '29' }));
+    newResponse.next({ ...entry, id: 29, lemma: '空测' });
+    oldResponse.next(entry);
+    expect(getById.mock.calls).toEqual([[14], [29]]);
+    expect(component.entry()?.id).toBe(29);
+    expect(component.entryForm.controls.lemma.value).toBe('空测');
+  });
+  it('reattaches the selected image without creating a new media identity', () => {
+    component.entryForm.markAsPristine();
+    const asset = {
+      id: 12,
+      entryId: 14,
+      originalFilename: 'image.png',
+      placement: 'sense:138',
+    } as any;
+    component.media.set([asset]);
+    component.startMediaReattachment(asset);
+    component.startStructure('sense');
+    const sense = component.rootSenses.at(0);
+    sense.get('id')?.setValue(71);
+    const textarea = document.createElement('textarea');
+    textarea.value = 'before after';
+    textarea.setSelectionRange(7, 7);
+    component.openNodeMedia('sense', sense, textarea, 'definition');
+    const reattach = vi
+      .fn()
+      .mockReturnValue(of({ ...asset, placement: component.mediaPlacement() }));
+    Object.assign(TestBed.inject(MediaService), { reattach });
+    component.entryForm.markAsPristine();
+    component.confirmMediaReattachment();
+    expect(reattach).toHaveBeenCalledWith(12, component.mediaPlacement());
+    expect(component.media().map((m) => m.id)).toEqual([12]);
+    expect(component.reattachingMedia()).toBeNull();
+  });
   it('blocks publishing without Pinyin even when a definition is complete', () => {
     component.startEditing();
     component.entryForm.controls.lemma.setValue('中国');
@@ -102,7 +188,7 @@ describe('EntryDetailPage status confirmation', () => {
     component.entryForm.markAsPristine();
     component.changeStatus('Published');
     expect(component.statusConfirmation()).toBeNull();
-    expect(component.statusError()).toContain('ფინინი');
+    expect(component.statusError()).toContain('Pinyin');
     expect(entriesService.statusRequests).toHaveLength(0);
   });
   it('accepts a reference-only sense for publication and rejects its empty target', () => {
@@ -113,7 +199,14 @@ describe('EntryDetailPage status confirmation', () => {
     component.pinyins.clear();
     component.pinyins.push(fb.group({ id: [1], value: ['Zhōngguó'], order: [0] }));
     const references = component.rootSenses.at(0).get('crossReferences') as FormArray<FormGroup>;
-    references.push(fb.group({ type: ['equivalent'], target: ['测试'], targetEntryId: [9], placement: ['Attached'] }));
+    references.push(
+      fb.group({
+        type: ['equivalent'],
+        target: ['测试'],
+        targetEntryId: [9],
+        placement: ['Attached'],
+      }),
+    );
     component.entryForm.markAsPristine();
     component.changeStatus('Published');
     expect(component.statusError()).toBeNull();
@@ -123,7 +216,7 @@ describe('EntryDetailPage status confirmation', () => {
     component.entryForm.markAsPristine();
     component.changeStatus('Published');
     expect(component.statusConfirmation()).toBeNull();
-    expect(component.statusError()).toContain('განმარტება ან მოქმედი ბმული');
+    expect(component.statusError()).toContain('definition or a valid cross-reference');
   });
   it('keeps the draft editable when its title duplicates another entry', () => {
     component.startEditing();
@@ -222,8 +315,8 @@ describe('EntryDetailPage status confirmation', () => {
     expect(
       component.commentThreads().map((thread) => thread.comments.map((comment) => comment.id)),
     ).toEqual([
-      [1, 3, 4],
       [2, 5],
+      [1, 3, 4],
     ]);
   });
   it('includes the entered homonym text in the save request', () => {

@@ -1,4 +1,3 @@
-import { RouterLink } from '@angular/router';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -29,14 +28,20 @@ import {
   switchMap,
   Subscription,
 } from 'rxjs';
-import { EditorialMarker, EntrySummary, VocabularyItem } from '../../core/models/entry.models';
+import {
+  CrossReferenceTarget,
+  EditorialMarker,
+  EntrySummary,
+  VocabularyItem,
+} from '../../core/models/entry.models';
+import { CrossReferenceText } from '../cross-reference-text';
 import { EntriesService } from '../../core/services/entries.service';
 
 type MarkerCategory = EditorialMarker['category'];
 
 @Component({
   selector: 'app-editorial-decorations',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, CrossReferenceText],
   templateUrl: './editorial-decorations.html',
   styleUrl: './editorial-decorations.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -51,6 +56,7 @@ export class EditorialDecorations implements OnChanges {
   @Input({ required: true }) crossReferences!: FormArray<FormGroup>;
   @Input() vocabularies: VocabularyItem[] = [];
   @Input() readonly = false;
+  @Input() inheritedMarkers: EditorialMarker[] = [];
   @Input() scopeOnly = false;
   @Input() textField?: HTMLTextAreaElement;
   @Input() textControl: AbstractControl | null = null;
@@ -164,6 +170,9 @@ export class EditorialDecorations implements OnChanges {
   readonly xrSuggestions = signal<EntrySummary[]>([]);
   readonly xrSearching = signal(false);
   readonly xrError = signal('');
+  readonly xrTargets = signal<CrossReferenceTarget[]>([]);
+  private editingTarget: number | null = null;
+  private singleTargetId: string | null = null;
 
   readonly markerDraft = this.fb.group({
     category: ['Style' as MarkerCategory, Validators.required],
@@ -171,8 +180,8 @@ export class EditorialDecorations implements OnChanges {
   });
   readonly xrDraft = this.fb.group({
     type: ['see', Validators.required],
-    target: ['', [Validators.required, Validators.maxLength(500)]],
-    targetEntryId: [null as number | null, Validators.required],
+    target: ['', [Validators.maxLength(500)]],
+    targetEntryId: [null as number | null],
     targetEntryLemma: [null as string | null],
     displayText: ['', Validators.maxLength(500)],
     placement: ['Standalone', Validators.required],
@@ -296,6 +305,9 @@ export class EditorialDecorations implements OnChanges {
     this.markerEditorOpen.set(false);
     this.xrError.set('');
     this.xrEditingIndex.set(null);
+    this.xrTargets.set([]);
+    this.editingTarget = null;
+    this.singleTargetId = null;
     this.xrDraft.setValue({
       type: 'see',
       target: '',
@@ -311,17 +323,21 @@ export class EditorialDecorations implements OnChanges {
   openXrEdit(index: number): void {
     this.xrError.set('');
     const item = this.crossReferences.at(index).getRawValue();
+    const grouped = (item.targets ?? []) as CrossReferenceTarget[];
+    this.xrTargets.set(grouped.length > 1 ? structuredClone(grouped) : []);
+    this.singleTargetId = grouped.length === 1 ? grouped[0].id : null;
+    this.editingTarget = null;
     this.xrEditingIndex.set(index);
     this.xrDraft.setValue({
       type: item.type ?? 'see',
-      target: item.target ?? '',
-      targetEntryId: item.targetEntryId ?? null,
-      targetEntryLemma: item.targetEntryLemma ?? null,
+      target: grouped.length > 1 ? '' : (item.target ?? ''),
+      targetEntryId: grouped.length > 1 ? null : (item.targetEntryId ?? null),
+      targetEntryLemma: grouped.length > 1 ? null : (item.targetEntryLemma ?? null),
       displayText: item.displayText ?? '',
       placement: item.placement ?? 'Standalone',
     });
     this.xrSuggestions.set([]);
-    this.targetQueries.next(item.target ?? '');
+    this.targetQueries.next(grouped.length > 1 ? '' : (item.target ?? ''));
     this.xrEditorOpen.set(true);
   }
 
@@ -340,15 +356,106 @@ export class EditorialDecorations implements OnChanges {
     this.xrSuggestions.set([]);
   }
 
+  addXrTarget(): boolean {
+    const value = this.xrDraft.getRawValue();
+    if (!value.targetEntryId || !value.target?.trim()) {
+      this.xrError.set('Find and select the target entry. · 查找并选择目标词目。');
+      return false;
+    }
+    const targets = [...this.xrTargets()];
+    const old = this.editingTarget === null ? null : targets[this.editingTarget];
+    const target: CrossReferenceTarget = {
+      id: old?.id ?? this.singleTargetId,
+      target: value.target.trim(),
+      targetEntryId: value.targetEntryId,
+      targetEntryLemma: value.targetEntryLemma,
+      displayText: value.target.trim(),
+      textOffset: 0,
+    };
+    if (this.editingTarget === null) targets.push(target);
+    else targets[this.editingTarget] = target;
+    this.xrTargets.set(targets);
+    this.editingTarget = null;
+    this.singleTargetId = null;
+    this.xrDraft.patchValue({ target: '', targetEntryId: null, targetEntryLemma: null });
+    this.xrError.set('');
+    this.xrSuggestions.set([]);
+    return true;
+  }
+  editXrTarget(index: number): void {
+    const target = this.xrTargets()[index];
+    this.editingTarget = index;
+    this.xrDraft.patchValue(target);
+  }
+  removeXrTarget(index: number): void {
+    this.xrTargets.update((targets) => targets.filter((_, i) => i !== index));
+    this.editingTarget = null;
+    this.xrDraft.patchValue({ target: '', targetEntryId: null, targetEntryLemma: null });
+  }
+  moveXrTarget(index: number, delta: number): void {
+    const targets = [...this.xrTargets()],
+      next = index + delta;
+    if (next < 0 || next >= targets.length) return;
+    [targets[index], targets[next]] = [targets[next], targets[index]];
+    this.xrTargets.set(targets);
+    this.editingTarget = null;
+    this.xrDraft.patchValue({ target: '', targetEntryId: null, targetEntryLemma: null });
+  }
+
   saveXr(): void {
     if (this.xrDraft.invalid) {
       this.xrDraft.markAllAsTouched();
       return;
     }
+    if (this.xrDraft.controls.target.value || this.editingTarget !== null) {
+      if (!this.addXrTarget()) return;
+    }
+    if (!this.xrTargets().length) {
+      this.xrError.set('Add at least one target. · 请至少添加一个目标。');
+      return;
+    }
     const value = this.xrDraft.getRawValue();
-    const label = this.xrTypes.find((item) => item.value === value.type)?.label ?? 'იხ.';
     const editing = this.xrEditingIndex();
-    const inlineText = `${label} ${value.target}`;
+    const original = editing === null ? null : this.crossReferences.at(editing).getRawValue();
+    const oldTargets = (original?.targets ?? []) as CrossReferenceTarget[];
+    const oldText = String(original?.displayText ?? '');
+    const label =
+      original?.type === value.type
+        ? original.label
+        : (this.xrTypes.find((item) => item.value === value.type)?.label ?? 'იხ.');
+    let inlineText =
+      oldTargets.length && original?.type === value.type
+        ? oldText.slice(0, oldTargets[0].textOffset)
+        : label
+          ? label + ' '
+          : '';
+    const defaultSeparator =
+      oldTargets.length > 1
+        ? oldText.slice(
+            oldTargets[0].textOffset + oldTargets[0].displayText.length,
+            oldTargets[1].textOffset,
+          )
+        : ', ';
+    const targets = this.xrTargets().map((target, index) => {
+      if (index) {
+        const oldIndex = oldTargets.findIndex((t) => t.id && t.id === target.id);
+        const previous = this.xrTargets()[index - 1];
+        inlineText +=
+          oldIndex > 0 && previous.id && oldTargets[oldIndex - 1].id === previous.id
+            ? oldText.slice(
+                oldTargets[oldIndex - 1].textOffset + oldTargets[oldIndex - 1].displayText.length,
+                oldTargets[oldIndex].textOffset,
+              )
+            : defaultSeparator;
+      }
+      const textOffset = inlineText.length;
+      inlineText += target.displayText;
+      return { ...target, textOffset };
+    });
+    if (oldTargets.length) {
+      const last = oldTargets[oldTargets.length - 1];
+      inlineText += oldText.slice(last.textOffset + last.displayText.length);
+    }
     let offset = editing === null ? this.insertText(inlineText) : null;
     let editedGroup: FormGroup | null = null;
     if (editing !== null) {
@@ -377,6 +484,11 @@ export class EditorialDecorations implements OnChanges {
     const payload = {
       ...value,
       label,
+      target: targets[0].target,
+      targetEntryId: targets[0].targetEntryId,
+      targetEntryLemma: targets[0].targetEntryLemma,
+      targets,
+      displayText: inlineText,
       ...(offset !== null
         ? { textOffset: offset, textField: this.fieldName, displayText: inlineText }
         : {}),
@@ -389,6 +501,8 @@ export class EditorialDecorations implements OnChanges {
         }),
       );
     } else {
+      if (!editedGroup!.get('targets'))
+        editedGroup!.addControl('targets', this.fb.control(targets));
       editedGroup!.patchValue(payload);
       if (this.crossReferences.controls.indexOf(editedGroup!) < 0)
         this.crossReferences.insert(Math.min(editing, this.crossReferences.length), editedGroup!);
@@ -423,6 +537,17 @@ export class EditorialDecorations implements OnChanges {
           (rank[this.markers.at(a).get('category')?.value] ?? 3) -
           (rank[this.markers.at(b).get('category')?.value] ?? 3),
       );
+  }
+  visibleInheritedMarkers(): EditorialMarker[] {
+    const own = new Set(
+      (this.markers.getRawValue() as EditorialMarker[]).map((m) => `${m.category}:${m.value}`),
+    );
+    return this.inheritedMarkers.filter((marker) => !own.has(`${marker.category}:${marker.value}`));
+  }
+  inheritedMarkerText(marker: EditorialMarker): string {
+    return marker.category === 'Style'
+      ? `〈${marker.value.replace(/[〈〉<>]/g, '')}〉`
+      : `【${marker.value.replace(/[【】\[\]]/g, '')}】`;
   }
   markerText(index: number): string {
     const item = this.markers.at(index).getRawValue();

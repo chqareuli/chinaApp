@@ -41,6 +41,9 @@ export class MediaService {
   rename(id: number, displayName: string): Observable<void> {
     return this.http.put<void>(this.apiBaseUrl + '/media/' + id + '/name', { displayName });
   }
+  reattach(id: number, placement: string): Observable<MediaAssetItem> {
+    return this.http.put<MediaAssetItem>(`${this.apiBaseUrl}/media/${id}/placement`, { placement });
+  }
   replace(id: number, file: File): Observable<void> {
     const form = new FormData();
     form.append('file', file, file.name);

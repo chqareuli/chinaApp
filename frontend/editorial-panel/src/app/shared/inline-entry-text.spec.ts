@@ -4,6 +4,31 @@ import { InlineEntryText } from './inline-entry-text';
 import { EntrySearchHighlight } from './entry-search-highlight';
 
 describe('InlineEntryText', () => {
+  it('renders one shared label and separately clickable grouped targets in source order', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(InlineEntryText);
+    const body = 'ასევე 巴儿狗, 叭儿狗, 狮子狗';
+    fixture.componentRef.setInput('body', body);
+    fixture.componentRef.setInput('references', [
+      {
+        placement: 'Inline',
+        textField: 'definition',
+        textOffset: 0,
+        targetEntryId: 1,
+        displayText: body,
+        targets: ['巴儿狗', '叭儿狗', '狮子狗'].map((word, i) => ({
+          displayText: word,
+          textOffset: body.indexOf(word),
+          targetEntryId: i + 1,
+        })),
+      },
+    ]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toBe(body);
+    const links = [...fixture.nativeElement.querySelectorAll('a')] as HTMLAnchorElement[];
+    expect(links.map((a) => a.textContent)).toEqual(['巴儿狗', '叭儿狗', '狮子狗']);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/word/1', '/word/2', '/word/3']);
+  });
   it('renders search matches as marks inside Chinese examples without changing their text', () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     TestBed.inject(EntrySearchHighlight).query.set('靜');

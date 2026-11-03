@@ -8,6 +8,14 @@ export interface PublicDictionarySearchItem {
 }
 
 export interface PublicDictionaryCrossReference {
+  targets?: {
+    id: string | null;
+    target: string;
+    targetEntryId: number | null;
+    targetEntryLemma: string | null;
+    displayText: string;
+    textOffset: number;
+  }[];
   textOffset?: number | null;
   textField?: string | null;
   type: string;

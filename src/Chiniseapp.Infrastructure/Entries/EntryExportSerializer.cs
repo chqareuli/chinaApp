@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Xml.Linq;
+using System.Xml.Schema;
 using Chiniseapp.Application.Entries;
 using Chiniseapp.Domain.Entities;
 
@@ -8,8 +9,15 @@ namespace Chiniseapp.Infrastructure.Entries;
 /// <summary>Dictionary exports do not expose the editor's legacy summary lists.</summary>
 public static class EntryExportSerializer
 {
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
     private static readonly XNamespace Tei = "http://www.tei-c.org/ns/1.0";
+    private static readonly Lazy<XmlSchemaSet> XmlProfile = new(() => {
+        using var stream = typeof(EntryExportSerializer).Assembly.GetManifestResourceStream("Chiniseapp.ExportV3.xsd")!;
+        var schemas = new XmlSchemaSet();
+        schemas.Add(XmlSchema.Read(stream, null)!);
+        schemas.Compile();
+        return schemas;
+    });
     public static object DictionaryContent(EntryDetail e) => DictionaryContent(e, []);
     public static object DictionaryContent(EntryDetail e, IEnumerable<MediaAsset> media)
     {
@@ -21,7 +29,7 @@ public static class EntryExportSerializer
         SchemaVersion, TextOffsetUnit = "utf16CodeUnit", TextOffsetOrigin = 0, TextNormalization = "none",
         e.Id, e.Lemma, e.Pinyins, e.ComplexForms,
         Homonyms = e.Homonyms.Select(h => new {
-            h.Id, h.Text, LabelMode = h.PinyinId.HasValue ? "pinyin" : "independent", h.PinyinId,
+            h.Id, h.Text, LabelMode = h.LabelMode ?? (h.PinyinId.HasValue ? "pinyin" : "independent"), h.PinyinId,
             Markers = Markers(h.Markers), CrossReferences = References(h.CrossReferences),
             GramGroups = (h.GramGroups ?? []).Select(GroupContent), DirectSenses = h.DirectSenses.Select(SenseContent)
         }),
@@ -58,6 +66,7 @@ public static class EntryExportSerializer
     private static IEnumerable<object> References(List<CrossReferenceDto> refs, bool onlyXr = false) => refs.Select(r => (object)new {
         r.Id, r.Type, r.Label, r.Target, r.TargetEntryId, r.TargetEntryLemma, r.DisplayText, r.Placement,
         r.TextOffset, TextLength = r.Placement == "Inline" ? (int?)ReferenceText(r).Length : null,
+        Targets = r.Targets.Select(t => new { t.Id, t.Target, t.TargetEntryId, t.TargetEntryLemma, t.DisplayText, t.TextOffset, TextLength = t.DisplayText.Length }),
         TextField = onlyXr && r.TextField == "definition" ? "displayText" : r.TextField
     });
     public static bool IsCrossReferenceOnly(SenseDto s)
@@ -135,17 +144,37 @@ public static class EntryExportSerializer
     public static string Xml(IEnumerable<EntryDetail> entries, IEnumerable<MediaAsset> media)
     {
         var assets = media.ToLookup(m => m.EntryId);
-        return new XDocument(new XElement(Tei + "TEI",
+        var document = new XDocument(new XElement(Tei + "TEI",
             new XElement(Tei + "teiHeader", new XElement(Tei + "fileDesc",
                 new XElement(Tei + "titleStmt", new XElement(Tei + "title", "CHINESE.GE Dictionary")),
                 new XElement(Tei + "editionStmt", new XElement(Tei + "edition", $"CHINESE.GE export {SchemaVersion}")),
                 new XElement(Tei + "publicationStmt", new XElement(Tei + "p", "Editorial database export")),
                 new XElement(Tei + "sourceDesc", new XElement(Tei + "p", "Structured dictionary entries")))),
-            new XElement(Tei + "text", new XElement(Tei + "body", entries.Select(e => new XmlEntry(e, assets[e.Id].ToList()).Build()))))).ToString();
+            new XElement(Tei + "text", new XElement(Tei + "body", entries.Select(e => new XmlEntry(e, assets[e.Id].ToList()).Build())))));
+        document.Validate(XmlProfile.Value, (_, error) => {
+            if (error.Severity == XmlSeverityType.Error) throw new EntryValidationException($"Export profile 3 validation: {error.Message}");
+        });
+        return document.ToString();
     }
     private static XAttribute? Identity(int? id) => id is int key ? new XAttribute(XNamespace.Xml + "id", $"segment-{key}") : null;
-    private static XElement Reference(CrossReferenceDto r) => new(Tei + "xr", Identity(r.Id), new XAttribute("type", r.Type),
-        new XElement(Tei + "ref", new XAttribute("target", r.TargetEntryId is int id ? $"#entry-{id}" : r.Target), ReferenceText(r)));
+    private static XElement Reference(CrossReferenceDto r)
+    {
+        CrossReferenceRules.ValidateTargets(r);
+        if (r.Targets.Count == 0) return new(Tei + "xr", Identity(r.Id), new XAttribute("type", r.Type),
+            new XElement(Tei + "ref", new XAttribute("target", r.TargetEntryId is int id ? $"#entry-{id}" : r.Target), ReferenceText(r)));
+        var xr = new XElement(Tei + "xr", Identity(r.Id), new XAttribute("type", r.Type));
+        var text = ReferenceText(r);
+        var cursor = 0;
+        foreach (var target in r.Targets)
+        {
+            xr.Add(new XText(text[cursor..target.TextOffset]), new XElement(Tei + "ref",
+                target.Id is null ? null : new XAttribute(XNamespace.Xml + "id", $"xr-target-{target.Id}"),
+                new XAttribute("target", target.TargetEntryId is int id ? $"#entry-{id}" : target.Target), target.DisplayText));
+            cursor = target.TextOffset + target.DisplayText.Length;
+        }
+        xr.Add(new XText(text[cursor..]));
+        return xr;
+    }
 
     private sealed class XmlEntry(EntryDetail entry, List<MediaAsset> media)
     {
@@ -163,8 +192,10 @@ public static class EntryExportSerializer
                     new XElement(Tei + "pron", new XAttribute(XNamespace.Xml + "id", $"entry-{entry.Id}-pinyin-{p.Id}"), p.Value))),
                 entry.ComplexForms.Select(f => new XElement(Tei + "form", new XAttribute("type", "traditional"),
                     new XElement(Tei + "orth", new XAttribute(XNamespace.Xml + "id", $"entry-{entry.Id}-traditional-{f.Id}"), f.Value))),
-                entry.Homonyms.Select(h => new XElement(Tei + "hom", Identity(h.Id), h.PinyinId is int id
-                    ? new XElement(Tei + "form", new XElement(Tei + "pron", new XAttribute("corresp", $"#entry-{entry.Id}-pinyin-{id}"), h.Text))
+                entry.Homonyms.Select(h => new XElement(Tei + "hom", Identity(h.Id), h.LabelMode == "labelWithPinyin"
+                    ? new XElement(Tei + "label", new XAttribute("type", "labelWithPinyin"), h.Text) : null,
+                    h.PinyinId is int id
+                    ? new XElement(Tei + "form", new XElement(Tei + "pron", new XAttribute("corresp", $"#entry-{entry.Id}-pinyin-{id}"), entry.Pinyins.Single(p => p.Id == id).Value))
                     : new XElement(Tei + "label", new XAttribute("type", "independent"), h.Text),
                     Decorations(h.Markers, h.CrossReferences), (h.GramGroups ?? []).Select(Group), h.DirectSenses.Select(Sense))),
                 entry.GramGroups.Select(Group), entry.DirectPoses.Select(p => new XElement(Tei + "entryFree", Identity(p.Id),
@@ -226,7 +257,20 @@ public static class EntryExportSerializer
                     if (offset <= consumed + node.Value.Length)
                     {
                         var local = offset - consumed;
-                        node.ReplaceWith(new XText(node.Value[..local]), Figure(asset), new XText(node.Value[local..]));
+                        XNode boundary = node;
+                        if (local == 0)
+                        {
+                            while (boundary.Parent != result && boundary.NodesBeforeSelf().All(n => n is XText t && t.Value.Length == 0))
+                                boundary = boundary.Parent!;
+                            boundary.AddBeforeSelf(Figure(asset));
+                        }
+                        else if (local == node.Value.Length)
+                        {
+                            while (boundary.Parent != result && boundary.NodesAfterSelf().All(n => n is XText t && t.Value.Length == 0))
+                                boundary = boundary.Parent!;
+                            boundary.AddAfterSelf(Figure(asset));
+                        }
+                        else node.ReplaceWith(new XText(node.Value[..local]), Figure(asset), new XText(node.Value[local..]));
                         break;
                     }
                     consumed += node.Value.Length;

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using Chiniseapp.Infrastructure.Entries;
 
 namespace Chiniseapp.Api.Controllers;
 
@@ -148,6 +149,15 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
                 return ("Invalid image insertion position.", null);
             }
         }
+        if (placement?.StartsWith("inline:", StringComparison.Ordinal) != true &&
+            (placement?.StartsWith("sense:", StringComparison.Ordinal) == true || placement?.StartsWith("example:", StringComparison.Ordinal) == true))
+        {
+            var parent = EntryMediaRules.PlacementParent(placement);
+            var expected = placement.StartsWith("sense:", StringComparison.Ordinal) ? SegmentType.Sense : SegmentType.Example;
+            if (parent is null || !await db.Segments.AnyAsync(s => s.Id == parent && s.EntryId == entryId && s.SegmentType == expected, ct))
+                return ($"Entry {entryId}: the target definition or example no longer exists. Reload the entry before inserting the image.", null);
+            insertedIntoSegmentId = parent;
+        }
         return (null, insertedIntoSegmentId);
     }
     [HttpPost("entries/{entryId:int}/media"), RequestSizeLimit(6 * 1024 * 1024)]
@@ -160,6 +170,7 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         if (displayName.Length > 200) return BadRequest(new { message = "Image name must be at most 200 characters." });
         var normalizedName = displayName.Trim().ToLowerInvariant();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM entries WHERE id = {entryId} FOR UPDATE", ct);
         var nameLock = "media-name:" + normalizedName;
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({nameLock}, 0))", ct);
         if (await db.MediaAssets.AnyAsync(m => m.DisplayName != null && m.DisplayName.Trim().ToLower() == normalizedName, ct))
@@ -199,6 +210,31 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         catch { System.IO.File.Delete(path); throw; }
     }
     public record ReuseMediaRequest(int MediaId, string? Placement);
+    public record ReattachMediaRequest(string? Placement);
+    [HttpPut("media/{id:int}/placement")]
+    public async Task<IActionResult> Reattach(int id, ReattachMediaRequest request, CancellationToken ct)
+    {
+        var item = await db.MediaAssets.FindAsync([id], ct);
+        if (item?.EntryId is not int entryId) return NotFound();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM entries WHERE id = {entryId} FOR UPDATE", ct);
+        var entry = await db.Entries.AsNoTracking().SingleOrDefaultAsync(e => e.Id == entryId, ct);
+        if (entry is null) return NotFound();
+        if (!EntryPermissionRules.CanEditContent(User.GetEditorRole(), entry.Status)) return Forbid();
+        await db.Entry(item).ReloadAsync(ct);
+        if (db.Entry(item).State == EntityState.Detached) return NotFound();
+        if (item.EntryId != entryId) return Conflict(new { message = "The image link changed. Reload the entry. · 图片链接已更改，请重新加载词目。" });
+        var position = await ValidatePlacement(entryId, request.Placement, ct);
+        if (position.Error is not null) return BadRequest(new { message = position.Error });
+        if (position.SegmentId is null) return BadRequest(new { message = "Select a definition or example for the image. · 请为图片选择释义或例句。" });
+        item.Placement = request.Placement;
+        item.InsertedIntoSegmentId = position.SegmentId;
+        await db.SaveChangesAsync(ct);
+        var result = await Summary(item, ct);
+        await transaction.CommitAsync(ct);
+        return Ok(result);
+    }
+
     [HttpPost("entries/{entryId:int}/media/reuse")]
     public async Task<IActionResult> Reuse(int entryId, ReuseMediaRequest request, CancellationToken ct)
     {
@@ -209,9 +245,10 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         if (source is null) return NotFound();
         var sourceEntry = await EntryFor(source, ct);
         if (sourceEntry is null || !EntryPermissionRules.CanView(User.GetEditorRole(), sourceEntry.Status)) return NotFound();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM entries WHERE id = {entryId} FOR UPDATE", ct);
         var position = await ValidatePlacement(entryId, request.Placement, ct);
         if (position.Error is not null) return BadRequest(new { message = position.Error });
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({source.SafeStorageName}, 0))", ct);
         // A rename or replacement may have finished while reuse waited for the shared-file lock.
         source = await db.MediaAssets.AsNoTracking().SingleOrDefaultAsync(m => m.Id == request.MediaId, ct);

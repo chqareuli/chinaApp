@@ -1,0 +1,771 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CHINESE.GE dictionary export 3",
+  "description": "Project export contract. Editorial acceptance and full migration validation are separate. Target identities are assigned on save.",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/entry"
+  },
+  "definitions": {
+    "form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "value",
+        "order"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "value": {
+          "type": "string"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "category",
+        "value",
+        "displayText",
+        "textOffset",
+        "textLength",
+        "textField"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "category": {
+          "enum": [
+            "Style",
+            "Domain",
+            "Abbr",
+            "Lang"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "displayText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "textOffset": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "textLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "textField": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "target",
+        "targetEntryId",
+        "targetEntryLemma",
+        "displayText",
+        "textOffset",
+        "textLength"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "target": {
+          "type": "string"
+        },
+        "targetEntryId": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "targetEntryLemma": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "displayText": {
+          "type": "string",
+          "minLength": 1
+        },
+        "textOffset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "textLength": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "label",
+        "target",
+        "targetEntryId",
+        "targetEntryLemma",
+        "displayText",
+        "placement",
+        "textOffset",
+        "textLength",
+        "targets",
+        "textField"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "type": {
+          "enum": [
+            "see",
+            "seeAlso",
+            "equivalent",
+            "antonym",
+            "illustration"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "targetEntryId": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "targetEntryLemma": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "displayText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "placement": {
+          "enum": [
+            "Inline",
+            "Attached",
+            "Standalone"
+          ]
+        },
+        "textOffset": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "textLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/target"
+          }
+        },
+        "textField": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "example": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "zhSegmentId",
+        "kaSegmentId",
+        "zh",
+        "ka",
+        "markers",
+        "crossReferences"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "zhSegmentId": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "kaSegmentId": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "zh": {
+          "type": "string"
+        },
+        "ka": {
+          "type": "string"
+        },
+        "markers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/marker"
+          }
+        },
+        "crossReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/reference"
+          }
+        }
+      }
+    },
+    "sense": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "definitionId",
+        "number",
+        "definition",
+        "displayText",
+        "definitionKind",
+        "markers",
+        "crossReferences",
+        "examples"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "definitionId": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "definition": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "displayText": {
+          "type": "string"
+        },
+        "definitionKind": {
+          "enum": [
+            "definition",
+            "crossReferenceOnly",
+            "empty"
+          ]
+        },
+        "markers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/marker"
+          }
+        },
+        "crossReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/reference"
+          }
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/example"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "definitionKind": {
+                "const": "crossReferenceOnly"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "definition": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "posSegmentId",
+        "number",
+        "pos",
+        "markers",
+        "crossReferences",
+        "senses"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "posSegmentId": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pos": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "markers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/marker"
+          }
+        },
+        "crossReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/reference"
+          }
+        },
+        "senses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/sense"
+          }
+        }
+      }
+    },
+    "directPos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "pos",
+        "markers",
+        "crossReferences",
+        "senses"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "pos": {
+          "type": "string"
+        },
+        "markers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/marker"
+          }
+        },
+        "crossReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/reference"
+          }
+        },
+        "senses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/sense"
+          }
+        }
+      }
+    },
+    "homonym": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text",
+        "labelMode",
+        "pinyinId",
+        "markers",
+        "crossReferences",
+        "gramGroups",
+        "directSenses"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "text": {
+          "type": "string"
+        },
+        "labelMode": {
+          "enum": [
+            "independent",
+            "pinyin",
+            "labelWithPinyin"
+          ]
+        },
+        "pinyinId": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "markers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/marker"
+          }
+        },
+        "crossReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/reference"
+          }
+        },
+        "gramGroups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/group"
+          }
+        },
+        "directSenses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/sense"
+          }
+        }
+      }
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "nodeId",
+        "field",
+        "offset",
+        "before",
+        "after"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "sense",
+            "example"
+          ]
+        },
+        "nodeId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "field": {
+          "enum": [
+            "definition",
+            "displayText",
+            "zh",
+            "ka"
+          ]
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "before": {
+          "type": "string"
+        },
+        "after": {
+          "type": "string"
+        }
+      }
+    },
+    "media": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "mediaId",
+        "entryId",
+        "parentSegmentId",
+        "storageUrl",
+        "mimeType",
+        "originalFilename",
+        "displayName",
+        "placement",
+        "position"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mediaId": {
+          "type": "string"
+        },
+        "entryId": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "parentSegmentId": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "storageUrl": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "originalFilename": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "placement": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "position": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/position"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "entryId",
+        "mediaId",
+        "targetSegmentId",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "const": "missingMediaTarget"
+        },
+        "entryId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mediaId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "targetSegmentId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "textOffsetUnit",
+        "textOffsetOrigin",
+        "textNormalization",
+        "id",
+        "lemma",
+        "pinyins",
+        "complexForms",
+        "homonyms",
+        "gramGroups",
+        "directPoses",
+        "senses",
+        "media",
+        "exportWarnings"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 3
+        },
+        "textOffsetUnit": {
+          "const": "utf16CodeUnit"
+        },
+        "textOffsetOrigin": {
+          "const": 0
+        },
+        "textNormalization": {
+          "const": "none"
+        },
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lemma": {
+          "type": "string"
+        },
+        "pinyins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/form"
+          }
+        },
+        "complexForms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/form"
+          }
+        },
+        "homonyms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/homonym"
+          }
+        },
+        "gramGroups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/group"
+          }
+        },
+        "directPoses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/directPos"
+          }
+        },
+        "senses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/sense"
+          }
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/media"
+          }
+        },
+        "exportWarnings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/warning"
+          }
+        }
+      }
+    }
+  }
+}

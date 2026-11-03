@@ -173,6 +173,23 @@ public class StructuredEntryPostgresTests
                 Assert.Equal("პირველი",reloaded.Homonyms[0].DirectSenses[0].Definition);
                 var again=await service.SaveContentAsync(reloaded.Id,new(reloaded.Lemma,null,reloaded.Homonyms,reloaded.RowVersion),editorId,EditorRole.SuperAdmin);
                 Assert.Equal(directId,again.Homonyms[0].DirectSenses[0].Id);
+                var labelled = await service.CreateAsync(new("介", null) { Pinyins = ["jiè"] }, editorId, EditorRole.SuperAdmin);
+                const string text = "ასევე 中国, 学习";
+                var grouped = new CrossReferenceDto(null, "seeAlso", "ასევე", "中国", entryId, null, text, "Inline") {
+                    TextField = "definition", TextOffset = 0, Targets = [
+                        new(null, "中国", entryId, null, "中国", text.IndexOf("中国", StringComparison.Ordinal)),
+                        new(null, "学习", homographs.Id, null, "学习", text.IndexOf("学习", StringComparison.Ordinal))]
+                };
+                var groupedEntry = await service.SaveContentAsync(labelled.Id, new(null, null, [new([]) {
+                    LabelMode = "labelWithPinyin", Text = "介", PinyinId = labelled.Pinyins[0].Id,
+                    GramGroups = [], DirectSenses = [new(1, text, []) { CrossReferences = [grouped] }]
+                }], labelled.RowVersion), editorId, EditorRole.SuperAdmin);
+                var loadedGroup = (await service.GetAsync(groupedEntry.Id, EditorRole.SuperAdmin))!;
+                Assert.Equal("介", loadedGroup.Homonyms[0].Text);
+                var targetIds = loadedGroup.Homonyms[0].DirectSenses[0].CrossReferences[0].Targets.Select(t => t.Id).ToList();
+                Assert.All(targetIds, target => Assert.False(string.IsNullOrEmpty(target)));
+                var resaved = await service.SaveContentAsync(loadedGroup.Id, new(null, null, loadedGroup.Homonyms, loadedGroup.RowVersion), editorId, EditorRole.SuperAdmin);
+                Assert.Equal(targetIds, resaved.Homonyms[0].DirectSenses[0].CrossReferences[0].Targets.Select(t => t.Id));
             }
         }
         finally

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:t="http://www.tei-c.org/ns/1.0"
+           targetNamespace="http://www.tei-c.org/ns/1.0" elementFormDefault="qualified">
+  <xs:annotation><xs:documentation>CHINESE.GE export 3 project profile. This is not the complete TEI schema or an editorially approved TEI customization.</xs:documentation></xs:annotation>
+  <xs:element name="TEI"><xs:complexType><xs:sequence>
+    <xs:element ref="t:teiHeader"/><xs:element name="text"><xs:complexType><xs:sequence>
+      <xs:element name="body"><xs:complexType><xs:sequence><xs:element ref="t:entryFree" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType></xs:element>
+    </xs:sequence></xs:complexType></xs:element>
+  </xs:sequence></xs:complexType></xs:element>
+  <xs:element name="teiHeader"><xs:complexType><xs:sequence><xs:element name="fileDesc"><xs:complexType><xs:sequence>
+    <xs:element name="titleStmt"><xs:complexType><xs:sequence><xs:element name="title" type="xs:string"/></xs:sequence></xs:complexType></xs:element>
+    <xs:element name="editionStmt"><xs:complexType><xs:sequence><xs:element name="edition" type="xs:string" fixed="CHINESE.GE export 3"/></xs:sequence></xs:complexType></xs:element>
+    <xs:element name="publicationStmt" type="t:paragraph"/><xs:element name="sourceDesc" type="t:paragraph"/>
+  </xs:sequence></xs:complexType></xs:element></xs:sequence></xs:complexType></xs:element>
+  <xs:complexType name="paragraph"><xs:sequence><xs:element name="p" type="xs:string"/></xs:sequence></xs:complexType>
+  <xs:element name="entryFree" type="t:entryContent"/>
+  <xs:complexType name="entryContent"><xs:choice minOccurs="0" maxOccurs="unbounded">
+    <xs:element ref="t:form"/><xs:element ref="t:hom"/><xs:element ref="t:entryFree"/><xs:element ref="t:gramGrp"/>
+    <xs:element ref="t:sense"/><xs:element ref="t:label"/><xs:element ref="t:usg"/><xs:element ref="t:xr"/><xs:element ref="t:figure"/>
+  </xs:choice><xs:anyAttribute namespace="##other" processContents="lax"/></xs:complexType>
+  <xs:element name="hom" type="t:entryContent"/>
+  <xs:element name="form"><xs:complexType><xs:choice maxOccurs="unbounded"><xs:element ref="t:orth"/><xs:element ref="t:pron"/></xs:choice>
+    <xs:attribute name="type" type="xs:string"/><xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType></xs:element>
+  <xs:element name="orth" type="t:labelledText"/><xs:element name="pron" type="t:labelledText"/>
+  <xs:element name="label" type="t:labelledText"/>
+  <xs:complexType name="labelledText" mixed="true"><xs:attribute name="type" type="xs:string"/><xs:attribute name="corresp" type="xs:string"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+  <xs:element name="gramGrp"><xs:complexType><xs:sequence><xs:element name="pos" type="t:labelledText" minOccurs="0"/></xs:sequence></xs:complexType></xs:element>
+  <xs:element name="sense"><xs:complexType><xs:choice minOccurs="0" maxOccurs="unbounded">
+    <xs:element ref="t:def"/><xs:element ref="t:seg"/><xs:element ref="t:usg"/><xs:element ref="t:xr"/><xs:element ref="t:cit"/><xs:element ref="t:figure"/>
+  </xs:choice><xs:attribute name="n" type="xs:positiveInteger" use="required"/><xs:anyAttribute namespace="##other" processContents="lax"/></xs:complexType></xs:element>
+  <xs:element name="def" type="t:mixedText"/><xs:element name="seg" type="t:mixedText"/><xs:element name="quote" type="t:mixedText"/>
+  <xs:complexType name="mixedText" mixed="true"><xs:choice minOccurs="0" maxOccurs="unbounded">
+    <xs:element ref="t:xr"/><xs:element ref="t:abbr"/><xs:element ref="t:usg"/><xs:element ref="t:figure"/>
+  </xs:choice><xs:attribute name="type" type="xs:string"/><xs:anyAttribute namespace="##other" processContents="lax"/></xs:complexType>
+  <xs:element name="usg" type="t:labelledText"/><xs:element name="abbr" type="t:labelledText"/>
+  <xs:element name="xr"><xs:complexType mixed="true"><xs:choice minOccurs="0" maxOccurs="unbounded">
+    <xs:element ref="t:ref"/><xs:element ref="t:figure"/>
+  </xs:choice><xs:attribute name="type" type="xs:string" use="required"/><xs:anyAttribute namespace="##other" processContents="lax"/></xs:complexType></xs:element>
+  <xs:element name="ref"><xs:complexType mixed="true"><xs:sequence><xs:element ref="t:figure" minOccurs="0" maxOccurs="unbounded"/></xs:sequence>
+    <xs:attribute name="target" type="xs:string" use="required"/><xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType></xs:element>
+  <xs:element name="cit"><xs:complexType><xs:choice minOccurs="0" maxOccurs="unbounded">
+    <xs:element ref="t:quote"/><xs:element ref="t:cit"/><xs:element ref="t:usg"/><xs:element ref="t:xr"/><xs:element ref="t:figure"/>
+  </xs:choice><xs:attribute name="type" type="xs:string" use="required"/><xs:anyAttribute namespace="##other" processContents="lax"/></xs:complexType></xs:element>
+  <xs:element name="figure"><xs:complexType><xs:sequence>
+    <xs:element name="graphic"><xs:complexType><xs:attribute name="url" type="xs:string" use="required"/><xs:attribute name="mimeType" type="xs:string" use="required"/></xs:complexType></xs:element>
+    <xs:element name="idno" type="t:labelledText"/><xs:element name="figDesc" type="xs:string"/>
+    <xs:element name="note" type="t:labelledText" minOccurs="0" maxOccurs="unbounded"/>
+  </xs:sequence><xs:attribute name="type" type="xs:string"/><xs:attribute name="corresp" type="xs:string"/><xs:anyAttribute namespace="##other" processContents="lax"/></xs:complexType></xs:element>
+</xs:schema>

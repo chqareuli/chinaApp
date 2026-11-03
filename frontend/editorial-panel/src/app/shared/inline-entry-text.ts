@@ -8,6 +8,7 @@ type Reference = {
   textOffset?: number | null;
   displayText: string | null;
   targetEntryId: number | null;
+  targets?: { displayText: string; textOffset: number; targetEntryId: number | null }[];
 };
 type Marker = {
   textField?: string | null;
@@ -63,19 +64,25 @@ type Marker = {
         <a [routerLink]="[route(), part.target]">
           @if (part.highlighted) {
             <mark>{{ part.text }}</mark>
-          } @else {<ng-container>{{ part.text }}</ng-container>}
+          } @else {
+            <ng-container>{{ part.text }}</ng-container>
+          }
         </a>
       } @else if (part.italic) {
         <em>
           @if (part.highlighted) {
             <mark>{{ part.text }}</mark>
-          } @else {<ng-container>{{ part.text }}</ng-container>}
+          } @else {
+            <ng-container>{{ part.text }}</ng-container>
+          }
         </em>
       } @else {
         <span [class.definition-number]="part.numbered">
           @if (part.highlighted) {
             <mark>{{ part.text }}</mark>
-          } @else {<ng-container>{{ part.text }}</ng-container>}
+          } @else {
+            <ng-container>{{ part.text }}</ng-container>
+          }
         </span>
       }
     }
@@ -120,7 +127,17 @@ export class InlineEntryText {
   readonly parts = computed(() => {
     const body = this.body();
     const annotations = [
-      ...this.references().map((item) => ({ ...item, italic: false })),
+      ...this.references().flatMap((item) =>
+        item.targets?.length
+          ? item.targets.map((target) => ({
+              ...item,
+              displayText: target.displayText,
+              textOffset: (item.textOffset ?? 0) + target.textOffset,
+              targetEntryId: target.targetEntryId,
+              italic: false,
+            }))
+          : [{ ...item, italic: false }],
+      ),
       ...this.markers().map((item) => ({
         ...item,
         placement: 'Inline',

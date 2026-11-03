@@ -18,7 +18,17 @@ import {
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, finalize, of, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  distinctUntilChanged,
+  finalize,
+  map,
+  of,
+  Subject,
+  switchMap,
+  takeUntil,
+  tap,
+} from 'rxjs';
 import {
   CommentSummary,
   ReferenceMaterialDetail,
@@ -95,6 +105,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   @ViewChildren(RepeatableTextList) private writtenForms?: QueryList<RepeatableTextList>;
 
   private entryId = 0;
+  private readonly entryChanges = new Subject<void>();
   readonly isNew = signal(false);
   readonly framesVisible = signal(
     localStorage.getItem('cx-entry-editor-hierarchy-frames') !== 'off',
@@ -116,6 +127,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.saveError.set(null);
     this.statusConfirmation.set(null);
     this.editing.set(false);
+    this.reattachingMedia.set(null);
   }
   toggleFrames(): void {
     this.framesVisible.update((value) => !value);
@@ -135,7 +147,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       .trim();
   }
   normalizeHomograph(node: FormGroup): void {
-    if (node.get('pinyinId')?.value == null && node.get('pinyinOrder')?.value == null) {
+    if (node.get('labelMode')?.value !== 'pinyin') {
       node.get('text')?.setValue(this.normalizeHomographName(node.get('text')?.value));
       this.markContentChanged();
     }
@@ -148,7 +160,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
           : node.get('pinyinOrder')?.value != null
             ? this.pinyins.at(node.get('pinyinOrder')?.value)
             : null;
-      return this.normalizeHomographName(linked?.get('value')?.value ?? node.get('text')?.value);
+      return this.normalizeHomographName(
+        node.get('labelMode')?.value === 'labelWithPinyin'
+          ? node.get('text')?.value
+          : (linked?.get('value')?.value ?? node.get('text')?.value),
+      );
     });
     const value = values[index];
     if (!value) return { text: `H${index + 1}`, number: null };
@@ -173,15 +189,34 @@ export class EntryDetailPage implements OnInit, OnDestroy {
         : node.get('pinyinOrder')?.value;
     return index != null && index >= 0 ? String(index) : '';
   }
+  homographPronunciation(node: FormGroup): string {
+    const index = this.homographPronunciationIndex(node);
+    return index === '' ? '' : String(this.pinyins.at(Number(index))?.get('value')?.value ?? '');
+  }
   linkHomographPronunciation(node: FormGroup, value: string): void {
     const pinyin = value === '' ? null : this.pinyins.at(Number(value));
     node.patchValue({
       pinyinId: pinyin?.get('id')?.value ?? null,
       pinyinOrder: pinyin && pinyin.get('id')?.value == null ? Number(value) : null,
-      text: pinyin?.get('value')?.value ?? node.get('text')?.value ?? '',
+      labelMode: pinyin
+        ? node.get('labelMode')?.value === 'labelWithPinyin'
+          ? 'labelWithPinyin'
+          : 'pinyin'
+        : 'independent',
+      text:
+        node.get('labelMode')?.value === 'labelWithPinyin'
+          ? node.get('text')?.value
+          : (pinyin?.get('value')?.value ?? node.get('text')?.value ?? ''),
     });
     this.markContentChanged();
     this.editingHomograph.set(null);
+  }
+  setHomographLabelMode(node: FormGroup, mode: string): void {
+    node.get('labelMode')?.setValue(mode);
+    if (mode === 'independent') node.patchValue({ pinyinId: null, pinyinOrder: null });
+    if (mode === 'pinyin')
+      this.linkHomographPronunciation(node, this.homographPronunciationIndex(node));
+    this.markContentChanged();
   }
   readonly entry = signal<EntryDetail | null>(null);
   readonly loading = signal(true);
@@ -281,9 +316,30 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       }
       thread.comments.push(comment);
     }
-    return [...threads.values()];
+    return [...threads.values()].sort(
+      (a, b) =>
+        Date.parse(byId.get(b.id)!.createdAtUtc) - Date.parse(byId.get(a.id)!.createdAtUtc) ||
+        b.id - a.id,
+    );
   });
   readonly commentsLoading = signal(false);
+  inheritedNodeMarkers(node: FormGroup): EditorialMarker[] {
+    const ancestors: EditorialMarker[][] = [];
+    for (let parent = node.parent; parent; parent = parent.parent) {
+      if (parent instanceof FormGroup && parent.get('markers') instanceof FormArray)
+        ancestors.unshift((parent.get('markers') as FormArray).getRawValue());
+    }
+    const seen = new Set<string>();
+    return ancestors
+      .flat()
+      .filter((marker) => {
+        const key = `${marker.category}:${marker.value}`;
+        if (!['Style', 'Domain'].includes(marker.category) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => (a.category === 'Style' ? 0 : 1) - (b.category === 'Style' ? 0 : 1));
+  }
   readonly commentText = signal('');
   readonly commentTarget = signal<number | null>(null);
   readonly replyingTo = signal<CommentSummary | null>(null);
@@ -456,6 +512,47 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       });
   }
   readonly exampleMediaFields = signal(new Map<FormGroup, 'zh' | 'ka'>());
+  readonly reattachingMedia = signal<MediaAssetItem | null>(null);
+  startMediaReattachment(asset: MediaAssetItem): void {
+    if (!this.canEdit() || this.entryForm.dirty || this.referenceForm.dirty || this.saving()) {
+      this.mediaError.set('Save your changes before moving the image. · 移动图片前请先保存修改。');
+      return;
+    }
+    this.startEditing();
+    this.reattachingMedia.set(asset);
+    this.activeTab.set('content');
+  }
+  confirmMediaReattachment(): void {
+    const asset = this.reattachingMedia();
+    if (!asset || !this.mediaTarget() || this.mediaSaving()) return;
+    if (this.entryForm.dirty || this.referenceForm.dirty) {
+      this.mediaError.set(
+        'Save your text changes before moving the image. · 移动图片前请先保存文本修改。',
+      );
+      return;
+    }
+    this.mediaSaving.set(true);
+    this.mediaService
+      .reattach(asset.id, this.mediaPlacement())
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.mediaSaving.set(false)),
+      )
+      .subscribe({
+        next: (updated) => {
+          this.media.update((items) =>
+            items.map((item) => (item.id === updated.id ? updated : item)),
+          );
+          this.reattachingMedia.set(null);
+          this.mediaTarget.set(null);
+        },
+        error: (error) =>
+          this.mediaError.set(
+            this.problemMessage(error, 'Image could not be moved. · 无法移动图片。'),
+          ),
+      });
+  }
   rememberExampleMediaField(node: FormGroup, field: 'zh' | 'ka'): void {
     this.exampleMediaFields.update((fields) => new Map(fields).set(node, field));
   }
@@ -655,24 +752,56 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       this.loadVocabularies();
       return;
     }
-    this.searchHighlight.query.set(this.route.snapshot.queryParamMap.get('q') ?? '');
-    this.entryId = Number(this.route.snapshot.paramMap.get('id'));
-    if (!Number.isInteger(this.entryId) || this.entryId < 1) {
-      this.error.set('სტატიის ნომერი არასწორია.');
-      this.loading.set(false);
-      return;
-    }
-
-    this.loadEntry();
-    this.loadComments();
-    this.loadSupportMaterials();
-    this.loadReferenceMaterial();
-    this.loadHistory();
-    this.loadMedia();
     this.loadVocabularies();
+    this.route.paramMap
+      .pipe(
+        map((params) => Number(params.get('id'))),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((id) => {
+        this.entryChanges.next();
+        this.entryId = id;
+        this.entry.set(null);
+        this.comments.set([]);
+        this.supportMaterials.set([]);
+        this.media.set([]);
+        Object.values(this.mediaUrls()).forEach((url) => URL.revokeObjectURL(url));
+        this.mediaUrls.set({});
+        this.editing.set(false);
+        this.statusError.set(null);
+        this.statusConfirmation.set(null);
+        this.saveError.set(null);
+        this.saveSuccess.set(false);
+        this.reattachingMedia.set(null);
+        this.mediaTarget.set(null);
+        this.pendingMediaDeleteId.set(null);
+        this.pendingHomonymRemoval.set(null);
+        this.commentTarget.set(null);
+        this.replyingTo.set(null);
+        this.commentText.set('');
+        this.privateMessageRecipient.set(null);
+        this.history.set([]);
+        this.referenceForm.reset();
+        this.entryForm.markAsPristine();
+        this.searchHighlight.query.set(this.route.snapshot.queryParamMap.get('q') ?? '');
+        if (!Number.isInteger(id) || id < 1) {
+          this.error.set('Entry number is invalid. · 词目编号无效。');
+          this.loading.set(false);
+          return;
+        }
+        this.loadEntry();
+        this.loadComments();
+        this.loadSupportMaterials();
+        this.loadReferenceMaterial();
+        this.loadHistory();
+        this.loadMedia();
+      });
   }
 
   ngOnDestroy(): void {
+    this.entryChanges.next();
+    this.entryChanges.complete();
     this.searchHighlight.query.set('');
     const selectedPreview = this.selectedMediaPreview();
     if (selectedPreview) URL.revokeObjectURL(selectedPreview);
@@ -1002,6 +1131,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       : this.entriesService.saveContent(item.id, this.toSaveRequest(item.rowVersion));
     source
       .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
         tap((updated) => this.entry.set(updated)),
         switchMap((updated) => {
           if (!this.referenceForm.dirty) return of(updated);
@@ -1023,7 +1154,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
               switchMap(() => of(updated)),
               catchError((error) => {
                 this.referenceError.set(
-                  'სტატია შეინახა, მაგრამ G1–G5 ვერ შეინახა. ხელახლა დააჭირეთ Save-ს.',
+                  'სტატია შეინახა, მაგრამ R1–R5 ვერ შეინახა. ხელახლა დააჭირეთ Save-ს.',
                 );
                 throw error;
               }),
@@ -1037,6 +1168,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
           this.populateEntryForm(updated);
           this.editing.set(false);
           this.saveSuccess.set(true);
+          this.statusError.set(null);
           if (this.isNew()) {
             this.isNew.set(false);
             void this.router.navigate(['/adminpanel/entries', updated.id], { replaceUrl: true });
@@ -1070,7 +1202,9 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     const item = this.entry();
     if (!item || !item.id || this.changingStatus()) return;
     if (this.entryForm.dirty || this.referenceForm.dirty) {
-      this.statusError.set('სტატუსის შეცვლამდე შეინახეთ ცვლილებები — Save · 保存.');
+      this.statusError.set(
+        'Save your changes before changing the stage. · 更改阶段前，请先保存修改。',
+      );
       return;
     }
 
@@ -1094,7 +1228,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.statusError.set(null);
     this.entriesService
       .changeStatus(item.id, targetStatus)
-      .pipe(finalize(() => this.changingStatus.set(null)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.changingStatus.set(null)),
+      )
       .subscribe({
         next: (updated) => {
           this.entry.set(updated);
@@ -1124,7 +1262,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
         targetSegmentId: this.commentTarget(),
         replyToCommentId: this.replyingTo()?.id,
       })
-      .pipe(finalize(() => this.commentSaving.set(false)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.commentSaving.set(false)),
+      )
       .subscribe({
         next: (comment) => {
           this.comments.update((comments) => [...comments, comment]);
@@ -1174,7 +1316,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.commentError.set(null);
     this.collaboration
       .deleteComment(id)
-      .pipe(finalize(() => this.deletingCommentId.set(null)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.deletingCommentId.set(null)),
+      )
       .subscribe({
         next: () => {
           this.comments.update((comments) => comments.filter((item) => item.id !== id));
@@ -1203,7 +1349,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
         language: value.language,
         commentText: value.commentText.trim(),
       })
-      .pipe(finalize(() => this.supportMaterialSaving.set(false)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.supportMaterialSaving.set(false)),
+      )
       .subscribe({
         next: (item) => {
           this.supportMaterials.update((items) => [item, ...items]);
@@ -1226,7 +1376,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.supportMaterialError.set(null);
     this.collaboration
       .deleteSupportMaterial(this.entryId, id)
-      .pipe(finalize(() => this.deletingSupportMaterialId.set(null)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.deletingSupportMaterialId.set(null)),
+      )
       .subscribe({
         next: () => {
           this.supportMaterials.update((items) => items.filter((item) => item.id !== id));
@@ -1266,12 +1420,17 @@ export class EntryDetailPage implements OnInit, OnDestroy {
         g4: value.g4 ?? '',
         g5: value.g5 ?? '',
       })
-      .pipe(finalize(() => this.referenceSaving.set(false)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.referenceSaving.set(false)),
+      )
       .subscribe({
         next: (detail) => {
           this.populateReference(detail);
           this.referenceForm.markAsPristine();
           this.referenceSaved.set(true);
+          this.statusError.set(null);
           this.loadHistory();
         },
         error: (error: HttpErrorResponse) =>
@@ -1321,7 +1480,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.mediaError.set(null);
     this.mediaService
       .upload(this.entryId, file, this.mediaPlacement(), this.mediaDisplayName())
-      .pipe(finalize(() => this.mediaSaving.set(false)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.mediaSaving.set(false)),
+      )
       .subscribe({
         next: (item) => {
           this.media.update((items) => [item, ...items]);
@@ -1344,7 +1507,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.mediaError.set(null);
     this.mediaService
       .delete(id)
-      .pipe(finalize(() => this.deletingMediaId.set(null)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.deletingMediaId.set(null)),
+      )
       .subscribe({
         next: () => {
           const url = this.mediaUrls()[id];
@@ -1416,7 +1583,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.error.set(null);
     this.entriesService
       .getById(this.entryId)
-      .pipe(finalize(() => this.loading.set(false)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.loading.set(false)),
+      )
       .subscribe({
         next: (entry) => {
           this.entry.set(entry);
@@ -1440,7 +1611,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.commentsLoading.set(true);
     this.collaboration
       .getComments(this.entryId)
-      .pipe(finalize(() => this.commentsLoading.set(false)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.commentsLoading.set(false)),
+      )
       .subscribe({
         next: (comments) => this.comments.set(comments),
         error: () => this.commentError.set('კომენტარების ჩატვირთვა ვერ მოხერხდა.'),
@@ -1452,7 +1627,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.supportMaterialError.set(null);
     this.collaboration
       .getSupportMaterials(this.entryId)
-      .pipe(finalize(() => this.supportMaterialsLoading.set(false)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.supportMaterialsLoading.set(false)),
+      )
       .subscribe({
         next: (items) => this.supportMaterials.set(items),
         error: () => this.supportMaterialError.set('დამხმარე მასალის ჩატვირთვა ვერ მოხერხდა.'),
@@ -1464,6 +1643,8 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.collaboration
       .getReferenceMaterial(this.entryId)
       .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
         catchError((error: HttpErrorResponse) => {
           if (error.status === 404) return of(null);
           this.referenceError.set('საცნობარო მასალის ჩატვირთვა ვერ მოხერხდა.');
@@ -1481,7 +1662,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.historyError.set(null);
     this.entriesService
       .getHistory(this.entryId)
-      .pipe(finalize(() => this.historyLoading.set(false)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.historyLoading.set(false)),
+      )
       .subscribe({
         next: (items) => this.history.set(items),
         error: () => this.historyError.set('ცვლილებების ისტორიის ჩატვირთვა ვერ მოხერხდა.'),
@@ -1493,7 +1678,11 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     this.mediaError.set(null);
     this.mediaService
       .listForEntry(this.entryId)
-      .pipe(finalize(() => this.mediaLoading.set(false)))
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.mediaLoading.set(false)),
+      )
       .subscribe({
         next: (items) => {
           this.media.set(items);
@@ -1505,15 +1694,18 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
 
   private loadMediaUrl(item: MediaAssetItem): void {
-    this.mediaService.getContent(item.storageUrl).subscribe({
-      next: (blob) => {
-        const previous = this.mediaUrls()[item.id];
-        if (previous) URL.revokeObjectURL(previous);
-        const url = URL.createObjectURL(blob);
-        this.mediaUrls.update((urls) => ({ ...urls, [item.id]: url }));
-      },
-      error: () => this.mediaError.set(`სურათი „${item.originalFilename}“ ვერ ჩაიტვირთა.`),
-    });
+    this.mediaService
+      .getContent(item.storageUrl)
+      .pipe(takeUntil(this.entryChanges), takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (blob) => {
+          const previous = this.mediaUrls()[item.id];
+          if (previous) URL.revokeObjectURL(previous);
+          const url = URL.createObjectURL(blob);
+          this.mediaUrls.update((urls) => ({ ...urls, [item.id]: url }));
+        },
+        error: () => this.mediaError.set(`სურათი „${item.originalFilename}“ ვერ ჩაიტვირთა.`),
+      });
   }
 
   private populateEntryForm(entry: EntryDetail): void {
@@ -1569,6 +1761,10 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       id: [homonym?.id ?? null],
       pinyinId: [homonym?.pinyinId ?? null],
       pinyinOrder: [homonym?.pinyinOrder ?? null],
+      labelMode: [
+        homonym?.labelMode ??
+          (homonym?.pinyinId != null || homonym?.pinyinOrder != null ? 'pinyin' : 'independent'),
+      ],
       text: [homonym?.text ?? ''],
       directSenses: this.fb.array<FormGroup>(
         (homonym?.directSenses ?? []).map((s) => this.createSense(s.number, s)),
@@ -1684,6 +1880,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
           target: [item.target],
           targetEntryId: [item.targetEntryId ?? null],
           targetEntryLemma: [item.targetEntryLemma ?? null],
+          targets: [item.targets ?? []],
           displayText: [item.displayText ?? ''],
           placement: [item.placement],
           textOffset: [item.textOffset ?? null],
@@ -1757,6 +1954,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       homonyms: homonyms.map((homonym) => ({
         pinyinId: homonym.pinyinId ?? null,
         pinyinOrder: homonym.pinyinOrder ?? null,
+        labelMode: homonym.labelMode ?? null,
         id: homonym.id ?? null,
         text: homonym.text?.trim() ?? '',
         directSenses: (homonym.directSenses ?? []).map(mapSense),
@@ -1774,27 +1972,34 @@ export class EntryDetailPage implements OnInit, OnDestroy {
     if (this.normalizeStatus(targetStatus) !== 'Published') return [];
     const content = this.toSaveRequest(this.entry()?.rowVersion ?? 0);
     const errors: string[] = [];
-    if (!content.lemma) errors.push('გამოქვეყნებისთვის სათაური აუცილებელია.');
-    if (!content.pinyins.length) errors.push('გამოქვეყნებისთვის საჭიროა მინიმუმ ერთი ფინინი.');
+    if (!content.lemma) errors.push('Headword is required for publication. · 发布前须填写词目。');
+    if (!content.pinyins.length)
+      errors.push(
+        'At least one Pinyin pronunciation is required for publication. · 发布前须至少填写一项拼音。',
+      );
     if (
       content.homonyms.some(
         (homonym) => !homonym.gramGroups.length && !homonym.directSenses?.length,
       )
     ) {
-      errors.push('ყველა ჰომონიმს უნდა ჰქონდეს მინიმუმ ერთი გრამატიკული ჯგუფი.');
+      errors.push(
+        'Every homograph must have a grammatical group or a direct sense. · 每个同形词须有语法组或直接义项。',
+      );
     }
     const groups = [
       ...content.homonyms.flatMap((homonym) => homonym.gramGroups),
       ...content.gramGroups,
     ];
     if (groups.some((group) => !group.pos) || content.directPoses.some((pos) => !pos.pos)) {
-      errors.push('ყველა გრამატიკულ ჯგუფს უნდა ჰქონდეს არჩეული POS.');
+      errors.push(
+        'Every grammatical group must have a selected part of speech (POS) before publication. · 发布前须为每个语法组选择词性（POS）。',
+      );
     }
     if (
       groups.some((group) => !group.senses.length) ||
       content.directPoses.some((pos) => !pos.senses.length)
     ) {
-      errors.push('გამოქვეყნებისთვის საჭიროა მინიმუმ ერთი მნიშვნელობა.');
+      errors.push('At least one sense is required for publication. · 发布前须至少填写一个义项。');
     }
     const senses = [
       ...content.homonyms.flatMap((h) => h.directSenses ?? []),
@@ -1802,11 +2007,22 @@ export class EntryDetailPage implements OnInit, OnDestroy {
       ...content.directPoses.flatMap((pos) => pos.senses),
       ...content.senses,
     ];
-    if (!senses.length) errors.push('გამოქვეყნებისთვის საჭიროა მინიმუმ ერთი მნიშვნელობა.');
-    if (senses.some((sense) => !sense.definition?.trim() && !sense.crossReferences.some(
-      (reference) => (reference.targetEntryId ?? 0) > 0 || !!reference.target?.trim(),
-    ))) {
-      errors.push('ყველა მნიშვნელობას უნდა ჰქონდეს განმარტება ან მოქმედი ბმული.');
+    if (!senses.length)
+      errors.push('At least one sense is required for publication. · 发布前须至少填写一个义项。');
+    if (
+      senses.some(
+        (sense) =>
+          !sense.definition?.trim() &&
+          !sense.crossReferences.some((reference) =>
+            reference.targets?.length
+              ? reference.targets.every((t) => (t.targetEntryId ?? 0) > 0 || !!t.target?.trim())
+              : (reference.targetEntryId ?? 0) > 0 || !!reference.target?.trim(),
+          ),
+      )
+    ) {
+      errors.push(
+        'Every sense must have a definition or a valid cross-reference before publication. · 发布前，每个义项须有释义或有效的交叉引用。',
+      );
     }
     return errors;
   }

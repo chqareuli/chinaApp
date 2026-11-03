@@ -38,7 +38,7 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
         foreach (var (h, i) in (request.Homonyms ?? []).Select((x, i) => (x, i)))
         {
             var node = Node(h.Id, SegmentType.Homonym, null, i, h.Text);
-            node.Attributes = h.PinyinId.HasValue ? JsonSerializer.Serialize(new { pinyinId = h.PinyinId.Value }, Json) : null;
+            node.Attributes = JsonSerializer.Serialize(new { h.PinyinId, h.LabelMode }, Json);
             Decorations(node, h.Markers, h.CrossReferences);
             var groups = h.GramGroups ?? [new GramGroupDto { Senses = h.Senses ?? [] }];
             Groups(node, groups);
@@ -101,9 +101,11 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
             if (r.Type is not ("see" or "seeAlso" or "equivalent" or "antonym" or "illustration") ||
                 !Enum.TryParse<Placement>(r.Placement, out var placement) || !Enum.IsDefined(placement))
                 throw new EntryValidationException("Unknown cross-reference type or placement.");
+            var previous = r.Id is int key && byId.TryGetValue(key, out var old) && old.Attributes is not null ? ReadReference(old.Attributes) : null;
+            var normalized = CrossReferenceRules.AssignTargetIdentities(r, previous);
             var node = Node(r.Id, SegmentType.Xr, parent, i, r.Target);
             node.Placement = placement;
-            node.Attributes = JsonSerializer.Serialize(r with { Id = null }, Json);
+            node.Attributes = JsonSerializer.Serialize(normalized with { Id = null }, Json);
         }
     }
 
@@ -139,7 +141,9 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
         {
             var groups = Groups(h.Id);
             return new HomonymDto(groups.SelectMany(g => g.Senses).ToList())
-                { Id = h.Id, PinyinId = h.Attributes is not null ? JsonSerializer.Deserialize<HomonymDto>(h.Attributes, Json)?.PinyinId : null, Text = h.Value ?? "", GramGroups = groups, DirectSenses=Senses(h.Id), Markers = Markers(h.Id), CrossReferences = References(h.Id) };
+                { Id = h.Id, PinyinId = h.Attributes is not null ? JsonSerializer.Deserialize<HomonymDto>(h.Attributes, Json)?.PinyinId : null,
+                    LabelMode = h.Attributes is not null ? JsonSerializer.Deserialize<HomonymDto>(h.Attributes, Json)?.LabelMode : null,
+                    Text = h.Value ?? "", GramGroups = groups, DirectSenses=Senses(h.Id), Markers = Markers(h.Id), CrossReferences = References(h.Id) };
         }).ToList(), 0)
         {
             GramGroups = Groups(null), Senses = Senses(null),
@@ -163,11 +167,19 @@ public sealed class EntryTreeMapper(int entryId, IReadOnlyList<Segment> existing
     {
         return request with { Homonyms = request.Homonyms.Select(h =>
         {
-            if (h.PinyinId is null && h.PinyinOrder is null) return h with { Text = h.Text is null ? string.Empty : System.Text.RegularExpressions.Regex.Replace(h.Text.Normalize().Trim(), @"(?:\s+\d+)+$", "").Trim() };
+            var mode = h.LabelMode ?? (h.PinyinId is null && h.PinyinOrder is null ? "independent" : "pinyin");
+            if (mode is not ("independent" or "pinyin" or "labelWithPinyin")) throw new EntryValidationException("Unknown homograph label mode.");
+            if (h.PinyinId is null && h.PinyinOrder is null)
+            {
+                if (mode != "independent") throw new EntryValidationException("Select a pronunciation for this homograph.");
+                return h with { LabelMode = mode, Text = h.Text is null ? string.Empty : System.Text.RegularExpressions.Regex.Replace(h.Text.Normalize().Trim(), @"(?:\s+\d+)+$", "").Trim() };
+            }
+            if (mode == "independent") throw new EntryValidationException("Unlink the pronunciation before selecting independent label mode.");
             var pinyin = h.PinyinId is int id ? forms.Pinyins.FirstOrDefault(p => p.Id == id)
                 : forms.Pinyins.FirstOrDefault(p => p.Order == h.PinyinOrder);
             if (pinyin is null) throw new EntryValidationException("A homograph's linked pronunciation is missing. Select another pronunciation or unlink the homograph before removing it.");
-            return h with { PinyinId = pinyin.Id, PinyinOrder = null, Text = pinyin.Value };
+            if (mode == "labelWithPinyin" && string.IsNullOrWhiteSpace(h.Text)) throw new EntryValidationException("Enter the homograph label.");
+            return h with { LabelMode = mode, PinyinId = pinyin.Id, PinyinOrder = null, Text = mode == "pinyin" ? pinyin.Value : h.Text.Trim() };
         }).ToList() };
     }
 

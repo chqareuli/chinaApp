@@ -46,8 +46,21 @@
   font-weight: 600;
 }
 .marker-domain {
-  color: #63c6de;
+  color: #12647b;
   font-weight: 600;
+}
+.inherited-marker {
+  border-style: dashed;
+}
+.xr-target-list {
+  padding-inline-start: 24px;
+  margin: 0;
+}
+.xr-target-list li {
+  padding-block: 4px;
+}
+.xr-target-list button {
+  margin-inline-start: 8px;
 }
 .chip button {
   border: 0;

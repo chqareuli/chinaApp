@@ -27,6 +27,110 @@ describe('EditorialDecorations XR linking', () => {
   let component: EditorialDecorations;
   let entries: EntriesServiceStub;
   const fb = new FormBuilder();
+  it.each([2, 3, 4, 5])('saves %i targets under one label and preserves their order', (count) => {
+    component.textControl = new FormControl('');
+    component.textField = document.createElement('textarea');
+    component.ngOnChanges();
+    component.openXrAdd();
+    component.xrDraft.controls.type.setValue('seeAlso');
+    const words = ['巴儿狗', '叭儿狗', '狮子狗', '中国', '学习'].slice(0, count);
+    for (const [i, word] of words.entries()) {
+      component.selectTarget({ id: i + 1, lemma: word } as any);
+      component.addXrTarget();
+    }
+    component.saveXr();
+    const xr = component.crossReferences.at(0).getRawValue();
+    expect(component.crossReferences.length).toBe(1);
+    expect(xr.targets.map((t: { displayText: string }) => t.displayText)).toEqual(words);
+    expect(component.textControl.value).toBe('ასევე. ' + words.join(', '));
+    for (const target of xr.targets)
+      expect(
+        xr.displayText.slice(target.textOffset, target.textOffset + target.displayText.length),
+      ).toBe(target.displayText);
+  });
+  it('reorders, edits and removes targets without replacing the XR or surviving target identities', () => {
+    component.crossReferences.push(
+      fb.group({
+        id: [14],
+        type: ['seeAlso'],
+        label: ['ასევე.'],
+        target: ['中国'],
+        targetEntryId: [4],
+        targetEntryLemma: ['中国'],
+        displayText: ['ასევე. 中国, 学习'],
+        placement: ['Attached'],
+        targets: [
+          [
+            {
+              id: 'first',
+              target: '中国',
+              targetEntryId: 4,
+              targetEntryLemma: '中国',
+              displayText: '中国',
+              textOffset: 7,
+            },
+            {
+              id: 'second',
+              target: '学习',
+              targetEntryId: 9,
+              targetEntryLemma: '学习',
+              displayText: '学习',
+              textOffset: 11,
+            },
+          ],
+        ],
+      }),
+    );
+    component.openXrEdit(0);
+    component.moveXrTarget(1, -1);
+    component.editXrTarget(0);
+    component.selectTarget({ id: 10, lemma: '圣母' } as any);
+    component.addXrTarget();
+    component.removeXrTarget(1);
+    component.saveXr();
+    const xr = component.crossReferences.at(0).getRawValue();
+    expect(xr.id).toBe(14);
+    expect(xr.targets).toHaveLength(1);
+    expect(xr.targets[0]).toMatchObject({ id: 'second', target: '圣母', targetEntryId: 10 });
+  });
+  it('preserves the source group prefix, separators and suffix when saved unchanged', () => {
+    const text = '（ასევე 中国、学习）';
+    component.crossReferences.push(
+      fb.group({
+        id: [14],
+        type: ['seeAlso'],
+        label: ['ასევე'],
+        target: ['中国'],
+        targetEntryId: [4],
+        targetEntryLemma: ['中国'],
+        displayText: [text],
+        placement: ['Attached'],
+        targets: [
+          [
+            {
+              id: 'first',
+              target: '中国',
+              targetEntryId: 4,
+              targetEntryLemma: '中国',
+              displayText: '中国',
+              textOffset: text.indexOf('中国'),
+            },
+            {
+              id: 'second',
+              target: '学习',
+              targetEntryId: 9,
+              targetEntryLemma: '学习',
+              displayText: '学习',
+              textOffset: text.indexOf('学习'),
+            },
+          ],
+        ],
+      }),
+    );
+    component.openXrEdit(0);
+    component.saveXr();
+    expect(component.crossReferences.at(0).get('displayText')?.value).toBe(text);
+  });
   it('edits the inline target and text without duplicating its prefix or losing its identity', () => {
     component.textControl = new FormControl('იხ. 中国 tail');
     component.textField = document.createElement('textarea');

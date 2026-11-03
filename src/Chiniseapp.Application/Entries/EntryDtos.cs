@@ -20,7 +20,11 @@ public record CrossReferenceDto(int? Id, string Type, string Label, string Targe
 {
     public int? TextOffset { get; init; }
     public string? TextField { get; init; }
+    public List<CrossReferenceTargetDto> Targets { get; init; } = [];
 }
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public record CrossReferenceTargetDto(string? Id, string Target, int? TargetEntryId,
+    string? TargetEntryLemma, string DisplayText, int TextOffset);
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public record FormItemDto(int? Id, string Value, int Order);
 public record LexicalForms(List<FormItemDto> Pinyins, List<FormItemDto> ComplexForms);
@@ -64,6 +68,7 @@ public record DirectPosDto
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public record HomonymDto(List<SenseDto>? Senses)
 {
+    public string? LabelMode { get; init; }
     public int? PinyinId { get; init; }
     public int? PinyinOrder { get; init; }
     public List<SenseDto> DirectSenses { get; init; } = [];

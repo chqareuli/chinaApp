@@ -218,6 +218,17 @@
           <h2>Add media · 添加媒体</h2>
           @if (!target.node.get('id')?.value || isNew()) {
             <p>მედიის მისაბმელად ჯერ შეინახეთ სტატია და ეს ბლოკი, შემდეგ გახსენით მედიის ღილაკი.</p>
+          } @else if (reattachingMedia(); as asset) {
+            <p>{{ asset.displayName || asset.originalFilename }}</p>
+            <p>Move this image to the selected cursor position? · 将此图片移动到所选光标位置？</p>
+            <button
+              class="btn btn-primary"
+              type="button"
+              [disabled]="mediaSaving()"
+              (click)="confirmMediaReattachment()"
+            >
+              Move image · 移动图片
+            </button>
           } @else {
             <div class="media-picker-tabs">
               <button
@@ -361,6 +372,15 @@
     }
     @if (statusError()) {
       <div class="error-banner" role="alert">{{ statusError() }}</div>
+    }
+    @if (reattachingMedia(); as asset) {
+      <p class="warning-banner" role="status">
+        {{ asset.displayName || asset.originalFilename }}: Place the cursor in the destination text
+        and press its image button. · 在目标文本中定位光标，然后点击图片按钮。
+        <button class="btn" type="button" (click)="reattachingMedia.set(null)">
+          Cancel · 取消
+        </button>
+      </p>
     }
     @if (statusConfirmation(); as targetStatus) {
       <div class="status-confirm-backdrop">
@@ -592,6 +612,7 @@
                   [textControl]="sense.get('definition')"
                   fieldName="definition"
                   [markers]="formArrayAt(sense, 'markers')"
+                  [inheritedMarkers]="inheritedNodeMarkers(sense)"
                   [crossReferences]="formArrayAt(sense, 'crossReferences')"
                   [vocabularies]="vocabularies()"
                   [readonly]="!canEditFields()"
@@ -696,6 +717,7 @@
                         [textControl]="example.get('ka')"
                         fieldName="ka"
                         [markers]="formArrayAt(example, 'markers')"
+                        [inheritedMarkers]="inheritedNodeMarkers(example)"
                         [crossReferences]="formArrayAt(example, 'crossReferences')"
                         [vocabularies]="vocabularies()"
                         [readonly]="!canEditFields()"
@@ -721,12 +743,14 @@
                     <div class="example-side">
                       @if (
                         readerPreview() &&
-                        (formArrayAt(example, 'markers').length ||
+                        (inheritedNodeMarkers(example).length ||
+                          formArrayAt(example, 'markers').length ||
                           formArrayAt(example, 'crossReferences').length)
                       ) {
                         <app-editorial-decorations
                           class="preview-example-markers"
                           [markers]="formArrayAt(example, 'markers')"
+                          [inheritedMarkers]="inheritedNodeMarkers(example)"
                           [crossReferences]="formArrayAt(example, 'crossReferences')"
                           [vocabularies]="vocabularies()"
                           [readonly]="true"
@@ -851,6 +875,7 @@
                   <app-editorial-decorations
                     [scopeOnly]="true"
                     [markers]="formArrayAt(group, 'markers')"
+                    [inheritedMarkers]="inheritedNodeMarkers(group)"
                     [crossReferences]="formArrayAt(group, 'crossReferences')"
                     [vocabularies]="vocabularies()"
                     [readonly]="!canEditFields()"
@@ -948,6 +973,11 @@
                   >
                     @let label = homographParts(h);
                     <span class="homonym-caption">{{ label.text }}</span>
+                    @if (homonym.get('labelMode')?.value === 'labelWithPinyin') {
+                      <small class="homograph-pronunciation">
+                        · {{ homographPronunciation(homonym) }}</small
+                      >
+                    }
                     @if (label.number) {
                       <span class="homonym-number">{{ label.number }}</span>
                     }
@@ -956,21 +986,29 @@
                     canEditFields() && (editingHomograph() === h || !homonym.get('text')?.value)
                   ) {
                     <select
+                      #labelMode
+                      class="form-select"
+                      aria-label="Label mode · 标识方式"
+                      [value]="homonym.get('labelMode')?.value"
+                      (change)="setHomographLabelMode(homonym, labelMode.value)"
+                    >
+                      <option value="independent">Independent label · 独立标识</option>
+                      <option value="pinyin">Pronunciation as label · 读音标识</option>
+                      <option value="labelWithPinyin">Label with pronunciation · 标识及读音</option>
+                    </select>
+                    <select
                       #pronunciation
                       class="form-select"
                       aria-label="Homograph pronunciation · 同形词读音"
                       [value]="homographPronunciationIndex(homonym)"
                       (change)="linkHomographPronunciation(homonym, pronunciation.value)"
                     >
-                      <option value="">Independent label · 独立标识</option>
+                      <option value="">No pronunciation selected · 未选择读音</option>
                       @for (pinyin of pinyins.controls; track pinyin; let p = $index) {
                         <option [value]="p">{{ pinyin.get('value')?.value }}</option>
                       }
                     </select>
-                    @if (
-                      homonym.get('pinyinId')?.value == null &&
-                      homonym.get('pinyinOrder')?.value == null
-                    ) {
+                    @if (homonym.get('labelMode')?.value !== 'pinyin') {
                       <input
                         class="form-control hom-label grow"
                         formControlName="text"
@@ -987,6 +1025,7 @@
                     <app-editorial-decorations
                       [scopeOnly]="true"
                       [markers]="formArrayAt(homonym, 'markers')"
+                      [inheritedMarkers]="inheritedNodeMarkers(homonym)"
                       [crossReferences]="formArrayAt(homonym, 'crossReferences')"
                       [vocabularies]="vocabularies()"
                       [readonly]="!canEditFields()"
@@ -1183,6 +1222,7 @@
                   }
                   <app-editorial-decorations
                     [markers]="formArrayAt(posGroup, 'markers')"
+                    [inheritedMarkers]="inheritedNodeMarkers(posGroup)"
                     [crossReferences]="formArrayAt(posGroup, 'crossReferences')"
                     [vocabularies]="vocabularies()"
                     [readonly]="!canEditFields()"
@@ -1291,7 +1331,7 @@
         >
           @if (isNew()) {
             <p class="text-small">
-              G1–G5 შეინახება სტატიის Save ღილაკით. კომენტარებისა და დამხმარე მასალებისთვის ჯერ
+              R1–R5 შეინახება სტატიის Save ღილაკით. კომენტარებისა და დამხმარე მასალებისთვის ჯერ
               შეინახეთ სტატია.
             </p>
           }
@@ -1326,7 +1366,7 @@
             </div>
 
             @if (referenceSaved() && !referenceForm.dirty) {
-              <p role="status">G1–G5 შენახულია · 已保存</p>
+              <p role="status">R1–R5 შენახულია · 已保存</p>
             }
             @if (notesTab() === 'reference') {
               <div
@@ -1379,7 +1419,7 @@
                       [attr.aria-pressed]="referenceGroup() === filter"
                       (click)="selectReferenceGroup(filter)"
                     >
-                      {{ filter === 'all' ? 'All · 全部' : filter.toUpperCase() }}
+                      {{ filter === 'all' ? 'All · 全部' : 'R' + filter.slice(1) }}
                     </button>
                   }
                 </div>
@@ -1400,7 +1440,7 @@
                       >
                         <div class="reference-card-header">
                           <label [for]="'inline-reference-' + group"
-                            ><b class="reference-group-label">G{{ i + 1 }}</b>
+                            ><b class="reference-group-label">R{{ i + 1 }}</b>
                             {{ referenceGroup.title }}</label
                           >
                           @if (referenceGroup.source) {
@@ -1411,7 +1451,7 @@
                           <button
                             class="btn"
                             type="button"
-                            [attr.aria-label]="'Toggle ' + group.toUpperCase()"
+                            [attr.aria-label]="'Toggle R' + group.slice(1)"
                             [attr.aria-expanded]="!collapsedReferenceGroups().includes(group)"
                             (click)="toggleReferenceGroup(group)"
                           >
@@ -1789,7 +1829,7 @@
       <section class="panel-card reference-panel">
         <div class="section-head">
           <div>
-            <p class="page-kicker">G1–G5</p>
+            <p class="page-kicker">R1–R5</p>
             <h2>Reference material · 参考资料</h2>
           </div>
           <span class="permission" [class.readonly]="!canEditFields()">{{
@@ -1806,7 +1846,7 @@
           >
             @for (key of ['g1', 'g2', 'g3', 'g4', 'g5']; track key; let i = $index) {
               <div class="field">
-                <label [for]="key">G{{ i + 1 }}</label
+                <label [for]="key">R{{ i + 1 }}</label
                 ><textarea
                   [id]="key"
                   [formControlName]="key"
@@ -1925,6 +1965,16 @@
                   >
                   <small>{{ item.placement || 'განთავსება არ არის მითითებული' }}</small>
                 </div>
+                @if (canEdit()) {
+                  <button
+                    class="btn"
+                    type="button"
+                    (click)="startMediaReattachment(item)"
+                    [disabled]="mediaSaving()"
+                  >
+                    Move / reattach · 移动或重新关联
+                  </button>
+                }
                 @if (canEditFields()) {
                   <div class="media-actions">
                     @if (pendingMediaDeleteId() === item.id) {

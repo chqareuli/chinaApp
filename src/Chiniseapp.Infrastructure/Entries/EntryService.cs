@@ -123,7 +123,7 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         var reference = await db.ReferenceMaterials.AsNoTracking().Where(r => r.EntryId == id)
             .Select(r => new { r.G1, r.G2, r.G3, r.G4, r.G5, r.OriginalRawReferenceMaterial }).FirstOrDefaultAsync(ct);
         var media = await db.MediaAssets.AsNoTracking().Where(m => m.EntryId == id)
-            .Select(m => new { m.Id, m.Placement, m.OriginalFilename, m.StorageUrl }).ToListAsync(ct);
+            .Select(m => new { m.Id, m.InsertedIntoSegmentId, m.Placement, m.OriginalFilename, m.StorageUrl }).ToListAsync(ct);
         string Snapshot(IReadOnlyList<Segment> segments) => JsonSerializer.Serialize(new
         {
             schemaVersion = 1, entry.Id, entry.Lemma, entry.Status,
@@ -161,6 +161,11 @@ public class EntryService(ChiniseDbContext db, IScoringService scoringService, I
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         try
         {
+            // Media insertion uses the same entry lock, so a concurrent upload cannot
+            // target a segment between this check and the eventual DELETE.
+            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM entries WHERE id = {id} FOR UPDATE", ct);
+            var linkedMedia = await db.MediaAssets.AsNoTracking().Where(m => m.EntryId == id).ToListAsync(ct);
+            EntryMediaRules.EnsureSegmentsCanBeRemoved(id, mapper.Removed.Select(s => s.Id).ToHashSet(), linkedMedia);
             var audit = new AuditLogEntry
             {
                 EntityType = nameof(Entry),

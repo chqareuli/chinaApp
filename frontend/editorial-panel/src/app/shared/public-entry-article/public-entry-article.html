@@ -23,9 +23,9 @@
           <div class="ie-list" aria-label="ინლაინ ნიშნები">
             @for (marker of items; track $index) {
               @if (!marker.textField) {
-              <span class="ie-marker" [attr.data-category]="marker.category.toLowerCase()">
-                {{ marker.label || marker.value }}
-              </span>
+                <span class="ie-marker" [attr.data-category]="marker.category.toLowerCase()">
+                  {{ marker.label || marker.value }}
+                </span>
               }
             }
           </div>
@@ -37,19 +37,7 @@
           <div class="xr-list">
             @for (xr of items; track $index) {
               @if (!xr.textField) {
-              @if (xr.targetEntryId) {
-                <a [routerLink]="['/word', xr.targetEntryId]">
-                  <span>{{ xr.label }}</span>
-                  <strong lang="zh">{{
-                    xr.displayText || xr.targetEntryLemma || xr.target
-                  }}</strong>
-                </a>
-              } @else {
-                <span class="xr-unresolved"
-                  ><span>{{ xr.label }}</span
-                  ><strong lang="zh">{{ xr.displayText || xr.target }}</strong></span
-                >
-              }
+                <app-cross-reference-text [reference]="xr" />
               }
             }
           </div>
@@ -64,7 +52,14 @@
               [ngTemplateOutlet]="markerView"
               [ngTemplateOutletContext]="{ items: sense.markers }"
             />
-            <p class="definition"><app-inline-entry-text [body]="sense.definition" [references]="sense.crossReferences" [markers]="sense.markers" [images]="sense.inlineImages || []" /></p>
+            <p class="definition">
+              <app-inline-entry-text
+                [body]="sense.definition"
+                [references]="sense.crossReferences"
+                [markers]="sense.markers"
+                [images]="sense.inlineImages || []"
+              />
+            </p>
             <ng-container
               [ngTemplateOutlet]="xrView"
               [ngTemplateOutletContext]="{ items: sense.crossReferences }"
@@ -79,7 +74,14 @@
                         [ngTemplateOutlet]="markerView"
                         [ngTemplateOutletContext]="{ items: example.markers }"
                       />
-                      <small><app-inline-entry-text [body]="example.ka" [references]="example.crossReferences" [markers]="example.markers" [images]="example.inlineImages || []" field="ka" /></small>
+                      <small
+                        ><app-inline-entry-text
+                          [body]="example.ka"
+                          [references]="example.crossReferences"
+                          [markers]="example.markers"
+                          [images]="example.inlineImages || []"
+                          field="ka"
+                      /></small>
                     </div>
                     <ng-container
                       [ngTemplateOutlet]="xrView"
@@ -110,10 +112,7 @@
             [ngTemplateOutletContext]="{ items: group.crossReferences }"
           />
           @for (sense of group.senses; track sense.number) {
-            <ng-container
-              [ngTemplateOutlet]="senseView"
-              [ngTemplateOutletContext]="{ sense }"
-            />
+            <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{ sense }" />
           }
         </div>
       </ng-template>
@@ -134,20 +133,16 @@
             [ngTemplateOutlet]="xrView"
             [ngTemplateOutletContext]="{ items: homonym.crossReferences }"
           />
-          @for(sense of homonym.directSenses ?? [];track sense.number){<ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{sense}"/>}
+          @for (sense of homonym.directSenses ?? []; track sense.number) {
+            <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{ sense }" />
+          }
           @for (group of homonym.gramGroups; track group.number) {
-            <ng-container
-              [ngTemplateOutlet]="groupView"
-              [ngTemplateOutletContext]="{ group }"
-            />
+            <ng-container [ngTemplateOutlet]="groupView" [ngTemplateOutletContext]="{ group }" />
           }
         </section>
       }
       @for (group of article.gramGroups; track group.number) {
-        <ng-container
-          [ngTemplateOutlet]="groupView"
-          [ngTemplateOutletContext]="{ group }"
-        />
+        <ng-container [ngTemplateOutlet]="groupView" [ngTemplateOutletContext]="{ group }" />
       }
       @for (directPos of article.directPoses; track $index) {
         <div class="grammar-group">
@@ -163,18 +158,12 @@
             [ngTemplateOutletContext]="{ items: directPos.crossReferences }"
           />
           @for (sense of directPos.senses; track sense.number) {
-            <ng-container
-              [ngTemplateOutlet]="senseView"
-              [ngTemplateOutletContext]="{ sense }"
-            />
+            <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{ sense }" />
           }
         </div>
       }
       @for (sense of article.senses; track sense.number) {
-        <ng-container
-          [ngTemplateOutlet]="senseView"
-          [ngTemplateOutletContext]="{ sense }"
-        />
+        <ng-container [ngTemplateOutlet]="senseView" [ngTemplateOutletContext]="{ sense }" />
       }
       @if (
         !article.homonyms.length &&

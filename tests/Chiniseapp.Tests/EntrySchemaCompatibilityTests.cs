@@ -8,6 +8,32 @@ namespace Chiniseapp.Tests;
 
 public class EntrySchemaCompatibilityTests
 {
+    [Fact]
+    public void CustomHomographLabelsAndPronunciationLinksStayIndependent()
+    {
+        var forms = new LexicalForms([new(1, "jiè", 0), new(2, "gè", 1)], []);
+        var request = new SaveEntryContentRequest(null, null,
+            Enumerable.Range(0, 5).Select(_ => new HomonymDto([]) { LabelMode = "labelWithPinyin", Text = "介", PinyinId = 1,
+                GramGroups = [], DirectSenses = [new(1, "definition", [])] }).ToList(), 0);
+        var linked = EntryTreeMapper.LinkPronunciations(request, forms);
+        Assert.All(linked.Homonyms, h => Assert.Equal("介", h.Text));
+        var mapper = new EntryTreeMapper(1, [], DateTime.UtcNow);
+        mapper.Apply(linked);
+        var reloaded = EntryTreeMapper.Read(Persist(mapper));
+        Assert.All(reloaded.Homonyms, h => { Assert.Equal("labelWithPinyin", h.LabelMode); Assert.Equal(1, h.PinyinId); });
+        var changed = EntryTreeMapper.LinkPronunciations(reloaded with { Homonyms = [reloaded.Homonyms[0] with { PinyinId = 2 }] }, forms);
+        Assert.Equal("介", changed.Homonyms[0].Text);
+        Assert.Equal(2, changed.Homonyms[0].PinyinId);
+        var entry = new EntryDetail(1, "介", "jiè", "Ready", null, "Editor", DateTime.UtcNow, DateTime.UtcNow, 1, reloaded.Homonyms, new(true, [])) { Pinyins = forms.Pinyins };
+        var xml = System.Xml.Linq.XDocument.Parse(EntryExportSerializer.Xml([entry]));
+        ExportTestSamples.Write("custom-labels", entry);
+        System.Xml.Linq.XNamespace tei = "http://www.tei-c.org/ns/1.0";
+        Assert.Equal(5, xml.Descendants(tei + "label").Count());
+        Assert.All(xml.Descendants(tei + "hom"), h => {
+            Assert.Equal("介", h.Element(tei + "label")!.Value);
+            Assert.Equal("jiè", h.Descendants(tei + "pron").Single().Value);
+        });
+    }
     [Theory]
     [InlineData("XINGHUA 1 2", "XINGHUA")]
     [InlineData("点 2", "点")]

@@ -1,4 +1,20 @@
-<div class="decorations" [class.has-content]="markers.length || crossReferences.length">
+<div
+  class="decorations"
+  [class.has-content]="markers.length || crossReferences.length || inheritedMarkers.length"
+>
+  @if (visibleInheritedMarkers().length) {
+    <div class="chips inherited-markers" aria-label="Inherited markers · 继承标记">
+      @for (marker of visibleInheritedMarkers(); track marker.category + ':' + marker.value) {
+        <span
+          class="chip inherited-marker"
+          [class.marker-style]="marker.category === 'Style'"
+          [class.marker-domain]="marker.category === 'Domain'"
+          title="Inherited from a parent block · 继承自上级内容块"
+          >↳ {{ inheritedMarkerText(marker) }}</span
+        >
+      }
+    </div>
+  }
   @if (markers.length || crossReferences.length) {
     <div class="chips">
       @for (i of orderedMarkerIndices(); track i) {
@@ -30,13 +46,10 @@
         @if (!readonly || !xr.get('textField')?.value) {
           <span class="chip xr">
             @if (readonly) {
-              @if (xr.get('targetEntryId')?.value) {
-                <a [routerLink]="['/adminpanel/entries', xr.get('targetEntryId')?.value]">{{
-                  xrText(i)
-                }}</a>
-              } @else {
-                {{ xrText(i) }}
-              }
+              <app-cross-reference-text
+                [reference]="xr.getRawValue()"
+                route="/adminpanel/entries"
+              />
             } @else {
               <button
                 type="button"
@@ -148,6 +161,44 @@
           }
         </select>
       </label>
+      @if (xrTargets().length) {
+        <ol class="xr-target-list" aria-label="Link targets · 链接目标">
+          @for (target of xrTargets(); track target.id ?? $index; let i = $index) {
+            <li>
+              <span lang="zh">{{ target.displayText }}</span>
+              @if (!target.targetEntryId) {
+                <small>Unresolved target · 未解析目标</small>
+              }
+              <button type="button" (click)="editXrTarget(i)" aria-label="Edit target · 编辑目标">
+                ✎
+              </button>
+              <button
+                type="button"
+                (click)="moveXrTarget(i, -1)"
+                [disabled]="i === 0"
+                aria-label="Move target up · 上移目标"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                (click)="moveXrTarget(i, 1)"
+                [disabled]="i === xrTargets().length - 1"
+                aria-label="Move target down · 下移目标"
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                (click)="removeXrTarget(i)"
+                aria-label="Remove target · 移除目标"
+              >
+                ×
+              </button>
+            </li>
+          }
+        </ol>
+      }
       <label class="target-field"
         >Chinese word · 中文词语
         <input
@@ -182,12 +233,26 @@
           >
         }
       </label>
+      <button
+        type="button"
+        (click)="addXrTarget()"
+        [disabled]="!xrDraft.controls.targetEntryId.value"
+      >
+        Add target · 添加目标
+      </button>
       @if (xrError()) {
         <p role="alert">{{ xrError() }}</p>
       }
       <div class="mini-actions">
-        <button class="primary" type="button" (click)="saveXr()" [disabled]="xrDraft.invalid">
-          ლინკის Add · 添加</button
+        <button
+          class="primary"
+          type="button"
+          (click)="saveXr()"
+          [disabled]="
+            xrDraft.invalid || (!xrTargets().length && !xrDraft.controls.targetEntryId.value)
+          "
+        >
+          Save link · 保存链接</button
         ><button type="button" (click)="xrEditorOpen.set(false)">Cancel · 取消</button>
       </div>
     </div>

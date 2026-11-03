@@ -10,15 +10,19 @@ public class EntryExportTests
 {
     private static readonly XNamespace Tei = "http://www.tei-c.org/ns/1.0";
     private static EntryDetail Entry() => new(1, "测试", null, "Ready", null, "Private editor", DateTime.UtcNow, DateTime.UtcNow, 1, [], new(true, []));
-    private static JsonElement Json(EntryDetail entry, params MediaAsset[] media) =>
-        JsonSerializer.SerializeToElement(EntryExportSerializer.DictionaryContent(entry, media), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    private static JsonElement Json(EntryDetail entry, params MediaAsset[] media)
+    {
+        var result = JsonSerializer.SerializeToElement(EntryExportSerializer.DictionaryContent(entry, media), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        ExportTestSamples.Write($"entry-{entry.Id}-{Guid.NewGuid():N}", entry, media);
+        return result;
+    }
 
     [Fact]
     public void JsonHasOneCanonicalSensePathAndExplicitHomographModes()
     {
         var sense = new SenseDto(1, "განმარტება", []) { Id = 30 };
         var entry = Entry() with { Pinyins = [new(2, "cè", 0)], Homonyms = [
-            new([sense]) { Id = 10, Text = "cè", PinyinId = 2, GramGroups = [new() { Id = 20, Pos = "n", Senses = [sense] }] },
+            new([sense]) { Id = 10, Text = "cè", PinyinId = 2, GramGroups = [new() { Id = 20, Number = 1, Pos = "n", Senses = [sense] }] },
             new([]) { Id = 11, Text = "დამოუკიდებელი სათაური" }
         ] };
         var json = Json(entry);
@@ -161,11 +165,57 @@ public class EntryExportTests
     public void SixPronunciationsAndMarkerOrderSurviveExport()
     {
         var entry = Entry() with { Pinyins = Enumerable.Range(1, 6).Select(i => new FormItemDto(i, $"pinyin{i}", i - 1)).ToList(),
-            GramGroups = [new() { Id = 20, Pos = "名", Markers = [new(21, "Style", "粗"), new(22, "Style", "成"), new(23, "Domain", "动"), new(24, "Domain", "船")] }] };
+            GramGroups = [new() { Id = 20, Number = 1, Pos = "名", Markers = [new(21, "Style", "粗"), new(22, "Style", "成"), new(23, "Domain", "动"), new(24, "Domain", "船")] }] };
         Assert.Equal(6, Json(entry).GetProperty("pinyins").GetArrayLength());
         var xml = XDocument.Parse(EntryExportSerializer.Xml([entry]));
         Assert.Equal(6, xml.Descendants(Tei + "pron").Count());
         Assert.Equal(new[] { "粗", "成", "动", "船" }, xml.Descendants(Tei + "usg").Select(m => m.Value));
+    }
+
+    [Theory]
+    [InlineData(0, 0, false)]
+    [InlineData(2, 1, false)]
+    [InlineData(4, 2, false)]
+    [InlineData(0, 0, true)]
+    [InlineData(2, 1, true)]
+    [InlineData(4, 2, true)]
+    public void MediaOnReferenceBoundariesIsAFieldChildNotPartOfEitherLink(int offset, int precedingLinks, bool referenceOnly)
+    {
+        var entry = Entry() with { Senses = [new(1, "中国圣母" + (referenceOnly ? "" : " განმარტება"), []) { Id = 917, DefinitionId = 918,
+            CrossReferences = [
+                new(919, "seeAlso", "", "中国", 9, null, "中国", "Inline") { TextField = "definition", TextOffset = 0 },
+                new(920, "seeAlso", "", "圣母", 22, null, "圣母", "Inline") { TextField = "definition", TextOffset = 2 }
+            ] }] };
+        var media = new MediaAsset { Id = 21, EntryId = 1, InsertedIntoSegmentId = 917, SafeStorageName = "shared-file",
+            StorageUrl = "/media/21/content", MimeType = "image/jpeg",
+            Placement = "inline:" + JsonSerializer.Serialize(new { kind = "sense", nodeId = 917, field = "definition", offset }) };
+        var document = XDocument.Parse(EntryExportSerializer.Xml([entry], [media]));
+        var figure = document.Descendants(Tei + "figure").Single();
+        Assert.Equal(Tei + (referenceOnly ? "seg" : "def"), figure.Parent!.Name);
+        Assert.Equal(precedingLinks, figure.ElementsBeforeSelf(Tei + "xr").Count());
+        Assert.Empty(document.Descendants(Tei + "ref").SelectMany(r => r.Descendants(Tei + "figure")));
+        Assert.Equal("#segment-917", figure.Attribute("corresp")!.Value);
+        Assert.Equal(offset, Json(entry, media).GetProperty("media")[0].GetProperty("position").GetProperty("offset").GetInt32());
+    }
+
+    [Fact]
+    public void ReportedEndOfDefinitionMediaStaysAfterTheLastCrossReference()
+    {
+        const string prefix = "მეთორმეტე ტესტის მეოთხე ბლოკის სახელური მნიშვნელობა სურათით და ორი ბმულის სამიზნით.";
+        const string first = "ასევე. 圣诞节", last = "ასევე. 圣母";
+        var text = prefix + first + last;
+        Assert.Equal(102, text.Length);
+        var entry = Entry() with { Id = 6, Senses = [new(1, text, []) { Id = 917, DefinitionId = 918,
+            CrossReferences = [
+                new(919, "seeAlso", "ასევე.", "圣诞节", 9, null, first, "Inline") { TextField = "definition", TextOffset = prefix.Length },
+                new(920, "seeAlso", "ასევე.", "圣母", 22, null, last, "Inline") { TextField = "definition", TextOffset = prefix.Length + first.Length }
+            ] }] };
+        var media = new MediaAsset { Id = 21, EntryId = 6, InsertedIntoSegmentId = 917, StorageUrl = "/media/21/content", MimeType = "image/jpeg",
+            Placement = "inline:" + JsonSerializer.Serialize(new { kind = "sense", nodeId = 917, field = "definition", offset = 102 }) };
+        var document = XDocument.Parse(EntryExportSerializer.Xml([entry], [media]));
+        var figure = document.Descendants(Tei + "figure").Single();
+        Assert.Equal(Tei + "def", figure.Parent!.Name);
+        Assert.Equal("segment-920", ((XElement)figure.PreviousNode!).Attribute(XNamespace.Xml + "id")!.Value);
     }
     [Fact]
     public void XmlEscapesTextAndPreservesChineseGeorgianAndReferences()
@@ -186,5 +236,12 @@ public class EntryExportTests
         var json = JsonSerializer.Serialize(EntryExportSerializer.DictionaryContent(entry));
         Assert.DoesNotContain("Private editor",json);
         Assert.DoesNotContain("Capabilities",json);
+    }
+    [Fact]
+    public void XmlProjectProfileRejectsNonPositiveSenseNumbers()
+    {
+        var entry = Entry() with { Senses = [new(0, "definition", [])] };
+        var error = Assert.Throws<EntryValidationException>(() => EntryExportSerializer.Xml([entry]));
+        Assert.Contains("profile 3", error.Message);
     }
 }

@@ -26,5 +26,8 @@
     <ProjectReference Include="..\Chiniseapp.Domain\Chiniseapp.Domain.csproj" />
     <ProjectReference Include="..\Chiniseapp.Application\Chiniseapp.Application.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\docs\schemas\chinese-ge-export-v3.xsd" LogicalName="Chiniseapp.ExportV3.xsd" />
+  </ItemGroup>
 
 </Project>

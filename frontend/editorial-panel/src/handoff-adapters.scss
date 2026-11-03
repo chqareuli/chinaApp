@@ -1404,6 +1404,10 @@
 }
 
 /* EP49–51: tool rows, readable markers, compact reader preview, and threaded comments. */
+/* Keep editing actions out of the reading view while preserving lexical marks. */
+#cx-entry-v2.is-readonly .mode { display: none; }
+#cx-entry-v2.is-readonly .grammar-row .pos-select { display: none; }
+#cx-entry-v2.is-readonly .grammar-row .pos-symbol { display: inline; color: #158244; font-weight: 700; }
 #cx-entry-v2.is-readonly .mode,
 #cx-entry-v2.is-readonly .initial-scope {
   display: none !important;

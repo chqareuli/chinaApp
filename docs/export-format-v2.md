@@ -28,6 +28,10 @@ The controller makes local media URLs absolute. These remain authenticated appli
 
 If an inline media target was deleted or recreated, the download still includes the asset at entry level. JSON preserves `parentSegmentId` and the original `placement`, sets resolved `position` to null, and adds a `missingMediaTarget` item to `exportWarnings` with entry, media and target IDs. XML retains the figure at entry level with `type="unresolvedPlacement"`, original placement and an `exportWarning` note; it does not emit a dangling `corresp`. Export does not guess a new parent or rewrite the database. The editor must reattach the image to restore its inline position.
 
+Media at the beginning or end of an inline annotation is emitted outside that annotation, under the owning text field. At the shared boundary between two links it appears between them. Media strictly inside an annotation retains that position.
+
+Content saves reject removal or replacement of a media-linked segment until its media link is reattached or removed. The error identifies the entry, media link and target segment. Both the relational parent and current/legacy placement metadata are checked. Reordering or editing a surviving segment is permitted. Content saves and image upload/reuse serialize on the entry row while checking target existence, preventing a concurrent insertion from leaving a link to a newly deleted segment. This does not modify or repair historical missing-target records or delete their underlying image files.
+
 ## Publication and verification
 
 The Pinyin limit is six on both client and server. Publishing, and saving an already published entry, requires 1–6 distinct nonempty Pinyin values. Empty definitions are permitted when a sense has a reference with a positive target entry ID or nonempty textual target. Target existence/resolution across the full dictionary is not certified by this check. Example-only and empty senses remain incomplete. Ready-stage rules are unchanged pending editorial agreement.
