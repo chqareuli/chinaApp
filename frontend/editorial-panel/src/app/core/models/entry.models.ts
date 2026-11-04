@@ -164,6 +164,8 @@ export interface EntryHistoryItem {
 }
 
 export interface MediaAssetItem {
+  hasMissingTarget?: boolean;
+  isDetached?: boolean;
   linkedEntries?: { id: number; lemma: string; status: string }[];
   canManage?: boolean;
   displayName?: string;

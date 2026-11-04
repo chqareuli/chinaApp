@@ -26,7 +26,7 @@ public class EntrySchemaCompatibilityTests
         Assert.Equal(2, changed.Homonyms[0].PinyinId);
         var entry = new EntryDetail(1, "介", "jiè", "Ready", null, "Editor", DateTime.UtcNow, DateTime.UtcNow, 1, reloaded.Homonyms, new(true, [])) { Pinyins = forms.Pinyins };
         var xml = System.Xml.Linq.XDocument.Parse(EntryExportSerializer.Xml([entry]));
-        ExportTestSamples.Write("custom-labels", entry);
+        ExportTestSamples.Write("custom-labels", entry with { Id = 33, Pinyins = [forms.Pinyins[0]] });
         System.Xml.Linq.XNamespace tei = "http://www.tei-c.org/ns/1.0";
         Assert.Equal(5, xml.Descendants(tei + "label").Count());
         Assert.All(xml.Descendants(tei + "hom"), h => {

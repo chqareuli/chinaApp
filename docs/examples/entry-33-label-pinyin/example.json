@@ -1,0 +1,135 @@
+[
+  {
+    "schemaVersion": 3,
+    "textOffsetUnit": "utf16CodeUnit",
+    "textOffsetOrigin": 0,
+    "textNormalization": "none",
+    "id": 33,
+    "lemma": "\u4ECB",
+    "pinyins": [
+      {
+        "id": 1,
+        "value": "ji\u00E8",
+        "order": 0
+      }
+    ],
+    "complexForms": [],
+    "homonyms": [
+      {
+        "id": 1,
+        "text": "\u4ECB",
+        "labelMode": "labelWithPinyin",
+        "pinyinId": 1,
+        "markers": [],
+        "crossReferences": [],
+        "gramGroups": [],
+        "directSenses": [
+          {
+            "id": 2,
+            "definitionId": 3,
+            "number": 1,
+            "definition": "definition",
+            "displayText": "definition",
+            "definitionKind": "definition",
+            "markers": [],
+            "crossReferences": [],
+            "examples": []
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "text": "\u4ECB",
+        "labelMode": "labelWithPinyin",
+        "pinyinId": 1,
+        "markers": [],
+        "crossReferences": [],
+        "gramGroups": [],
+        "directSenses": [
+          {
+            "id": 5,
+            "definitionId": 6,
+            "number": 1,
+            "definition": "definition",
+            "displayText": "definition",
+            "definitionKind": "definition",
+            "markers": [],
+            "crossReferences": [],
+            "examples": []
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "text": "\u4ECB",
+        "labelMode": "labelWithPinyin",
+        "pinyinId": 1,
+        "markers": [],
+        "crossReferences": [],
+        "gramGroups": [],
+        "directSenses": [
+          {
+            "id": 8,
+            "definitionId": 9,
+            "number": 1,
+            "definition": "definition",
+            "displayText": "definition",
+            "definitionKind": "definition",
+            "markers": [],
+            "crossReferences": [],
+            "examples": []
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "text": "\u4ECB",
+        "labelMode": "labelWithPinyin",
+        "pinyinId": 1,
+        "markers": [],
+        "crossReferences": [],
+        "gramGroups": [],
+        "directSenses": [
+          {
+            "id": 11,
+            "definitionId": 12,
+            "number": 1,
+            "definition": "definition",
+            "displayText": "definition",
+            "definitionKind": "definition",
+            "markers": [],
+            "crossReferences": [],
+            "examples": []
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "text": "\u4ECB",
+        "labelMode": "labelWithPinyin",
+        "pinyinId": 1,
+        "markers": [],
+        "crossReferences": [],
+        "gramGroups": [],
+        "directSenses": [
+          {
+            "id": 14,
+            "definitionId": 15,
+            "number": 1,
+            "definition": "definition",
+            "displayText": "definition",
+            "definitionKind": "definition",
+            "markers": [],
+            "crossReferences": [],
+            "examples": []
+          }
+        ]
+      }
+    ],
+    "gramGroups": [],
+    "directPoses": [],
+    "senses": [],
+    "media": [],
+    "exportWarnings": []
+  }
+]

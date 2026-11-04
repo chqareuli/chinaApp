@@ -38,7 +38,7 @@ public class EntryExportsController(ChiniseDbContext db, IEntryService entries) 
         }
         var result = new List<EntryDetail>();
         foreach (var id in ids) { var entry = await entries.GetAsync(id, User.GetEditorRole(), ct); if (entry is not null) result.Add(entry); }
-        var media = await db.MediaAssets.AsNoTracking().Where(m => m.EntryId != null && ids.Contains(m.EntryId.Value))
+        var media = await db.MediaAssets.AsNoTracking().Where(m => m.EntryId != null && ids.Contains(m.EntryId.Value) && (m.Placement == null || !m.Placement.StartsWith(EntryMediaRules.DetachedPrefix)))
             .OrderBy(m => m.Id).ToListAsync(ct);
         foreach (var asset in media)
             if (asset.StorageUrl.StartsWith('/'))

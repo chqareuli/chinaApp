@@ -1,0 +1,73 @@
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>CHINESE.GE Dictionary</title>
+      </titleStmt>
+      <editionStmt>
+        <edition>CHINESE.GE export 3</edition>
+      </editionStmt>
+      <publicationStmt>
+        <p>Editorial database export</p>
+      </publicationStmt>
+      <sourceDesc>
+        <p>Structured dictionary entries</p>
+      </sourceDesc>
+    </fileDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <entryFree xml:id="entry-33">
+        <form>
+          <orth>介</orth>
+          <pron xml:id="entry-33-pinyin-1">jiè</pron>
+        </form>
+        <hom xml:id="segment-1">
+          <label type="labelWithPinyin">介</label>
+          <form>
+            <pron corresp="#entry-33-pinyin-1">jiè</pron>
+          </form>
+          <sense xml:id="segment-2" n="1">
+            <def xml:id="segment-3">definition</def>
+          </sense>
+        </hom>
+        <hom xml:id="segment-4">
+          <label type="labelWithPinyin">介</label>
+          <form>
+            <pron corresp="#entry-33-pinyin-1">jiè</pron>
+          </form>
+          <sense xml:id="segment-5" n="1">
+            <def xml:id="segment-6">definition</def>
+          </sense>
+        </hom>
+        <hom xml:id="segment-7">
+          <label type="labelWithPinyin">介</label>
+          <form>
+            <pron corresp="#entry-33-pinyin-1">jiè</pron>
+          </form>
+          <sense xml:id="segment-8" n="1">
+            <def xml:id="segment-9">definition</def>
+          </sense>
+        </hom>
+        <hom xml:id="segment-10">
+          <label type="labelWithPinyin">介</label>
+          <form>
+            <pron corresp="#entry-33-pinyin-1">jiè</pron>
+          </form>
+          <sense xml:id="segment-11" n="1">
+            <def xml:id="segment-12">definition</def>
+          </sense>
+        </hom>
+        <hom xml:id="segment-13">
+          <label type="labelWithPinyin">介</label>
+          <form>
+            <pron corresp="#entry-33-pinyin-1">jiè</pron>
+          </form>
+          <sense xml:id="segment-14" n="1">
+            <def xml:id="segment-15">definition</def>
+          </sense>
+        </hom>
+      </entryFree>
+    </body>
+  </text>
+</TEI>

@@ -19,6 +19,80 @@ namespace Chiniseapp.Tests;
 public class MediaManagementPostgresTests
 {
     [LocalPostgresFact]
+    public async Task CleaningReportedStaleLinksKeepsEveryFileAndTheActiveSaraLink()
+    {
+        var connection = new NpgsqlConnectionStringBuilder(Environment.GetEnvironmentVariable("CHINESE_TEST_POSTGRES"));
+        Assert.Contains(connection.Host, new[] { "localhost", "127.0.0.1", "::1" });
+        var database = "chinese_media_cleanup_test_" + Guid.NewGuid().ToString("N");
+        var directory = Path.Combine(Path.GetTempPath(), database);
+        connection.Database = "postgres"; connection.Pooling = false;
+        await using var admin = new NpgsqlConnection(connection.ConnectionString);
+        await admin.OpenAsync();
+        await using (var command = new NpgsqlCommand($"CREATE DATABASE {database}", admin)) await command.ExecuteNonQueryAsync();
+        try
+        {
+            connection.Database = database;
+            var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> {
+                ["ConnectionStrings:DefaultConnection"] = connection.ConnectionString }).Build();
+            await using var provider = new ServiceCollection().AddInfrastructure(config).BuildServiceProvider();
+            await using var scope = provider.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ChiniseDbContext>();
+            await db.Database.MigrateAsync();
+            var editor = new Editor { Email = "cleanup@example.test", DisplayName = "Editor", Role = EditorRole.SuperAdmin, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+            db.Editors.Add(editor); await db.SaveChangesAsync();
+            var entries = scope.ServiceProvider.GetRequiredService<IEntryService>();
+            await entries.CreateAsync(new("占位", null), editor.Id, editor.Role);
+            var entry = await entries.CreateAsync(new("标测", null), editor.Id, editor.Role);
+            Assert.Equal(2, entry.Id);
+            db.Segments.AddRange(new Segment { Id = 811, EntryId = 2, SegmentType = SegmentType.Sense, Number = 1 },
+                new Segment { Id = 814, EntryId = 2, ParentSegmentId = 811, SegmentType = SegmentType.Definition, Value = "Current definition" });
+            await db.SaveChangesAsync();
+            var keys = Enumerable.Range(0, 4).Select(_ => Guid.NewGuid().ToString("N")).ToArray();
+            int[] linkIds = [12, 14, 15, 16, 22], parents = [138, 119, 131, 119, 811];
+            var media = linkIds.Select((id, i) => new MediaAsset { Id = id, EntryId = 2, InsertedIntoSegmentId = id == 22 ? 811 : null,
+                SafeStorageName = keys[i == 4 ? 0 : i], StorageUrl = $"/media/{id}/content", MimeType = "image/png", OriginalFilename = $"{id}.png",
+                DisplayName = id is 12 or 22 ? "SARA" : $"Image {id}", UploadedByEditorId = editor.Id, UploadedAtUtc = DateTime.UtcNow,
+                Placement = "inline:" + JsonSerializer.Serialize(new { kind = "sense", nodeId = parents[i], field = "definition", offset = 0, before = "", after = "" }) }).ToList();
+            db.MediaAssets.AddRange(media); await db.SaveChangesAsync();
+            var storage = Path.Combine(directory, "App_Data", "media");
+            Directory.CreateDirectory(storage);
+            foreach (var key in keys) await File.WriteAllBytesAsync(Path.Combine(storage, key), [137, 80, 78, 71]);
+            var controller = new MediaController(db, new TestEnvironment(directory)) { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+            void Role(EditorRole role) => controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity([
+                new Claim(ClaimTypes.NameIdentifier, editor.Id.ToString()), new Claim(ClaimTypes.Role, role.ToString())], "Test"));
+            Role(EditorRole.KaEditor);
+            Assert.IsType<ForbidResult>(await controller.DetachStaleLink(12, default));
+            Role(EditorRole.SuperAdmin);
+            var activePlacement = media[4].Placement;
+            Assert.IsType<ConflictObjectResult>(await controller.DetachStaleLink(22, default));
+            foreach (var id in linkIds.Take(4)) Assert.IsType<NoContentResult>(await controller.DetachStaleLink(id, default));
+            Assert.Equal(5, await db.MediaAssets.CountAsync());
+            Assert.All(keys, key => Assert.True(File.Exists(Path.Combine(storage, key))));
+            Assert.Equal(activePlacement, media[4].Placement);
+            Assert.Equal(811, media[4].InsertedIntoSegmentId);
+            var listed = Assert.IsType<OkObjectResult>(await controller.List(2, default));
+            var list = JsonSerializer.SerializeToElement(listed.Value);
+            Assert.Equal(22, Assert.Single(list.EnumerateArray()).GetProperty("Id").GetInt32());
+            var library = JsonSerializer.SerializeToElement(Assert.IsType<OkObjectResult>(await controller.Library()).Value);
+            Assert.Equal(4, library.GetProperty("items").GetArrayLength());
+            Assert.IsType<PhysicalFileResult>(await controller.Content(14, default));
+            Assert.Equal(4, await db.AuditLogEntries.CountAsync(a => a.EntityType == nameof(MediaAsset) && a.Action == AuditAction.Other));
+            var detail = (await entries.GetAsync(2, editor.Role))!;
+            var exported = JsonSerializer.SerializeToElement(Chiniseapp.Infrastructure.Entries.EntryExportSerializer.DictionaryContent(detail, media), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            Assert.Equal(22, Assert.Single(exported.GetProperty("media").EnumerateArray()).GetProperty("id").GetInt32());
+            Assert.Empty(exported.GetProperty("exportWarnings").EnumerateArray());
+            Assert.IsType<OkObjectResult>(await controller.Reuse(2, new(14, "sense:811"), default));
+            Assert.All(keys, key => Assert.True(File.Exists(Path.Combine(storage, key))));
+        }
+        finally
+        {
+            await using var drop = new NpgsqlCommand($"DROP DATABASE {database} WITH (FORCE)", admin);
+            await drop.ExecuteNonQueryAsync();
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }
+
+    [LocalPostgresFact]
     public async Task RemovingAnImageParentRollsBackUntilTheMediaLinkIsRemoved()
     {
         var connection = new NpgsqlConnectionStringBuilder(Environment.GetEnvironmentVariable("CHINESE_TEST_POSTGRES"));

@@ -64,6 +64,20 @@ describe('EntryDetailPage status confirmation', () => {
   let component: EntryDetailPage;
   let entriesService: EntriesServiceStub;
   let collaborationService: CollaborationServiceStub;
+  it('removes only the obsolete link through the preservation endpoint', () => {
+    const obsolete = { id: 12, hasMissingTarget: true } as any;
+    const working = { id: 22, hasMissingTarget: false } as any;
+    component.media.set([obsolete, working]);
+    const detachStaleLink = vi.fn().mockReturnValue(of(undefined)),
+      permanentDelete = vi.fn();
+    Object.assign(TestBed.inject(MediaService), { detachStaleLink, delete: permanentDelete });
+    component.detachStaleMedia(working);
+    expect(detachStaleLink).not.toHaveBeenCalled();
+    component.detachStaleMedia(obsolete);
+    expect(detachStaleLink).toHaveBeenCalledWith(12);
+    expect(component.media().map((m) => m.id)).toEqual([22]);
+    expect(permanentDelete).not.toHaveBeenCalled();
+  });
 
   beforeEach(() => {
     entriesService = new EntriesServiceStub();

@@ -1966,6 +1966,35 @@
                   <small>{{ item.placement || 'განთავსება არ არის მითითებული' }}</small>
                 </div>
                 @if (canEdit()) {
+                  @if (item.hasMissingTarget) {
+                    <p role="status">The original text block is missing. · 原文本块不存在。</p>
+                    @if (pendingStaleMediaId() === item.id) {
+                      <p>
+                        Remove this obsolete link and keep the image in the library? ·
+                        移除此失效链接并将图片保留在媒体库中？
+                      </p>
+                      <button
+                        class="btn"
+                        type="button"
+                        [disabled]="mediaSaving()"
+                        (click)="detachStaleMedia(item)"
+                      >
+                        Confirm · 确认
+                      </button>
+                      <button
+                        class="btn"
+                        type="button"
+                        [disabled]="mediaSaving()"
+                        (click)="pendingStaleMediaId.set(null)"
+                      >
+                        Cancel · 取消
+                      </button>
+                    } @else {
+                      <button class="btn" type="button" (click)="pendingStaleMediaId.set(item.id)">
+                        Remove obsolete link; keep image · 移除失效链接并保留图片
+                      </button>
+                    }
+                  }
                   <button
                     class="btn"
                     type="button"

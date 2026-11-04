@@ -513,6 +513,31 @@ export class EntryDetailPage implements OnInit, OnDestroy {
   }
   readonly exampleMediaFields = signal(new Map<FormGroup, 'zh' | 'ka'>());
   readonly reattachingMedia = signal<MediaAssetItem | null>(null);
+  readonly pendingStaleMediaId = signal<number | null>(null);
+  detachStaleMedia(asset: MediaAssetItem): void {
+    if (!this.canEdit() || !asset.hasMissingTarget || this.mediaSaving()) return;
+    this.mediaSaving.set(true);
+    this.mediaService
+      .detachStaleLink(asset.id)
+      .pipe(
+        takeUntil(this.entryChanges),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.mediaSaving.set(false)),
+      )
+      .subscribe({
+        next: () => {
+          this.media.update((items) => items.filter((item) => item.id !== asset.id));
+          this.pendingStaleMediaId.set(null);
+        },
+        error: (error) =>
+          this.mediaError.set(
+            this.problemMessage(
+              error,
+              'The obsolete link could not be removed. · 无法移除失效链接。',
+            ),
+          ),
+      });
+  }
   startMediaReattachment(asset: MediaAssetItem): void {
     if (!this.canEdit() || this.entryForm.dirty || this.referenceForm.dirty || this.saving()) {
       this.mediaError.set('Save your changes before moving the image. · 移动图片前请先保存修改。');
@@ -774,6 +799,7 @@ export class EntryDetailPage implements OnInit, OnDestroy {
         this.saveError.set(null);
         this.saveSuccess.set(false);
         this.reattachingMedia.set(null);
+        this.pendingStaleMediaId.set(null);
         this.mediaTarget.set(null);
         this.pendingMediaDeleteId.set(null);
         this.pendingHomonymRemoval.set(null);

@@ -21,7 +21,7 @@ public static class EntryExportSerializer
     public static object DictionaryContent(EntryDetail e) => DictionaryContent(e, []);
     public static object DictionaryContent(EntryDetail e, IEnumerable<MediaAsset> media)
     {
-        var assets = media.Where(m => m.EntryId == e.Id).OrderBy(m => m.Id).ToList();
+        var assets = media.Where(m => m.EntryId == e.Id && !EntryMediaRules.IsDetached(m)).OrderBy(m => m.Id).ToList();
         // Both formats enforce the same text/position checks before returning a download.
         _ = new XmlEntry(e, assets).Build();
         return new
@@ -143,7 +143,7 @@ public static class EntryExportSerializer
     public static string Xml(IEnumerable<EntryDetail> entries) => Xml(entries, []);
     public static string Xml(IEnumerable<EntryDetail> entries, IEnumerable<MediaAsset> media)
     {
-        var assets = media.ToLookup(m => m.EntryId);
+        var assets = media.Where(m => !EntryMediaRules.IsDetached(m)).ToLookup(m => m.EntryId);
         var document = new XDocument(new XElement(Tei + "TEI",
             new XElement(Tei + "teiHeader", new XElement(Tei + "fileDesc",
                 new XElement(Tei + "titleStmt", new XElement(Tei + "title", "CHINESE.GE Dictionary")),

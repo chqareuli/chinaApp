@@ -16,12 +16,14 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
     private string StorageDirectory => Path.Combine(environment.ContentRootPath, "App_Data", "media");
     private async Task<object> Summary(MediaAsset m, CancellationToken ct) => new {
         m.Id, m.EntryId, m.OriginalFilename, DisplayName = m.DisplayName ?? Path.GetFileNameWithoutExtension(m.OriginalFilename), m.MimeType, m.StorageUrl, m.ThumbnailUrl, m.Placement,
+        IsDetached = EntryMediaRules.IsDetached(m),
+        HasMissingTarget = EntryMediaRules.HasMissingTarget(m, await db.Segments.AsNoTracking().Where(s => s.EntryId == m.EntryId).ToListAsync(ct)),
         m.UploadedByEditorId, UploadedByDisplayName = await db.Editors.Where(e => e.Id == m.UploadedByEditorId).Select(e => e.DisplayName).FirstOrDefaultAsync(ct), m.UploadedAtUtc,
         LinkedEntries = await LinkedEntries(m.SafeStorageName, ct), CanManage = await CanManage(m.SafeStorageName, ct)
     };
     private async Task<object[]> LinkedEntries(string key, CancellationToken ct)
     {
-        var entries = await db.Entries.AsNoTracking().Where(e => db.MediaAssets.Any(m => m.SafeStorageName == key && m.EntryId == e.Id)).ToListAsync(ct);
+        var entries = await db.Entries.AsNoTracking().Where(e => db.MediaAssets.Any(m => m.SafeStorageName == key && m.EntryId == e.Id && (m.Placement == null || !m.Placement.StartsWith(EntryMediaRules.DetachedPrefix)))).ToListAsync(ct);
         return entries.Where(e => EntryPermissionRules.CanView(User.GetEditorRole(), e.Status))
             .Select(e => (object)new { e.Id, e.Lemma, Status = e.Status.ToString() }).ToArray();
     }
@@ -116,7 +118,7 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
     {
         var entry = await db.Entries.FindAsync([entryId], ct);
         if (entry is null || !EntryPermissionRules.CanView(User.GetEditorRole(), entry.Status)) return NotFound();
-        var items = await db.MediaAssets.AsNoTracking().Where(m => m.EntryId == entryId).OrderByDescending(m => m.UploadedAtUtc).ToListAsync(ct);
+        var items = await db.MediaAssets.AsNoTracking().Where(m => m.EntryId == entryId && (m.Placement == null || !m.Placement.StartsWith(EntryMediaRules.DetachedPrefix))).OrderByDescending(m => m.UploadedAtUtc).ToListAsync(ct);
         var results = new List<object>();
         foreach (var item in items) results.Add(await Summary(item, ct));
         return Ok(results);
@@ -210,6 +212,36 @@ public class MediaController(ChiniseDbContext db, IWebHostEnvironment environmen
         catch { System.IO.File.Delete(path); throw; }
     }
     public record ReuseMediaRequest(int MediaId, string? Placement);
+    [HttpPost("media/{id:int}/detach-stale-link")]
+    public async Task<IActionResult> DetachStaleLink(int id, CancellationToken ct)
+    {
+        var item = await db.MediaAssets.FindAsync([id], ct);
+        if (item?.EntryId is not int entryId) return NotFound();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM entries WHERE id = {entryId} FOR UPDATE", ct);
+        var entry = await db.Entries.AsNoTracking().SingleOrDefaultAsync(e => e.Id == entryId, ct);
+        if (entry is null) return NotFound();
+        if (!EntryPermissionRules.CanEditContent(User.GetEditorRole(), entry.Status)) return Forbid();
+        await db.Entry(item).ReloadAsync(ct);
+        if (db.Entry(item).State == EntityState.Detached) return NotFound();
+        if (item.EntryId != entryId) return Conflict(new { message = "The image link changed. Reload the entry." });
+        if (EntryMediaRules.IsDetached(item)) return NoContent();
+        var segments = await db.Segments.AsNoTracking().Where(s => s.EntryId == entryId).ToListAsync(ct);
+        var before = JsonSerializer.Serialize(new { item.Id, item.EntryId, item.Placement, item.InsertedIntoSegmentId, item.SafeStorageName });
+        var now = DateTime.UtcNow;
+        try { EntryMediaRules.DetachMissingTarget(item, segments, User.GetEditorId(), now); }
+        catch (Chiniseapp.Application.Entries.EntryValidationException error) { return Conflict(new { message = error.Message }); }
+        db.AuditLogEntries.Add(new AuditLogEntry {
+            EntityType = nameof(MediaAsset), EntityId = item.Id, Action = AuditAction.Other,
+            PerformedByEditorId = User.GetEditorId(), PerformedAtUtc = now, OldValue = before,
+            NewValue = JsonSerializer.Serialize(new { item.Id, item.EntryId, item.Placement, item.InsertedIntoSegmentId, item.SafeStorageName }),
+            Notes = $"Entry {entryId}: obsolete image link detached; image retained in media library."
+        });
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return NoContent();
+    }
+
     public record ReattachMediaRequest(string? Placement);
     [HttpPut("media/{id:int}/placement")]
     public async Task<IActionResult> Reattach(int id, ReattachMediaRequest request, CancellationToken ct)
