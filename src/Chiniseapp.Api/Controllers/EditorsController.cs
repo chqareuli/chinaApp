@@ -316,6 +316,9 @@ public class EditorsController(ChiniseDbContext db, IPasswordHasherService passw
     [Authorize(Roles = nameof(EditorRole.SuperAdmin))]
     public async Task<IActionResult> ResetPassword(int id, ResetPasswordRequest request, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length is < 8 or > 1024)
+            return BadRequest(new { message = "Password must contain 8–1024 characters. · 密码须为8–1024位。" });
+
         var editor = await db.Editors.FindAsync([id], ct);
         if (editor is null)
         {

@@ -23,6 +23,7 @@ const editor: EditorListItem = {
 class ServiceStub {
   creates: CreateEditorRequest[] = [];
   updates: UpdateEditorRequest[] = [];
+  resets: { id: number; password: string }[] = [];
   list() {
     return of([] as EditorListItem[]);
   }
@@ -33,6 +34,10 @@ class ServiceStub {
   update(id: number, request: UpdateEditorRequest) {
     this.updates.push(request);
     return of({ ...editor, ...request, id });
+  }
+  resetPassword(id: number, password: string) {
+    this.resets.push({ id, password });
+    return of(undefined);
   }
 }
 describe('UsersPage reference design', () => {
@@ -116,7 +121,7 @@ describe('UsersPage reference design', () => {
     });
     expect(page.createOpen()).toBe(false);
   });
-  it('places edit form below the table and only shows the reference edit controls', () => {
+  it('places edit and password reset in separate forms below the table', () => {
     page.editors.set([editor]);
     page.beginEdit(editor);
     fixture.detectChanges();
@@ -125,6 +130,16 @@ describe('UsersPage reference design', () => {
     expect(form.textContent).toContain('Save · 保存');
     expect(form.querySelectorAll('select')).toHaveLength(2);
     expect(form.querySelector('input[type="password"]')).toBeNull();
+    const passwordForm = fixture.nativeElement.querySelector('input[type="password"]').form;
+    expect(passwordForm).not.toBe(form);
+    expect(passwordForm.querySelector('button[type="submit"]').disabled).toBe(true);
+    page.newPassword.setValue('Example123!');
+    fixture.detectChanges();
+    passwordForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(service.resets).toEqual([{ id: editor.id, password: 'Example123!' }]);
+    expect(service.updates).toHaveLength(0);
+    expect(page.newPassword.value).toBe('');
+    expect(page.passwordResetFeedback()?.success).toBe(true);
   });
   it('updates status and role without overwriting profile or password', () => {
     page.editors.set([editor]);

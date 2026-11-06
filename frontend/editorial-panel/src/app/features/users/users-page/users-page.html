@@ -294,11 +294,30 @@
             ></label
           >
           <div class="cge-form-actions">
-            <button class="btn btn-primary" type="submit" [disabled]="editingSaving()">
+            <button class="btn btn-primary" type="submit" [disabled]="editingSaving() || resettingPassword()">
               {{ editingSaving() ? 'Saving… · 保存中' : 'Save · 保存' }}</button
-            ><button class="btn" type="button" (click)="cancelEdit()">Cancel · 取消</button>
+            ><button class="btn" type="button" (click)="cancelEdit()" [disabled]="resettingPassword()">Cancel · 取消</button>
           </div>
         </form>
+        @if (canManage()) {
+          <form class="cge-form" (submit)="$event.preventDefault(); resetPassword(editor)" novalidate>
+            <label class="form-label">
+              New password · 新密码
+              <input class="form-control" type="password" autocomplete="new-password"
+                [formControl]="newPassword" [readOnly]="resettingPassword()" maxlength="1024"
+                aria-describedby="editor-password-requirements" />
+            </label>
+            <p class="text-small" id="editor-password-requirements">8–1024 characters · 8–1024 位字符</p>
+            <div class="cge-form-actions">
+              <button class="btn" type="submit" [disabled]="newPassword.invalid || resettingPassword() || editingSaving()">
+                {{ resettingPassword() ? 'Resetting… · 正在重置' : 'Reset password · 重置密码' }}
+              </button>
+            </div>
+            @if (passwordResetFeedback(); as feedback) {
+              <p [attr.role]="feedback.success ? 'status' : 'alert'">{{ feedback.text }}</p>
+            }
+          </form>
+        }
       </section>
     </div>
   }

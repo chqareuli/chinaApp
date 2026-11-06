@@ -127,6 +127,11 @@ export class UsersPage implements OnInit {
   readonly error = signal<string | null>(null);
   readonly saving = signal(false);
   readonly editingSaving = signal(false);
+  readonly resettingPassword = signal(false);
+  readonly passwordResetFeedback = signal<{ success: boolean; text: string } | null>(null);
+  readonly newPassword = this.fb.nonNullable.control('', [
+    Validators.required, Validators.minLength(8), Validators.maxLength(1024), Validators.pattern(/\S/),
+  ]);
   readonly createOpen = signal(false);
   readonly editingId = signal<number | null>(null);
   readonly editingEditor = computed(
@@ -178,6 +183,8 @@ export class UsersPage implements OnInit {
     return e.isCancelled ? 'cancelled' : e.isActive ? 'active' : 'blocked';
   }
   toggleCreate(): void {
+    if (this.resettingPassword()) return;
+    this.clearPasswordReset();
     this.error.set(null);
     this.editingId.set(null);
     this.createOpen.update((v) => !v);
@@ -214,7 +221,8 @@ export class UsersPage implements OnInit {
       });
   }
   beginEdit(e: EditorListItem): void {
-    if (!this.canManage()) return;
+    if (!this.canManage() || this.resettingPassword()) return;
+    this.clearPasswordReset();
     this.error.set(null);
     this.createOpen.set(false);
     this.editingId.set(e.id);
@@ -228,13 +236,15 @@ export class UsersPage implements OnInit {
     else this.editForm.controls.isSupervisor.enable();
   }
   cancelEdit(): void {
+    if (this.resettingPassword()) return;
+    this.clearPasswordReset();
     this.editingId.set(null);
     this.editForm.reset();
     this.error.set(null);
   }
   saveEdit(e: EditorListItem): void {
     this.editForm.markAllAsTouched();
-    if (this.editForm.invalid || this.editingSaving()) return;
+    if (this.editForm.invalid || this.editingSaving() || this.resettingPassword()) return;
     const v = this.editForm.getRawValue();
     this.editingSaving.set(true);
     this.error.set(null);
@@ -259,6 +269,27 @@ export class UsersPage implements OnInit {
         },
         error: (error) => this.error.set(this.message(error)),
       });
+  }
+  resetPassword(editor: EditorListItem): void {
+    if (!this.canManage() || this.editingId() !== editor.id || this.newPassword.invalid ||
+        this.resettingPassword() || this.editingSaving()) return;
+    this.resettingPassword.set(true);
+    this.passwordResetFeedback.set(null);
+    this.service.resetPassword(editor.id, this.newPassword.value)
+      .pipe(finalize(() => this.resettingPassword.set(false)))
+      .subscribe({
+        next: () => {
+          this.newPassword.reset();
+          this.passwordResetFeedback.set({ success: true, text: 'Password reset. · 密码已重置。' });
+        },
+        error: () => this.passwordResetFeedback.set({
+          success: false, text: 'Could not reset the password. Please retry. · 无法重置密码，请重试。',
+        }),
+      });
+  }
+  private clearPasswordReset(): void {
+    this.newPassword.reset();
+    this.passwordResetFeedback.set(null);
   }
   private message(error: HttpErrorResponse): string {
     if (error.status === 409)
